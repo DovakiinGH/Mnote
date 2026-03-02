@@ -1,4 +1,4 @@
-import { ipcMain, app, BrowserWindow, Menu } from "electron";
+import { app, ipcMain, Menu, BrowserWindow } from "electron";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -24924,6 +24924,58 @@ var pool_cluster = PromisePoolNamespace;
   };
 })(promise);
 const mysql = /* @__PURE__ */ getDefaultExportFromCjs(promise);
+const pool = mysql.createPool({
+  host: "127.0.0.1",
+  port: 3306,
+  user: "root",
+  password: "20040701",
+  database: "mnote",
+  connectionLimit: 10
+});
+async function initSchema() {
+  const bootstrapConn = await mysql.createConnection({
+    host: "127.0.0.1",
+    port: 3306,
+    user: "root",
+    password: "20040701"
+  });
+  await bootstrapConn.execute(`
+    CREATE DATABASE IF NOT EXISTS mnote
+    DEFAULT CHARACTER SET utf8mb4
+    DEFAULT COLLATE utf8mb4_unicode_ci
+  `);
+  await bootstrapConn.end();
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS notes (
+      id BIGINT PRIMARY KEY,
+      title VARCHAR(50) NOT NULL,
+      content MEDIUMTEXT,
+      updatedAt BIGINT NULL,
+      createAt BIGINT NULL
+    )
+  `);
+}
+async function getAllNotes() {
+  const [rows] = await pool.execute(
+    "SELECT id, title, content, updatedAt, createAt FROM notes ORDER BY updatedAt IS NULL, updatedAt DESC"
+  );
+  return rows;
+}
+async function upsertNote(note) {
+  const { id, title, content, updatedAt, createAt } = note;
+  await pool.execute(
+    `INSERT INTO notes (id, title, content, updatedAt,createAt)
+     VALUES (?, ?, ?, ?,?)
+     ON DUPLICATE KEY UPDATE
+     title=VALUES(title), content=VALUES(content), updatedAt=VALUES(updatedAt), createAt=VALUES(createAt)`,
+    [id, title, content, updatedAt ?? null, createAt ?? null]
+  );
+  return true;
+}
+async function deleteNote(id) {
+  await pool.execute("DELETE FROM notes WHERE id = ?", [id]);
+  return true;
+}
 console.log("[main] main.ts loaded");
 createRequire(import.meta.url);
 const __dirname$1 = path.dirname(fileURLToPath(import.meta.url));
@@ -24933,23 +24985,21 @@ const MAIN_DIST = path.join(process.env.APP_ROOT, "dist-electron");
 const RENDERER_DIST = path.join(process.env.APP_ROOT, "dist");
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, "public") : RENDERER_DIST;
 let win;
-const pool = mysql.createPool({
-  host: "127.0.0.1",
-  port: 3306,
-  user: "root",
-  password: "你的密码",
-  database: "你的数据库",
-  connectionLimit: 10
-});
-ipcMain.handle("db:query", async (_event, sql, params = []) => {
-  const [rows] = await pool.execute(sql, params);
-  return rows;
+let isQuitting = false;
+app.on("before-quit", () => {
+  isQuitting = true;
 });
 function createWindow() {
   win = new BrowserWindow({
     icon: path.join(process.env.VITE_PUBLIC, "electron-vite.svg"),
     webPreferences: {
       preload: path.join(__dirname$1, "preload.mjs")
+    }
+  });
+  win.on("close", (e) => {
+    if (!isQuitting) {
+      e.preventDefault();
+      win == null ? void 0 : win.webContents.send("app:save-before-close");
     }
   });
   win.webContents.on("did-finish-load", () => {
@@ -24961,19 +25011,41 @@ function createWindow() {
     win.loadFile(path.join(RENDERER_DIST, "index.html"));
   }
 }
+async function bootstrap() {
+  try {
+    await app.whenReady();
+    await initSchema();
+    console.log("[main] schema init ok");
+    ipcMain.handle("notes:getAll", async () => {
+      return await getAllNotes();
+    });
+    ipcMain.handle("notes:upsert", async (_event, note) => {
+      return await upsertNote(note);
+    });
+    ipcMain.handle("notes:delete", async (_event, id) => {
+      return await deleteNote(id);
+    });
+    ipcMain.on("app:save-done", () => {
+      isQuitting = true;
+      win == null ? void 0 : win.close();
+    });
+    Menu.setApplicationMenu(null);
+    createWindow();
+    app.on("activate", () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
+  } catch (err) {
+    console.error("[main] bootstrap failed:", err);
+    app.quit();
+  }
+}
+bootstrap();
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
     win = null;
   }
 });
-app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
-  }
-});
-app.whenReady().then(createWindow);
-Menu.setApplicationMenu(null);
 export {
   MAIN_DIST,
   RENDERER_DIST,

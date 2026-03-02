@@ -22,6 +22,14 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
   // You can expose other APTs you need here.
   // ...
 })
-contextBridge.exposeInMainWorld('db', {
-  query: (sql: string, params: any[] = []) => ipcRenderer.invoke('db:query', sql, params)
+contextBridge.exposeInMainWorld('api', {
+  notesGetAll: () => ipcRenderer.invoke('notes:getAll'),
+  notesUpsert: (note: { id: number; title: string; content: string; updatedAt: number }) =>
+    ipcRenderer.invoke('notes:upsert', note),
+  notesDelete: (id: number) => ipcRenderer.invoke('notes:delete', id),
+  onSaveBeforeClose: (cb: () => void) => ipcRenderer.on('app:save-before-close', cb),
+  notifySaveDone: () => ipcRenderer.send('app:save-done')
 })
+// contextBridge.exposeInMainWorld('db', {
+//   query: (sql: string, params: any[] = []) => ipcRenderer.invoke('db:query', sql, params)
+// })

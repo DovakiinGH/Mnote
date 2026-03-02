@@ -20,6 +20,10 @@ electron.contextBridge.exposeInMainWorld("ipcRenderer", {
   // You can expose other APTs you need here.
   // ...
 });
-electron.contextBridge.exposeInMainWorld("db", {
-  query: (sql, params = []) => electron.ipcRenderer.invoke("db:query", sql, params)
+electron.contextBridge.exposeInMainWorld("api", {
+  notesGetAll: () => electron.ipcRenderer.invoke("notes:getAll"),
+  notesUpsert: (note) => electron.ipcRenderer.invoke("notes:upsert", note),
+  notesDelete: (id) => electron.ipcRenderer.invoke("notes:delete", id),
+  onSaveBeforeClose: (cb) => electron.ipcRenderer.on("app:save-before-close", cb),
+  notifySaveDone: () => electron.ipcRenderer.send("app:save-done")
 });

@@ -53,8 +53,7 @@
         class="el-menu-vertical"
         :collapse="isCollapse"
         @select="onSelectSideMenu"
-        @open="handleOpenSideMenu"
-        @close="handleCloseSideMenu"
+    
       >
         <el-menu-item index="1">
           <template #title>
@@ -153,6 +152,14 @@
           show-word-limit
           spellcheck="false"
         />
+        <div class="note-time">
+        <div class="time-line">
+            {{ activeContentItem?.createAt ? formatTime(activeContentItem.createAt) : '' }}
+          </div>
+          <div class="time-line">
+            {{ activeContentItem?.updatedAt ? formatTime(activeContentItem.updatedAt) : '' }}
+          </div>
+        </div>
         <!-- 只在 notes 时显示编辑区 -->
         <el-scrollbar v-if="activeTab?.type === 'notes'" class="editor-scroll">
           <el-input
@@ -223,13 +230,100 @@
 <script lang="ts" setup>
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 const { t, locale } = useI18n()
 const activeIndex = ref('1')
 const isCollapse = ref(true)
 const isSubOpen = ref(true)
 const selectedSubId = ref<number | null>(null)
-//reminder
+//---------------------------------------------------data load------------------------------------------------------//
+const loadNotes = async () => {
+  const rows = await window.api.notesGetAll()
+
+  // 映射到你的 dataMap / contentStore
+  dataMap.value.notes = rows.map(r => ({
+    id: r.id,
+    name: r.title,
+    contentId: r.id,
+    createAt: r.createAt,  
+    updatedAt: r.updatedAt    
+  }))
+
+  rows.forEach(r => {
+    contentStore.value[r.id] = r.content ?? ''
+  })
+}
+const saveNote = async (id: number) => {
+  const note = dataMap.value.notes.find(n => n.id === id)
+  if (!note) return
+
+  await window.api.notesUpsert({
+    id,
+    title: note.name,
+    content: contentStore.value[id] ?? '',
+    updatedAt: note.updatedAt ?? Date.now(),
+    createAt: note.createAt?? null
+  })
+}
+const saveAllNotes = async () => {
+  const list = dataMap.value.notes
+  for (const n of list) {
+    await window.api.notesUpsert({
+      id: n.id,
+      title: n.name,
+      content: contentStore.value[n.id] ?? '',
+      updatedAt: n.updatedAt ?? null,
+      createAt: n.createAt ?? null
+    })
+  }
+}
+// 接收关闭通知
+window.api.onSaveBeforeClose(async () => {
+  await saveAllNotes()
+  window.api.notifySaveDone()
+})
+
+//--------------------------note const-------------------------------------------------------------------------------------
+
+onMounted(() => {
+  loadNotes()
+})
+
+let saveTimer: number | null = null
+
+const scheduleSave = (id: number) => {
+  if (saveTimer) window.clearTimeout(saveTimer)
+  saveTimer = window.setTimeout(() => {
+    saveNote(id)
+  }, 500)
+}
+
+
+type NoteItem = {
+  id: number
+  name: string
+  contentId: number
+  createAt?: number | null
+  updatedAt?: number | null
+}
+
+const dataMap = ref<{
+  notes: NoteItem[]
+  reminders: NoteItem[]
+}>({
+  notes: [{ id: 1, name: 'sasasasa', contentId: 101 }],
+  reminders: [{ id: 10, name: 'b', contentId: 101 }]
+}) //格式：ref<T>(initialValue)
+
+
+
+const contentStore = ref<Record<number, string>>({
+  101: '',
+})
+
+//----------------------------reminder const-----------------------------------------------------------------
+const reminderStore = ref<Record<number, ReminderForm>>({})
+
 type ReminderTypeKey = 'AFTER_MINUTES' | 'DATE_TIME' | 'EVERY_DAYS'
 
 const REMINDER_TYPES = [
@@ -248,18 +342,11 @@ type ReminderForm = {
   days?: number
 }
 
-// const reminderForm = ref<ReminderForm>({
-//   type: 'AFTER_MINUTES',
-//   text: '',
-//   minutes: 5
-// })
-
-const reminderStore = ref<Record<number, ReminderForm>>({})
 const currentReminderForm = computed<ReminderForm>(() => {
   const id = activeContentItem.value?.id
   if (!id) {
     return { type: 'AFTER_MINUTES', text: '', minutes: 5, enabled: true }
-  }
+  } //
   if (!reminderStore.value[id]) {
   reminderStore.value[id] = {
     type: 'AFTER_MINUTES',
@@ -270,14 +357,14 @@ const currentReminderForm = computed<ReminderForm>(() => {
 }
   return reminderStore.value[id]
 })
-//reminder end
+//--------------------------------handleing side menus-----------------------------------------------------------------
 
-const handleOpenSideMenu = (key: string, keyPath: string[]) => {
-  console.log(key, keyPath)
-}
-const handleCloseSideMenu = (key: string, keyPath: string[]) => {
-  console.log(key, keyPath)
-}
+// const handleOpenSideMenu = (key: string, keyPath: string[]) => {
+//   console.log(key, keyPath)
+// }
+// const handleCloseSideMenu = (key: string, keyPath: string[]) => {
+//   console.log(key, keyPath)
+// }
 
 const onSelectSideMenu = (index: string) => {
   activeIndex.value = index
@@ -297,21 +384,14 @@ const onSubSideEndClick=() => {
   isCollapse.value=true
   isSubOpen.value = false
 }
-const dataMap = ref({
-  notes:[{id:1,name:'sasasasa', contentId: 101},{id:2,name:'cdcdcdcdc', contentId: 102},{id:3,name:'cnmdsd'},{id:4,name:'odsndnmsdfm'},{id:5,name:'odsndnmsdfm'},{id:6,name:'dsdssd'}],
-  reminders:[{id:10,name:'b',contentId: 201},{id:20,name:'c'}]
-})
-const contentStore = ref<Record<number, string>>({
-  101: '这是第一条笔记内容',
-  102: '这是第二条笔记内容',
-  201: '提醒事项内容'
-})
+
 
 const currentCategoryName = computed<'notes'|'reminders'>(() => {
   return activeIndex.value === '1' ? 'notes' : 'reminders'
 })  
 const currentItems  = computed(()=>dataMap.value[currentCategoryName.value])
-//Tabs
+
+//-----------------------------------Tabs----------------------------------------------------------
 type TabType = 'notes' | 'reminders'
 
 type Tab = {
@@ -395,30 +475,11 @@ const onDrop = (key: string) => {
 }
 
 
-
+//-----------------------------------------------------name and content---------------------------------------------------
 const selectedSubItem = computed(() => {
   return currentItems.value.find(i => i.id === selectedSubId.value)|| null}) 
-  //数组.find(查找条件) 
-// 这是一个箭头函数，相当于：
-// function(i) {
-//   return i.id === selectedSubId.value
-// }
-// const selectedContent = computed({
-//   get() {
-//     const id = selectedSubItem.value?.contentId // 使用 ?. 自动处理可能为 undefined 的情况
-//     return id ? contentStore.value[id] ?? '' : ''
-//     // 语法：条件 ? 值1 : 值2
-//     // 如果条件为真，返回 值1，否则返回 值2
 
-//     // ?? 含义：如果左侧是 null 或 undefined，就返回右侧的值
-//   },
-//   set(val: string) {
-//     const id = selectedSubItem.value?.contentId
-//     if (id) contentStore.value[id] = val
-//   }
-// })
-
-//文本
+//content
 const selectedContent = computed({
   get() {
     const id = activeContentItem.value?.contentId
@@ -426,29 +487,29 @@ const selectedContent = computed({
   },
   set(val: string) {
     const id = activeContentItem.value?.contentId
-    if (id) contentStore.value[id] = val
+     if (id) {
+      contentStore.value[id] = val
+      activeContentItem.value.updatedAt = Date.now()
+      if (activeTab.value?.type === 'notes') scheduleSave(id)
+    }
   }
 })
-
-// const selectedName = computed({
-//   get() {
-//     return selectedSubItem.value?.name ?? ''
-//   },
-//   set(val: string) {
-//     if (selectedSubItem.value) {
-//       selectedSubItem.value.name = val
-//     }
-//   }
-// })
+// name
 const selectedName = computed({
   get() {
     return activeContentItem.value?.name ?? ''
   },
   set(val: string) {
-    if (activeContentItem.value) activeContentItem.value.name = val
+    // if (activeContentItem.value) activeContentItem.value.name = val
+     if (activeContentItem.value) {
+      activeContentItem.value.name = val
+      activeContentItem.value.updatedAt = Date.now()
+      if (activeTab.value?.type === 'notes') scheduleSave(activeContentItem.value.id)
+    }
   }
 })
 
+//---------------------------------------item delete---------------------------------------------
 const confirmDeleteId = ref<number | null>(null)
 
 const onDeleteItem = (id: number) => {
@@ -459,39 +520,42 @@ const onDeleteItem = (id: number) => {
 const onCancelDelete = () => {
   confirmDeleteId.value = null
 }
-const onConfirmDelete = (id: number) => {
+const onConfirmDelete = async (id: number) => {
   // 1) 找到当前分类的列表（notes 或 reminders）
   const list = dataMap.value[currentCategoryName.value]
-
   // 2) 在这个列表中找到要删除的 item 的下标
   const idx = list.findIndex(i => i.id === id)
-
   // 3) 如果找到了（idx !== -1）
   if (idx !== -1) {
     // 4) 先取出它对应的 contentId
     const contentId = list[idx].contentId
+     if (currentCategoryName.value === 'notes') {
+      await window.api.notesDelete(id)
+    }
     // 5) 从列表里删除这个 item
     list.splice(idx, 1)
     // 6) 从 contentStore 里删除对应的内容
-  if (contentId !== undefined) {
-    delete contentStore.value[contentId]
-    }   }
-
+    if (contentId !== undefined) {
+      delete contentStore.value[contentId]
+    }   
+  }
     // 7) 关闭对应tab
     const key = `${currentCategoryName.value}-${id}`
     closeTab(key)
-
-  // 8) 退出“确认删除”状态
-  confirmDeleteId.value = null
+    // 8) 退出“确认删除”状态
+    confirmDeleteId.value = null
 }
+
+//------------------------------preview----------------------------------------------------------------------
 const getPreview = (contentId?: number) => {
   if (!contentId) return ''
   const text = contentStore.value[contentId] ?? ''
   return text.replace(/\s+/g, ' ').trim().slice(0, 40)
 }
-
-const onNewItem = () => {
+//--------------------------------add new item------------------------------------------------------------
+const onNewItem = async() => {
   const list = dataMap.value[currentCategoryName.value]
+  const now = Date.now()
 
   // 生成新 id（简单起见用时间戳）
   const newId = Date.now()
@@ -501,17 +565,26 @@ const onNewItem = () => {
   const newItem = {
     id: newId,
     name: 'new',
-    contentId: newContentId
+    contentId: newContentId,
+    createAt: now,
+    updatedAt: now
   }
-
   // 添加到当前列表
   list.unshift(newItem)
-
   // 初始化内容
   contentStore.value[newContentId] = ''
-
   // 自动选中新建项
   selectedSubId.value = newId
+   // ✅ 如果是 notes，就保存到数据库
+  if (currentCategoryName.value === 'notes') {
+    await window.api.notesUpsert({
+      id: newId,
+      title: newItem.name,
+      content: '',
+      updatedAt: now,
+      createAt: now
+    })
+  }
 }
 
 const getTabTitle = (tab: Tab) => {
@@ -519,6 +592,15 @@ const getTabTitle = (tab: Tab) => {
   return list.find(i => i.id === tab.itemId)?.name ?? 'Untitled'
 }
 
+const formatTime = (ts: number) => {
+  const d = new Date(ts)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  return `${y}-${m}-${day} ${hh}:${mm}`
+}
 
 
 /**

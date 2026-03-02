@@ -2,7 +2,8 @@ import { app, BrowserWindow,ipcMain,Menu  } from 'electron'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import mysql from 'mysql2/promise'
+import { initSchema } from './backend/schema'
+import { getAllNotes, upsertNote, deleteNote } from './backend/notes'
 
 console.log('[main] main.ts loaded')
 const require = createRequire(import.meta.url)
@@ -27,18 +28,13 @@ export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
 
 let win: BrowserWindow | null
+let isQuitting = false
 
-const pool = mysql.createPool({
-  host: '127.0.0.1',
-  port: 3306,
-  user: 'root',
-  password: '你的密码',
-  database: '你的数据库',
-  connectionLimit: 10
-})
-ipcMain.handle('db:query', async (_event, sql: string, params: any[] = []) => {
-  const [rows] = await pool.execute(sql, params)
-  return rows
+
+
+//---------------------------------------life cycle----------------------------------------------------------------------//
+app.on('before-quit', () => {
+  isQuitting = true
 })
 
 function createWindow() {
@@ -47,6 +43,14 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
     },
+  })
+
+  
+  win.on('close', (e) => {
+    if (!isQuitting) {
+      e.preventDefault()
+      win?.webContents.send('app:save-before-close')
+    }
   })
 
   // Test active push message to Renderer-process.
@@ -62,6 +66,50 @@ function createWindow() {
   }
 }
 
+
+
+async function bootstrap() {
+  try {
+    await app.whenReady()
+
+    // 先初始化数据库（建库 + 建表）
+    await initSchema()
+    console.log('[main] schema init ok')
+
+    //------------------ipc-------------------------------------------//
+    ipcMain.handle('notes:getAll', async () => {
+      return await getAllNotes()
+    })
+
+    ipcMain.handle('notes:upsert', async (_event, note) => {
+      return await upsertNote(note)
+    })
+
+    ipcMain.handle('notes:delete', async (_event, id: number) => {
+      return await deleteNote(id)
+    })
+
+    ipcMain.on('app:save-done', () => {
+      isQuitting = true
+      win?.close()
+    })
+    //---------------------------------------------------------------//
+
+    Menu.setApplicationMenu(null)
+
+    createWindow()
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    })
+  } catch (err) {
+    console.error('[main] bootstrap failed:', err)
+    app.quit()
+  }
+}
+
+bootstrap()
+
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
@@ -72,14 +120,17 @@ app.on('window-all-closed', () => {
   }
 })
 
-app.on('activate', () => {
-  // On OS X it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow()
-  }
-})
+// app.on('activate', () => {
+//   // On OS X it's common to re-create a window in the app when the
+//   // dock icon is clicked and there are no other windows open.
+//   if (BrowserWindow.getAllWindows().length === 0) {
+//     createWindow()
+//   }
+// })
 
-app.whenReady().then(createWindow)
+// app.whenReady().then(async () => {
+//   await initSchema()
+//   createWindow()
+// })
 
-Menu.setApplicationMenu(null) // 移除系统菜单
+// Menu.setApplicationMenu(null) // 移除系统菜单
