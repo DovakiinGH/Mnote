@@ -50,7 +50,8 @@ function createWindow() {
   win.on('close', (e) => {
     if (!isQuitting) {
       e.preventDefault()
-      win?.webContents.send('app:save-before-close')
+       win?.hide()
+      // win?.webContents.send('app:save-before-close')
     }
   })
 
@@ -66,6 +67,68 @@ function createWindow() {
     win.loadFile(path.join(RENDERER_DIST, 'index.html'))
   }
 }
+//-------------------------------------tray----------------------------------------------------------------------------
+function resolveResourcePath(fileName: string) {
+  if (app.isPackaged) {
+    // 打包后：资源在 process.resourcesPath
+    return path.join(process.resourcesPath, fileName)
+  }
+  // 开发时：项目根目录/resources
+  return path.join(process.cwd(), 'resources', fileName)
+}
+
+
+function requestQuitWithSave() {
+  win?.webContents.send('app:save-before-close')
+   setTimeout(() => {
+    if (!isQuitting) {
+      isQuitting = true
+      app.quit()
+    }
+  }, 3000)
+}
+
+function createTray() {
+ 
+  // const iconPath = path.join(__dirname, '../resources/tray.ico')
+  // const image = nativeImage.createFromPath(iconPath)
+  // tray = new Tray(image)
+  const trayIconPath = resolveResourcePath('tray.ico')
+  const trayIcon = nativeImage.createFromPath(trayIconPath)
+  tray = new Tray(trayIcon)
+  tray.setToolTip('MNote')
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Main Window',
+      click: () => {
+        if (!win) return
+        win.show()
+        win.focus()
+      }
+    },
+    {
+      label: 'Exit',
+      click: () => {
+      requestQuitWithSave()
+    }
+    }
+  ])
+
+  tray.setContextMenu(contextMenu)
+
+  // 单击托盘图标切换显示/隐藏
+  tray.on('click', () => {
+    if (!win) return
+    if (win.isVisible()) win.hide()
+    else {
+      win.show()
+      win.focus()
+    }
+  })
+}
+
+
 
 
 
@@ -99,6 +162,7 @@ async function bootstrap() {
     Menu.setApplicationMenu(null)
 
     createWindow()
+    createTray()
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()

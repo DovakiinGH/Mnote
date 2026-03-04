@@ -1,4 +1,4 @@
-import { app, ipcMain, Menu, BrowserWindow } from "electron";
+import { app, ipcMain, Menu, BrowserWindow, nativeImage, Tray } from "electron";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -24996,8 +24996,9 @@ const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
 const MAIN_DIST = path.join(process.env.APP_ROOT, "dist-electron");
 const RENDERER_DIST = path.join(process.env.APP_ROOT, "dist");
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, "public") : RENDERER_DIST;
-let win;
+let win = null;
 let isQuitting = false;
+let tray = null;
 app.on("before-quit", () => {
   isQuitting = true;
 });
@@ -25011,7 +25012,7 @@ function createWindow() {
   win.on("close", (e) => {
     if (!isQuitting) {
       e.preventDefault();
-      win == null ? void 0 : win.webContents.send("app:save-before-close");
+      win == null ? void 0 : win.hide();
     }
   });
   win.webContents.on("did-finish-load", () => {
@@ -25022,6 +25023,52 @@ function createWindow() {
   } else {
     win.loadFile(path.join(RENDERER_DIST, "index.html"));
   }
+}
+function resolveResourcePath(fileName) {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, fileName);
+  }
+  return path.join(process.cwd(), "resources", fileName);
+}
+function requestQuitWithSave() {
+  win == null ? void 0 : win.webContents.send("app:save-before-close");
+  setTimeout(() => {
+    if (!isQuitting) {
+      isQuitting = true;
+      app.quit();
+    }
+  }, 3e3);
+}
+function createTray() {
+  const trayIconPath = resolveResourcePath("tray.ico");
+  const trayIcon = nativeImage.createFromPath(trayIconPath);
+  tray = new Tray(trayIcon);
+  tray.setToolTip("MNote");
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: "Main Window",
+      click: () => {
+        if (!win) return;
+        win.show();
+        win.focus();
+      }
+    },
+    {
+      label: "Exit",
+      click: () => {
+        requestQuitWithSave();
+      }
+    }
+  ]);
+  tray.setContextMenu(contextMenu);
+  tray.on("click", () => {
+    if (!win) return;
+    if (win.isVisible()) win.hide();
+    else {
+      win.show();
+      win.focus();
+    }
+  });
 }
 async function bootstrap() {
   try {
@@ -25043,6 +25090,7 @@ async function bootstrap() {
     });
     Menu.setApplicationMenu(null);
     createWindow();
+    createTray();
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });

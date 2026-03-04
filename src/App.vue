@@ -114,8 +114,8 @@
               text
               @click.stop="onTogglePin(item)"
             >
-              <el-icon v-if="item.pinned==false" class="item-pin-icon"><Top /></el-icon>
-              <el-icon v-if="item.pinned==true" class="item-pin-icon"><Bottom /></el-icon>
+              <el-icon v-if="item.pinned==false" class="item-pin-icon"><Star /></el-icon>
+              <el-icon v-if="item.pinned==true" class="item-pin-icon"><StarFilled /></el-icon>
             </el-button>
             
             <div v-if="item.id === confirmDeleteId" class="item-confirm">
