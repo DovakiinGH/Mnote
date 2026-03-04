@@ -106,6 +106,18 @@
             >
             <el-icon class="item-del-icon"><Delete /></el-icon>
             </el-button>
+
+            <el-button
+              v-if="activeIndex === '1' && item.id !== confirmDeleteId"
+              class="item-pin-btn"
+              :class="{ 'is-pinned': item.pinned }"
+              text
+              @click.stop="onTogglePin(item)"
+            >
+              <el-icon v-if="item.pinned==false" class="item-pin-icon"><Top /></el-icon>
+              <el-icon v-if="item.pinned==true" class="item-pin-icon"><Bottom /></el-icon>
+            </el-button>
+            
             <div v-if="item.id === confirmDeleteId" class="item-confirm">
               <el-button class="btn-confirm" @click.stop="onConfirmDelete(item.id)">确认</el-button>
               <el-button class="btn-cancel" @click.stop="onCancelDelete">返回</el-button>
@@ -246,7 +258,8 @@ const loadNotes = async () => {
     name: r.title,
     contentId: r.id,
     createAt: r.createAt,  
-    updatedAt: r.updatedAt    
+    updatedAt: r.updatedAt,    
+    pinned: Boolean(r.pinned) 
   }))
 
   rows.forEach(r => {
@@ -262,7 +275,8 @@ const saveNote = async (id: number) => {
     title: note.name,
     content: contentStore.value[id] ?? '',
     updatedAt: note.updatedAt ?? Date.now(),
-    createAt: note.createAt?? null
+    createAt: note.createAt?? null,
+    pinned: note.pinned ? 1 : 0
   })
 }
 const saveAllNotes = async () => {
@@ -273,7 +287,8 @@ const saveAllNotes = async () => {
       title: n.name,
       content: contentStore.value[n.id] ?? '',
       updatedAt: n.updatedAt ?? null,
-      createAt: n.createAt ?? null
+      createAt: n.createAt ?? null,
+      pinned: n.pinned ? 1 : 0
     })
   }
 }
@@ -283,11 +298,12 @@ window.api.onSaveBeforeClose(async () => {
   window.api.notifySaveDone()
 })
 
-//--------------------------note const-------------------------------------------------------------------------------------
-
 onMounted(() => {
   loadNotes()
 })
+
+
+//--------------------------schedule save-------------------------------------------------------------------------------------
 
 let saveTimer: number | null = null
 
@@ -298,13 +314,14 @@ const scheduleSave = (id: number) => {
   }, 500)
 }
 
-
+//--------------------------note const-------------------------------------------------------------------------------------
 type NoteItem = {
   id: number
   name: string
   contentId: number
   createAt?: number | null
   updatedAt?: number | null
+  pinned?: boolean
 }
 
 const dataMap = ref<{
@@ -389,7 +406,11 @@ const onSubSideEndClick=() => {
 const currentCategoryName = computed<'notes'|'reminders'>(() => {
   return activeIndex.value === '1' ? 'notes' : 'reminders'
 })  
-const currentItems  = computed(()=>dataMap.value[currentCategoryName.value])
+
+const currentItems = computed(() => {
+  if (currentCategoryName.value === 'notes') return sortedNotes.value
+  return dataMap.value.reminders
+})
 
 //-----------------------------------Tabs----------------------------------------------------------
 type TabType = 'notes' | 'reminders'
@@ -545,6 +566,14 @@ const onConfirmDelete = async (id: number) => {
     // 8) 退出“确认删除”状态
     confirmDeleteId.value = null
 }
+//---------------------------------------item pinned-----------------------------------------------------------
+const onTogglePin = (item: NoteItem) => {
+  item.pinned = !item.pinned
+  // add reminder later
+    if (currentCategoryName.value === 'notes') {
+    scheduleSave(item.id)
+  }
+}
 
 //------------------------------preview----------------------------------------------------------------------
 const getPreview = (contentId?: number) => {
@@ -567,7 +596,8 @@ const onNewItem = async() => {
     name: 'new',
     contentId: newContentId,
     createAt: now,
-    updatedAt: now
+    updatedAt: now,
+    pinned: false
   }
   // 添加到当前列表
   list.unshift(newItem)
@@ -582,7 +612,8 @@ const onNewItem = async() => {
       title: newItem.name,
       content: '',
       updatedAt: now,
-      createAt: now
+      createAt: now,
+      pinned: 0
     })
   }
 }
@@ -601,7 +632,26 @@ const formatTime = (ts: number) => {
   const mm = String(d.getMinutes()).padStart(2, '0')
   return `${y}-${m}-${day} ${hh}:${mm}`
 }
+//----------------------------------sort of items------------------------------------------------
+const sortedNotes = computed(() => {
+  return [...dataMap.value.notes].sort((a, b) => {
+    //return 副数 a在前
+    //return 正数 b在前
+    //return 0不换位置
 
+    // 1) 置顶优先
+    const ap = a.pinned ? 1 : 0
+    const bp = b.pinned ? 1 : 0
+    if (ap !== bp) return bp - ap
+
+    // 2) 更新时间倒序
+    const au = a.updatedAt ?? 0
+    const bu = b.updatedAt ?? 0
+    return bu - au
+  })
+})
+
+//---------------------------------language-----------------------------------------------------
 
 /**
  * Element Plus 组件本身也有语言包

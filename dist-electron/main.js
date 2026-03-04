@@ -24951,24 +24951,36 @@ async function initSchema() {
       title VARCHAR(50) NOT NULL,
       content MEDIUMTEXT,
       updatedAt BIGINT NULL,
-      createAt BIGINT NULL
+      createAt BIGINT NULL,
+      pinned TINYINT(1) NOT NULL DEFAULT 0
     )
   `);
+  try {
+    await pool.execute(`
+          ALTER TABLE notes
+          ADD COLUMN pinned TINYINT(1) NOT NULL DEFAULT 0
+        `);
+  } catch (e) {
+  }
 }
 async function getAllNotes() {
   const [rows] = await pool.execute(
-    "SELECT id, title, content, updatedAt, createAt FROM notes ORDER BY updatedAt IS NULL, updatedAt DESC"
+    "SELECT id, title, content, updatedAt, createAt, pinned FROM notes ORDER BY pinned DESC, updatedAt DESC;"
   );
   return rows;
 }
 async function upsertNote(note) {
-  const { id, title, content, updatedAt, createAt } = note;
+  const { id, title, content, updatedAt, createAt, pinned } = note;
   await pool.execute(
-    `INSERT INTO notes (id, title, content, updatedAt,createAt)
-     VALUES (?, ?, ?, ?,?)
-     ON DUPLICATE KEY UPDATE
-     title=VALUES(title), content=VALUES(content), updatedAt=VALUES(updatedAt), createAt=VALUES(createAt)`,
-    [id, title, content, updatedAt ?? null, createAt ?? null]
+    `INSERT INTO notes (id, title, content, updatedAt, createAt, pinned)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE
+    title=VALUES(title),
+    content=VALUES(content),
+    updatedAt=VALUES(updatedAt),
+    createAt=VALUES(createAt),
+    pinned=VALUES(pinned)`,
+    [id, title, content, updatedAt ?? null, createAt ?? null, pinned ? 1 : 0]
   );
   return true;
 }

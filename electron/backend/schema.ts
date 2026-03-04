@@ -26,7 +26,16 @@ export async function initSchema() {
       title VARCHAR(50) NOT NULL,
       content MEDIUMTEXT,
       updatedAt BIGINT NULL,
-      createAt BIGINT NULL
+      createAt BIGINT NULL,
+      pinned TINYINT(1) NOT NULL DEFAULT 0
     )
   `)
+
+  try {
+        await pool.execute(`
+          ALTER TABLE notes
+          ADD COLUMN pinned TINYINT(1) NOT NULL DEFAULT 0
+        `)
+      } catch (e) {
+      }
 }

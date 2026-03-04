@@ -6,23 +6,28 @@ export type Note = {
   content: string
   updatedAt?: number | null
   createAt?: number | null
+  pinned?: number | boolean
 }
 
 export async function getAllNotes() {
   const [rows] = await pool.execute(
-    'SELECT id, title, content, updatedAt, createAt FROM notes ORDER BY updatedAt IS NULL, updatedAt DESC'
+    'SELECT id, title, content, updatedAt, createAt, pinned FROM notes ORDER BY pinned DESC, updatedAt DESC;'
   )
   return rows
 }
 
 export async function upsertNote(note: Note) {
-  const { id, title, content, updatedAt,createAt } = note
+  const { id, title, content, updatedAt,createAt,pinned } = note
   await pool.execute(
-    `INSERT INTO notes (id, title, content, updatedAt,createAt)
-     VALUES (?, ?, ?, ?,?)
-     ON DUPLICATE KEY UPDATE
-     title=VALUES(title), content=VALUES(content), updatedAt=VALUES(updatedAt), createAt=VALUES(createAt)`,
-    [id, title, content, updatedAt?? null, createAt?? null]
+    `INSERT INTO notes (id, title, content, updatedAt, createAt, pinned)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE
+    title=VALUES(title),
+    content=VALUES(content),
+    updatedAt=VALUES(updatedAt),
+    createAt=VALUES(createAt),
+    pinned=VALUES(pinned)`,
+    [id, title, content, updatedAt ?? null, createAt ?? null, pinned ? 1 : 0]
   )
   return true
 }

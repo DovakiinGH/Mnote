@@ -65,7 +65,7 @@
   box-shadow: 0 0 0 2px rgba(106,168,247,0.2);
 }
 
-/* 默认隐藏 */
+/* -------------------------------------------delete button-------------------------------------------------*/
 .item-del-btn {
   position: absolute;
   top: 6px;
@@ -112,7 +112,23 @@
   line-height: 1.4;
   max-height: 2.8em;
 }
+/*------------------------------------------------置顶按钮----------------------------------------------*/
+.item-pin-btn {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  display: none;
+  padding: 0.8vw;
+}
+.sub-item:hover .item-pin-btn {
+  display: inline-flex;
+}
+.item-pin-icon {
+  color: #9aa0a6;
+  font-size: 16px;
+}
 
+/*------------------------------------------------模糊----------------------------------------------*/
 /* 进入确认态时模糊内容 */
 .sub-item.is-confirm .item-content {
   filter: blur(2px);

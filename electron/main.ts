@@ -1,4 +1,4 @@
-import { app, BrowserWindow,ipcMain,Menu  } from 'electron'
+import { app, BrowserWindow,ipcMain,Menu,Tray,nativeImage  } from 'electron'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
@@ -27,8 +27,9 @@ export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
 
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
 
-let win: BrowserWindow | null
+let win: BrowserWindow | null = null
 let isQuitting = false
+let tray: Tray | null = null
 
 
 
