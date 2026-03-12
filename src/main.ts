@@ -10,6 +10,7 @@ import 'element-plus/dist/index.css'
 import *as ElementPlusIconsVue from '@element-plus/icons-vue'
 import './styles/base.css'
 import './styles/app.css'
+import router from './router'
 
 const app = createApp(App)
 
@@ -28,6 +29,7 @@ for(const [key,component] of Object.entries(ElementPlusIconsVue)){
 
 app.use(i18n)
 app.use(ElementPlus)
+app.use(router)
 app.mount('#app')
 
 app.config.globalProperties.$nextTick(() => {
@@ -35,3 +37,4 @@ app.config.globalProperties.$nextTick(() => {
     console.log(message)
   })
 })
+

@@ -28,8 +28,13 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('notes:upsert', note),
   notesDelete: (id: number) => ipcRenderer.invoke('notes:delete', id),
   onSaveBeforeClose: (cb: () => void) => ipcRenderer.on('app:save-before-close', cb),
-  notifySaveDone: () => ipcRenderer.send('app:save-done')
+  notifySaveDone: () => ipcRenderer.send('app:save-done'),
+  shortcutGet: () => ipcRenderer.invoke('shortcut:get'),
+  shortcutUpdate: (accelerator: string) =>
+    ipcRenderer.invoke('shortcut:update', accelerator),
+  quickNoteUpdate: (note: { title: string; content: string }) =>
+    ipcRenderer.send('quick:note:update', note),
+  onNotesChanged: (cb: () => void) =>
+    ipcRenderer.on('notes:changed', () => cb()),
 })
-// contextBridge.exposeInMainWorld('db', {
-//   query: (sql: string, params: any[] = []) => ipcRenderer.invoke('db:query', sql, params)
-// })
+

@@ -381,6 +381,7 @@
   padding: 12px;
 }
 
+/*title of content,which is a input place*/
 .title-input .el-input__inner {
   font-size: 24px;
   font-weight: 700;
@@ -393,13 +394,12 @@
   border: none;
   box-shadow: none;
 }
-
-/* 去掉标题输入框边框 */
 .title-input .el-input__wrapper {
   box-shadow: none !important;
   border: none !important;
   background: transparent !important;
 }
+
 
 /* 标题 */
 .app-title {

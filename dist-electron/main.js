@@ -1,4 +1,4 @@
-import { app, ipcMain, Menu, BrowserWindow, nativeImage, Tray } from "electron";
+import { BrowserWindow, app, globalShortcut, ipcMain, Menu, nativeImage, Tray } from "electron";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -24988,6 +24988,45 @@ async function deleteNote(id) {
   await pool.execute("DELETE FROM notes WHERE id = ?", [id]);
   return true;
 }
+let quickWin = null;
+function openQuickWindow(VITE_DEV_SERVER_URL2, RENDERER_DIST2, __dirname, onBeforeClose) {
+  if (quickWin && !quickWin.isDestroyed()) {
+    quickWin.show();
+    quickWin.focus();
+    return;
+  }
+  let allowClose = false;
+  quickWin = new BrowserWindow({
+    width: 520,
+    height: 360,
+    show: false,
+    alwaysOnTop: true,
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.mjs")
+    }
+  });
+  if (VITE_DEV_SERVER_URL2) {
+    quickWin.loadURL(`${VITE_DEV_SERVER_URL2}#/quick`);
+  } else {
+    quickWin.loadFile(path.join(RENDERER_DIST2, "index.html"), { hash: "/quick" });
+  }
+  quickWin.once("ready-to-show", () => {
+    quickWin == null ? void 0 : quickWin.show();
+    quickWin == null ? void 0 : quickWin.focus();
+  });
+  quickWin.on("close", (e) => {
+    if (allowClose) return;
+    e.preventDefault();
+    Promise.resolve(onBeforeClose == null ? void 0 : onBeforeClose()).finally(() => {
+      allowClose = true;
+      quickWin == null ? void 0 : quickWin.close();
+    });
+  });
+  quickWin.on("closed", () => {
+    quickWin = null;
+  });
+}
 console.log("[main] main.ts loaded");
 createRequire(import.meta.url);
 const __dirname$1 = path.dirname(fileURLToPath(import.meta.url));
@@ -24999,9 +25038,6 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 let win = null;
 let isQuitting = false;
 let tray = null;
-app.on("before-quit", () => {
-  isQuitting = true;
-});
 function createWindow() {
   win = new BrowserWindow({
     icon: path.join(process.env.VITE_PUBLIC, "electron-vite.svg"),
@@ -25019,9 +25055,9 @@ function createWindow() {
     win == null ? void 0 : win.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
   });
   if (VITE_DEV_SERVER_URL) {
-    win.loadURL(VITE_DEV_SERVER_URL);
+    win.loadURL(`${VITE_DEV_SERVER_URL}#/`);
   } else {
-    win.loadFile(path.join(RENDERER_DIST, "index.html"));
+    win.loadFile(path.join(RENDERER_DIST, "index.html"), { hash: "/" });
   }
 }
 function resolveResourcePath(fileName) {
@@ -25070,6 +25106,35 @@ function createTray() {
     }
   });
 }
+let currentShortcut = "Alt+Space";
+function registerHotkey(accelerator) {
+  globalShortcut.unregisterAll();
+  const ok = globalShortcut.register(accelerator, () => {
+    console.log("[main] hotkey triggered:", accelerator);
+    openQuickWindow(VITE_DEV_SERVER_URL, RENDERER_DIST, __dirname$1, saveQuickNote);
+  });
+  if (!ok) return false;
+  currentShortcut = accelerator;
+  return true;
+}
+let quickNote = { title: "", content: "" };
+const saveQuickNote = async () => {
+  const title = quickNote.title;
+  const content = quickNote.content;
+  if (!title && !content) return;
+  const now = Date.now();
+  const id = Date.now();
+  await upsertNote({
+    id,
+    title: title || "Untitled",
+    content,
+    createAt: now,
+    updatedAt: now,
+    pinned: 0
+  });
+  win == null ? void 0 : win.webContents.send("notes:changed");
+  quickNote = { title: "", content: "" };
+};
 async function bootstrap() {
   try {
     await app.whenReady();
@@ -25088,8 +25153,19 @@ async function bootstrap() {
       isQuitting = true;
       win == null ? void 0 : win.close();
     });
+    ipcMain.handle("shortcut:update", (_event, accelerator) => {
+      return registerHotkey(accelerator);
+    });
+    ipcMain.handle("shortcut:get", () => currentShortcut);
+    ipcMain.on("quick:note:update", (_event, note) => {
+      quickNote = {
+        title: (note == null ? void 0 : note.title) ?? "",
+        content: (note == null ? void 0 : note.content) ?? ""
+      };
+    });
     Menu.setApplicationMenu(null);
     createWindow();
+    registerHotkey(currentShortcut);
     createTray();
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -25105,6 +25181,12 @@ app.on("window-all-closed", () => {
     app.quit();
     win = null;
   }
+});
+app.on("before-quit", () => {
+  isQuitting = true;
+});
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
 });
 export {
   MAIN_DIST,

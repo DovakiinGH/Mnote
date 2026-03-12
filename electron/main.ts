@@ -1,9 +1,11 @@
-import { app, BrowserWindow,ipcMain,Menu,Tray,nativeImage  } from 'electron'
+import { app, BrowserWindow,ipcMain,Menu,Tray,nativeImage,globalShortcut, Notification  } from 'electron'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { initSchema } from './backend/schema'
 import { getAllNotes, upsertNote, deleteNote } from './backend/notes'
+import { openQuickWindow } from './quickWindow'
+
 
 console.log('[main] main.ts loaded')
 const require = createRequire(import.meta.url)
@@ -32,11 +34,9 @@ let isQuitting = false
 let tray: Tray | null = null
 
 
-
+//win
 //---------------------------------------life cycle----------------------------------------------------------------------//
-app.on('before-quit', () => {
-  isQuitting = true
-})
+
 
 function createWindow() {
   win = new BrowserWindow({
@@ -59,14 +59,15 @@ function createWindow() {
   win.webContents.on('did-finish-load', () => {
     win?.webContents.send('main-process-message', (new Date).toLocaleString())
   })
-
+  
+//URL
   if (VITE_DEV_SERVER_URL) {
-    win.loadURL(VITE_DEV_SERVER_URL)
+    win.loadURL(`${VITE_DEV_SERVER_URL}#/`)
   } else {
-    // win.loadFile('dist/index.html')
-    win.loadFile(path.join(RENDERER_DIST, 'index.html'))
+    win.loadFile(path.join(RENDERER_DIST, 'index.html'), { hash: '/' })
   }
 }
+
 //-------------------------------------tray----------------------------------------------------------------------------
 function resolveResourcePath(fileName: string) {
   if (app.isPackaged) {
@@ -89,10 +90,6 @@ function requestQuitWithSave() {
 }
 
 function createTray() {
- 
-  // const iconPath = path.join(__dirname, '../resources/tray.ico')
-  // const image = nativeImage.createFromPath(iconPath)
-  // tray = new Tray(image)
   const trayIconPath = resolveResourcePath('tray.ico')
   const trayIcon = nativeImage.createFromPath(trayIconPath)
   tray = new Tray(trayIcon)
@@ -117,7 +114,6 @@ function createTray() {
 
   tray.setContextMenu(contextMenu)
 
-  // 单击托盘图标切换显示/隐藏
   tray.on('click', () => {
     if (!win) return
     if (win.isVisible()) win.hide()
@@ -127,16 +123,54 @@ function createTray() {
     }
   })
 }
+//------------------------------------------short cut----------------------------------------------------------
+let currentShortcut = 'Alt+Space'
 
+function registerHotkey(accelerator: string) {
+  globalShortcut.unregisterAll()
+  const ok = globalShortcut.register(accelerator, () => {
+    console.log('[main] hotkey triggered:', accelerator)
+    openQuickWindow(VITE_DEV_SERVER_URL, RENDERER_DIST, __dirname,saveQuickNote)
+  })
+  if (!ok) return false
+  currentShortcut = accelerator
+  return true
+}
+//--------------------------------------------save form quick window-------------------------------------
+type QuickNote={
+  title:string
+  content:string
+}
+let quickNote: QuickNote = { title: '', content: '' }
+const saveQuickNote=async()=>{
+  const title = quickNote.title
+  const content = quickNote.content
+  if (!title && !content) return
+  const now = Date.now()
+  const id = Date.now()
 
+  await upsertNote({
+    id,
+    title: title || 'Untitled',
+    content,
+    createAt: now,
+    updatedAt: now,
+    pinned: 0
+  })
+  win?.webContents.send('notes:changed')
+  // let mainView load note
 
+  //remove the quick note
+  quickNote = { title: '', content: '' }
 
-
+  
+}
+ 
+//-----------------------------------------start-------------------------------------------------
 async function bootstrap() {
   try {
     await app.whenReady()
 
-    // 先初始化数据库（建库 + 建表）
     await initSchema()
     console.log('[main] schema init ok')
 
@@ -157,11 +191,22 @@ async function bootstrap() {
       isQuitting = true
       win?.close()
     })
+    ipcMain.handle('shortcut:update', (_event, accelerator: string) => {
+      return registerHotkey(accelerator)
+    })
+    ipcMain.handle('shortcut:get', () => currentShortcut)
+    ipcMain.on('quick:note:update', (_event, note: QuickNote) => {
+      quickNote = {
+        title: note?.title ?? '',
+        content: note?.content ?? ''
+      }
+    })
     //---------------------------------------------------------------//
 
     Menu.setApplicationMenu(null)
 
     createWindow()
+    registerHotkey(currentShortcut)
     createTray()
 
     app.on('activate', () => {
@@ -174,7 +219,7 @@ async function bootstrap() {
 }
 
 bootstrap()
-
+//------------------------------------quit------------------------------------------------------
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
@@ -184,18 +229,9 @@ app.on('window-all-closed', () => {
     win = null
   }
 })
-
-// app.on('activate', () => {
-//   // On OS X it's common to re-create a window in the app when the
-//   // dock icon is clicked and there are no other windows open.
-//   if (BrowserWindow.getAllWindows().length === 0) {
-//     createWindow()
-//   }
-// })
-
-// app.whenReady().then(async () => {
-//   await initSchema()
-//   createWindow()
-// })
-
-// Menu.setApplicationMenu(null) // 移除系统菜单
+app.on('before-quit', () => {
+  isQuitting = true
+})
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll()
+})

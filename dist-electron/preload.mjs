@@ -25,5 +25,9 @@ electron.contextBridge.exposeInMainWorld("api", {
   notesUpsert: (note) => electron.ipcRenderer.invoke("notes:upsert", note),
   notesDelete: (id) => electron.ipcRenderer.invoke("notes:delete", id),
   onSaveBeforeClose: (cb) => electron.ipcRenderer.on("app:save-before-close", cb),
-  notifySaveDone: () => electron.ipcRenderer.send("app:save-done")
+  notifySaveDone: () => electron.ipcRenderer.send("app:save-done"),
+  shortcutGet: () => electron.ipcRenderer.invoke("shortcut:get"),
+  shortcutUpdate: (accelerator) => electron.ipcRenderer.invoke("shortcut:update", accelerator),
+  quickNoteUpdate: (note) => electron.ipcRenderer.send("quick:note:update", note),
+  onNotesChanged: (cb) => electron.ipcRenderer.on("notes:changed", () => cb())
 });

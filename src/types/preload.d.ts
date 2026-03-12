@@ -8,6 +8,10 @@ declare global {
         notesDelete: (id: number) => Promise<boolean>
         onSaveBeforeClose: (cb: () => void) => void
         notifySaveDone: () => void
+        shortcutGet: () => Promise<string>
+        shortcutUpdate: (accelerator: string) => Promise<boolean>
+        quickNoteUpdate: (draft: { title: string; content: string }) => void
+        onNotesChanged: (cb: () => void) => void
     }
   }
 }
