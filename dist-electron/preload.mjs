@@ -24,10 +24,16 @@ electron.contextBridge.exposeInMainWorld("api", {
   notesGetAll: () => electron.ipcRenderer.invoke("notes:getAll"),
   notesUpsert: (note) => electron.ipcRenderer.invoke("notes:upsert", note),
   notesDelete: (id) => electron.ipcRenderer.invoke("notes:delete", id),
+  reminderGetAll: () => electron.ipcRenderer.invoke("reminders:getAll"),
+  reminderUpsert: (payload) => electron.ipcRenderer.invoke("reminders:upsert", payload),
+  reminderDelete: (id) => electron.ipcRenderer.invoke("reminders:delete", id),
   onSaveBeforeClose: (cb) => electron.ipcRenderer.on("app:save-before-close", cb),
   notifySaveDone: () => electron.ipcRenderer.send("app:save-done"),
   shortcutGet: () => electron.ipcRenderer.invoke("shortcut:get"),
   shortcutUpdate: (accelerator) => electron.ipcRenderer.invoke("shortcut:update", accelerator),
   quickNoteUpdate: (note) => electron.ipcRenderer.send("quick:note:update", note),
-  onNotesChanged: (cb) => electron.ipcRenderer.on("notes:changed", () => cb())
+  onNotesChanged: (cb) => electron.ipcRenderer.on("notes:changed", () => cb()),
+  showReminder: (payload) => electron.ipcRenderer.invoke("reminder:show", payload),
+  openMandatoryReminder: (text) => electron.ipcRenderer.invoke("reminder:open-mandatory", text),
+  submitMandatoryReminder: (payload) => electron.ipcRenderer.invoke("reminder:submit-mandatory", payload)
 });

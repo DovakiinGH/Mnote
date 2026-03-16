@@ -1,10 +1,12 @@
-import { app, BrowserWindow,ipcMain,Menu,Tray,nativeImage,globalShortcut, Notification  } from 'electron'
+import { app, BrowserWindow,ipcMain,Menu,Tray,nativeImage,globalShortcut, Notification,screen  } from 'electron'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { initSchema } from './backend/schema'
 import { getAllNotes, upsertNote, deleteNote } from './backend/notes'
+import { getAllReminders,upsertReminder,deleteReminder } from './backend/reminders'
 import { openQuickWindow } from './quickWindow'
+import 'dotenv/config'
 
 
 console.log('[main] main.ts loaded')
@@ -33,6 +35,10 @@ let win: BrowserWindow | null = null
 let isQuitting = false
 let tray: Tray | null = null
 
+// for windows system
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.yourapp.mnote')
+}
 
 //win
 //---------------------------------------life cycle----------------------------------------------------------------------//
@@ -86,7 +92,7 @@ function requestQuitWithSave() {
       isQuitting = true
       app.quit()
     }
-  }, 3000)
+  }, 10000)
 }
 
 function createTray() {
@@ -165,6 +171,46 @@ const saveQuickNote=async()=>{
 
   
 }
+//------------------------------------pop windows------------------------------------------------
+function openReminderMandatoryWindow(initialText: string) {
+  const hasParent = !!win && !win.isDestroyed()
+  const popup = new BrowserWindow({
+    ...(hasParent ? { parent: win!, modal: true } : {}), 
+    ///...merging the options into the main object.
+    // width: 520,
+    // height: 320,
+    center: true,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    alwaysOnTop: true,
+    skipTaskbar: false, 
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.mjs')
+    }
+  })
+  popup.show()
+  popup.focus()
+  if (VITE_DEV_SERVER_URL) {
+    popup.loadURL(`${VITE_DEV_SERVER_URL}#/reminder-mandatory?text=${encodeURIComponent(initialText)}`)
+  } else {
+    popup.loadFile(path.join(RENDERER_DIST, 'index.html'), { hash: '/reminder-mandatory' })
+  }
+
+  let handled = false
+  popup.on('close', (event) => {
+    if (!handled) event.preventDefault()
+  })
+
+  ipcMain.handleOnce('reminder:submit-mandatory', async (_event, payload: { text: string }) => {
+
+    handled = true
+    popup.close()
+    return true
+  })
+
+}
  
 //-----------------------------------------start-------------------------------------------------
 async function bootstrap() {
@@ -186,6 +232,17 @@ async function bootstrap() {
     ipcMain.handle('notes:delete', async (_event, id: number) => {
       return await deleteNote(id)
     })
+    ipcMain.handle('reminders:getAll',async()=>{
+      return await getAllReminders()
+    })
+    ipcMain.handle('reminders:upsert',async(_event,payload)=>{
+      return await upsertReminder(payload)
+      return true
+    })
+    ipcMain.handle('reminders:delete', async (_event, id: number) => {
+      await deleteReminder(id)
+      return true
+    })
 
     ipcMain.on('app:save-done', () => {
       isQuitting = true
@@ -201,6 +258,19 @@ async function bootstrap() {
         content: note?.content ?? ''
       }
     })
+    ipcMain.handle('reminder:show', (_event, payload: { title: string; body: string }) => {
+      const n = new Notification({
+        title: payload.title || 'Reminder',
+        body: payload.body || ''
+      })
+      n.show()
+      return true
+    })
+    ipcMain.handle('reminder:open-mandatory', (_e, text: string) => {
+      openReminderMandatoryWindow(text || '')
+      return true
+    })
+
     //---------------------------------------------------------------//
 
     Menu.setApplicationMenu(null)

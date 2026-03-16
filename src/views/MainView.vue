@@ -11,9 +11,9 @@
         text-color="#fff"
         active-text-color="#fff"
       >
-        <el-menu-item index="file" class="top-btn">{{ t('app.menu.file') }}</el-menu-item>
-        <el-menu-item index="edit" class="top-btn">{{ t('app.menu.edit') }}</el-menu-item>
-        <el-menu-item index="view" class="top-btn">{{ t('app.menu.view') }}</el-menu-item>
+        <el-menu-item @click="testClick" v-if = topButton index="file" class="top-btn">{{ t('app.menu.file') }}</el-menu-item>
+        <el-menu-item @click="testClickSecond" v-if = topButton index="edit" class="top-btn">{{ t('app.menu.edit') }}</el-menu-item>
+        <el-menu-item v-if = topButton index="view" class="top-btn">{{ t('app.menu.view') }}</el-menu-item>
       </el-menu>
     </el-header>
 
@@ -74,7 +74,7 @@
     >      
         <div class="sub-header">
 
-              <el-button class="new-btn" type="primary" @click="onNewItem" >
+              <el-button class="new-btn"  @click="onNewItem" >
                 <span class="new-icon">
                   <el-icon class="plus-icon"><Plus /></el-icon>
                 </span>              
@@ -107,7 +107,7 @@
             </el-button>
 
             <el-button
-              v-if="activeIndex === '1' && item.id !== confirmDeleteId"
+              v-if="item.id !== confirmDeleteId"
               class="item-pin-btn"
               :class="{ 'is-pinned': item.pinned }"
               text
@@ -186,46 +186,102 @@
           />
         </el-scrollbar>
 
-      <!-- reminders  -->
+      <!-- reminders ------------------------------------------------------------------------------------- -->
       <div v-else>
-        <div class="reminder-panel">
-          <div class="reminder-status">
-         
-            <el-radio-group v-model="currentReminderForm.enabled">
-              <el-radio-button :label="true">start</el-radio-button>
-              <el-radio-button :label="false">close</el-radio-button>
-            </el-radio-group>
-          </div>
-          <el-select v-model="currentReminderForm.type" placeholder="choose type">
-            <el-option v-for="t in REMINDER_TYPES" :key="t.key" :label="t.label" :value="t.key" />
-          </el-select>
+    <div class="reminder-panel" :class="{ 'is-locked': isReminderLocked }">
+      <!-- only this stays enabled -->
+      <div class="reminder-status">
+        <el-radio-group v-model="currentReminderForm.enabled">
+          <el-radio-button :label="true">start</el-radio-button>
+          <el-radio-button :label="false">close</el-radio-button>
+        </el-radio-group>
+      </div>
 
-          <template v-if="currentReminderForm.type === 'AFTER_MINUTES'">
-            <el-input-number v-model="currentReminderForm.minutes" :min="1" />
-          </template>
-          
+      <div class="reminder-mode lockable">
+        <el-select
+          v-model="currentReminderForm.mode"
+          placeholder="choose reminder mode"
+          :disabled="isReminderLocked"
+        >
+          <el-option label="notification" value="NOTIFICATION" />
+          <el-option label="pop up window" value="POPUP_WINDOW" />
+        </el-select>
+      </div>
 
-          <template v-else-if="currentReminderForm.type === 'DATE_TIME'">
-            <el-date-picker v-model="currentReminderForm.date" type="date" placeholder="Select date" />
-            <el-time-picker v-model="currentReminderForm.time" placeholder="Select time(optional)" />
-          </template>
+      <el-select
+        v-model="currentReminderForm.type"
+        placeholder="choose type"
+        :disabled="isReminderLocked"
+        class="lockable"
+      >
+        <el-option v-for="t in REMINDER_TYPES" :key="t.key" :label="t.label" :value="t.key" />
+      </el-select>
 
-          <template v-else-if="currentReminderForm.type === 'EVERY_DAYS'">
-            <el-input-number v-model="currentReminderForm.days" :min="1" />
-          </template>
+      <template v-if="currentReminderForm.type === 'AFTER_MINUTES'">
+        <el-input-number
+          v-model="currentReminderForm.minutes"
+          :min="1"
+          :disabled="isReminderLocked"
+          class="lockable"
+        />
+      </template>
 
-          <el-scrollbar class="reminder-text-scroll">
-            <el-input
-              v-model="currentReminderForm.text"
-              type="textarea"
-              :autosize="{ minRows: 2 }"
-              maxlength="500"
-              show-word-limit
-              class="reminder-textarea"
-              placeholder="Please input reminder text(Maximum 500 characters )"
-            />
-          </el-scrollbar>
-        </div>
+      <template v-else-if="currentReminderForm.type === 'DATE_TIME'">
+        <el-date-picker
+          v-model="currentReminderForm.date"
+          type="date"
+          placeholder="Select date"
+          :disabled="isReminderLocked"
+          class="lockable"
+          placement="top-start"
+          :teleported="true"
+          :popper-options="{
+            strategy: 'fixed',
+            modifiers: [
+              { name: 'preventOverflow', options: { boundary: 'viewport', padding: 8 } },
+              { name: 'flip', options: { fallbackPlacements: ['top-start', 'bottom-start'] } }
+            ]
+          }"
+          value-format="YYYY-MM-DD"
+        />
+        <el-time-picker
+          v-model="currentReminderForm.time"
+          placeholder="Select time(optional)"
+          :disabled="isReminderLocked"
+          class="lockable"
+          value-format="HH:mm:ss"
+        />
+      </template>
+
+      <template v-else-if="currentReminderForm.type === 'EVERY_DAYS'">
+        <el-input-number
+          v-model="currentReminderForm.days"
+          :min="1"
+          :disabled="isReminderLocked"
+          class="lockable"
+        />
+        <el-time-picker
+          v-model="currentReminderForm.time"
+          placeholder="Select time(optional)"
+          :disabled="isReminderLocked"
+          class="lockable"
+          value-format="HH:mm:ss"
+        />
+      </template>
+
+      <el-scrollbar class="reminder-text-scroll lockable">
+        <el-input
+          v-model="currentReminderForm.text"
+          type="textarea"
+          :autosize="{ minRows: 2 }"
+          maxlength="500"
+          show-word-limit
+          class="reminder-textarea"
+          placeholder="Please input reminder text(Maximum 500 characters )"
+          :disabled="isReminderLocked"
+        />
+      </el-scrollbar>
+    </div>
       </div>
     </div>
 
@@ -245,12 +301,27 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { computed, onMounted } from 'vue'
+import { watch } from 'vue'
+
 const { t, locale } = useI18n()
 const activeIndex = ref('1')
 const isCollapse = ref(true)
 const isSubOpen = ref(true)
 const selectedSubId = ref<number | null>(null)
-//---------------------------------------------------data load------------------------------------------------------//
+
+const topButton = false
+
+const testClick=async ()=>{
+  await window.api.showReminder({
+  title: 'MNote Reminder',
+  body: 'Buy milk at 18:00'
+})
+}
+
+const testClickSecond=async ()=>{
+  await window.api.openMandatoryReminder('Pay rent today')
+}
+//---------------------------------------------------data load and save------------------------------------------------------//
 const loadNotes = async () => {
   const rows = await window.api.notesGetAll()
 
@@ -268,6 +339,34 @@ const loadNotes = async () => {
     contentStore.value[r.id] = r.content ?? ''
   })
 }
+const loadReminders = async()=>{
+  try {const rows = await window.api.reminderGetAll()
+
+    dataMap.value.reminders = rows.map((r: any) => ({
+    id: Number(r.id),
+    name: r.title ?? 'untitled',
+    contentId: Number(r.id), 
+    createAt: Number(r.createAt ?? Date.now()),
+    updatedAt: r.updatedAt != null ? Number(r.updatedAt) : null,
+    pinned: Boolean(r.pinned)
+  }))
+    rows.forEach((r: any) => {
+    const id = Number(r.id)
+    reminderStore.value[id] = {
+      type: r.type,
+      mode: r.mode,
+      text: r.text ?? '',
+      enabled: Boolean(r.enabled),
+      minutes: r.minutes ?? undefined,
+      date: r.date ?? undefined,
+      time: r.time ?? undefined,
+      days: r.days ?? undefined,
+    }
+  })}catch (e) {
+    console.error('[loadReminders] failed', e)
+  }
+
+}
 const saveNote = async (id: number) => {
   const note = dataMap.value.notes.find(n => n.id === id)
   if (!note) return
@@ -275,10 +374,33 @@ const saveNote = async (id: number) => {
   await window.api.notesUpsert({
     id,
     title: note.name,
-    content: contentStore.value[id] ?? '',
+    content: contentStore.value[note.contentId] ?? '',
     updatedAt: note.updatedAt ?? Date.now(),
     createAt: note.createAt?? null,
     pinned: note.pinned ? 1 : 0
+  })
+}
+const saveReminder = async (id: number) => {
+  const item = dataMap.value.reminders.find(r => r.id === id)
+  if (!item) return
+  const f = reminderStore.value[id]
+  if (!f) return
+
+  const normalized = normalizeReminderByType(f)
+  await window.api.reminderUpsert({
+    id,
+    title: item.name ?? '',
+    text: f.text ?? '',
+    enabled: f.enabled ? 1 : 0,
+    mode: f.mode,
+    type: f.type,
+    minutes: normalized.minutes,
+    date: normalized.date,
+    time: normalized.time,
+    days: normalized.days,
+    createAt: item.createAt ?? Date.now(),
+    updatedAt: item.updatedAt ?? Date.now(), 
+    pinned: item.pinned ? 1 : 0
   })
 }
 const saveAllNotes = async () => {
@@ -287,21 +409,42 @@ const saveAllNotes = async () => {
     await window.api.notesUpsert({
       id: n.id,
       title: n.name,
-      content: contentStore.value[n.id] ?? '',
+      content: contentStore.value[n.contentId] ?? '',
       updatedAt: n.updatedAt ?? null,
       createAt: n.createAt ?? null,
       pinned: n.pinned ? 1 : 0
     })
   }
 }
+const saveAllReminders = async () => {
+  for (const r of dataMap.value.reminders) {
+    await saveReminder(r.id)
+  }
+}
 // 接收关闭通知
 window.api.onSaveBeforeClose(async () => {
-  await saveAllNotes()
-  window.api.notifySaveDone()
+  try {
+    if (saveTimer) {
+      window.clearTimeout(saveTimer)
+      saveTimer = null
+    }
+    if (reminderSaveTimer) {
+      window.clearTimeout(reminderSaveTimer)
+      reminderSaveTimer = null
+    }
+
+    await saveAllNotes()
+    await saveAllReminders()
+  } catch (e) {
+    console.error('[onSaveBeforeClose] failed:', e)
+  } finally {
+    window.api.notifySaveDone() // 必须放 finally
+  }
 })
 
 onMounted(() => {
   loadNotes()
+  loadReminders()
   window.api.onNotesChanged(() => {
     loadNotes()
   })
@@ -318,9 +461,20 @@ const scheduleSave = (id: number) => {
     saveNote(id)
   }, 500)
 }
+let reminderSaveTimer: number | null = null
 
-//--------------------------note const-------------------------------------------------------------------------------------
-type NoteItem = {
+const scheduleSaveReminder = (id: number) => {
+  if (reminderSaveTimer) window.clearTimeout(reminderSaveTimer)
+  const item = dataMap.value.reminders.find(r => r.id === id)
+  if (item) item.updatedAt = Date.now()
+  reminderSaveTimer = window.setTimeout(() => {
+    saveReminder(id)
+  }, 500)
+}
+
+
+//--------------------------const-------------------------------------------------------------------------------------
+type UnitItem = {
   id: number
   name: string
   contentId: number
@@ -330,8 +484,8 @@ type NoteItem = {
 }
 
 const dataMap = ref<{
-  notes: NoteItem[]
-  reminders: NoteItem[]
+  notes: UnitItem[]
+  reminders: UnitItem[]
 }>({
   notes: [{ id: 1, name: 'sasasasa', contentId: 101 }],
   reminders: [{ id: 10, name: 'b', contentId: 101 }]
@@ -347,6 +501,7 @@ const contentStore = ref<Record<number, string>>({
 const reminderStore = ref<Record<number, ReminderForm>>({})
 
 type ReminderTypeKey = 'AFTER_MINUTES' | 'DATE_TIME' | 'EVERY_DAYS'
+type ReminderMode = 'NOTIFICATION' | 'POPUP_WINDOW'
 
 const REMINDER_TYPES = [
   { key: 'AFTER_MINUTES', label: 'minutes later' },
@@ -356,6 +511,7 @@ const REMINDER_TYPES = [
 
 type ReminderForm = {
   type: ReminderTypeKey
+  mode: ReminderMode
   text: string
   enabled: boolean
   minutes?: number
@@ -363,30 +519,55 @@ type ReminderForm = {
   time?: string
   days?: number
 }
-
+const isReminderLocked = computed(() => {
+  return currentReminderForm.value.enabled === true
+})
 const currentReminderForm = computed<ReminderForm>(() => {
   const id = activeContentItem.value?.id
   if (!id) {
-    return { type: 'AFTER_MINUTES', text: '', minutes: 5, enabled: true }
-  } //
+    return { type: 'AFTER_MINUTES',mode: 'NOTIFICATION', text: '', minutes: 5, enabled: false }
+  } 
   if (!reminderStore.value[id]) {
   reminderStore.value[id] = {
     type: 'AFTER_MINUTES',
+    mode: 'NOTIFICATION',
     text: '',
     minutes: 5,
-    enabled: true
+    enabled: false
   }
 }
   return reminderStore.value[id]
 })
-//--------------------------------handleing side menus-----------------------------------------------------------------
 
-// const handleOpenSideMenu = (key: string, keyPath: string[]) => {
-//   console.log(key, keyPath)
-// }
-// const handleCloseSideMenu = (key: string, keyPath: string[]) => {
-//   console.log(key, keyPath)
-// }
+const normalizeReminderByType = (f: ReminderForm) => {
+  if (f.type === 'AFTER_MINUTES') {
+    return {
+      minutes: f.minutes ?? 1,
+      date: null,
+      time: null,
+      days: null
+    }
+  }
+
+  if (f.type === 'DATE_TIME') {
+    return {
+      minutes: null,
+      date: f.date ?? null,
+      time: f.time ?? null, // 可选
+      days: null
+    }
+  }
+
+  // EVERY_DAYS
+  return {
+    minutes: null,
+    date: null,
+    time: f.time ?? null,   // 可选
+    days: f.days ?? 1
+  }
+}
+
+//--------------------------------handleing side menus-----------------------------------------------------------------
 
 const onSelectSideMenu = (index: string) => {
   activeIndex.value = index
@@ -414,7 +595,8 @@ const currentCategoryName = computed<'notes'|'reminders'>(() => {
 
 const currentItems = computed(() => {
   if (currentCategoryName.value === 'notes') return sortedNotes.value
-  return dataMap.value.reminders
+  if (currentCategoryName.value === 'reminders')return sortedReminders.value
+  return []
 })
 
 //-----------------------------------Tabs----------------------------------------------------------
@@ -502,8 +684,8 @@ const onDrop = (key: string) => {
 
 
 //-----------------------------------------------------name and content---------------------------------------------------
-const selectedSubItem = computed(() => {
-  return currentItems.value.find(i => i.id === selectedSubId.value)|| null}) 
+// const selectedSubItem = computed(() => {
+//   return currentItems.value.find(i => i.id === selectedSubId.value)|| null}) 
 
 //content
 const selectedContent = computed({
@@ -531,6 +713,7 @@ const selectedName = computed({
       activeContentItem.value.name = val
       activeContentItem.value.updatedAt = Date.now()
       if (activeTab.value?.type === 'notes') scheduleSave(activeContentItem.value.id)
+      if (activeTab.value?.type === 'reminders') scheduleSaveReminder(activeContentItem.value.id)
     }
   }
 })
@@ -557,6 +740,9 @@ const onConfirmDelete = async (id: number) => {
     const contentId = list[idx].contentId
      if (currentCategoryName.value === 'notes') {
       await window.api.notesDelete(id)
+    }else if (currentCategoryName.value === 'reminders') {
+      await window.api.reminderDelete(id)
+      delete reminderStore.value[id] // 同步清理内存表单
     }
     // 5) 从列表里删除这个 item
     list.splice(idx, 1)
@@ -572,11 +758,12 @@ const onConfirmDelete = async (id: number) => {
     confirmDeleteId.value = null
 }
 //---------------------------------------item pinned-----------------------------------------------------------
-const onTogglePin = (item: NoteItem) => {
+const onTogglePin = (item: UnitItem) => {
   item.pinned = !item.pinned
-  // add reminder later
     if (currentCategoryName.value === 'notes') {
     scheduleSave(item.id)
+  }else if (currentCategoryName.value === 'reminders') {
+    scheduleSaveReminder(item.id)
   }
 }
 
@@ -591,11 +778,9 @@ const onNewItem = async() => {
   const list = dataMap.value[currentCategoryName.value]
   const now = Date.now()
 
-  // 生成新 id（简单起见用时间戳）
   const newId = Date.now()
-  const newContentId = Date.now() + 1
+  const newContentId = newId
 
-  // 新 item
   const newItem = {
     id: newId,
     name: 'new',
@@ -610,7 +795,6 @@ const onNewItem = async() => {
   contentStore.value[newContentId] = ''
   // 自动选中新建项
   selectedSubId.value = newId
-   // !!!!!!!!!!!!!!!
   if (currentCategoryName.value === 'notes') {
     await window.api.notesUpsert({
       id: newId,
@@ -621,6 +805,31 @@ const onNewItem = async() => {
       pinned: 0
     })
   }
+  if (currentCategoryName.value === 'reminders') {
+  reminderStore.value[newId] = {
+    type: 'AFTER_MINUTES',
+    mode: 'NOTIFICATION',
+    text: '',
+    minutes: 5,
+    enabled: false
+  }
+
+  await window.api.reminderUpsert({
+    id: newId,
+    title: newItem.name,
+    text: '',
+    enabled: 0,
+    mode: 'NOTIFICATION',
+    type: 'AFTER_MINUTES',
+    minutes: 5,
+    date: null,
+    time: null,
+    days: null,
+    createAt: now,
+    updatedAt: now,
+    pinned: 0
+  })
+}
 }
 
 const getTabTitle = (tab: Tab) => {
@@ -655,7 +864,16 @@ const sortedNotes = computed(() => {
     return bu - au
   })
 })
-
+const sortedReminders = computed(() => {
+  return [...dataMap.value.reminders].sort((a, b) => {
+    const ap = a.pinned ? 1 : 0
+    const bp = b.pinned ? 1 : 0
+    if (ap !== bp) return bp - ap
+    const au = a.updatedAt ?? 0
+    const bu = b.updatedAt ?? 0
+    return bu - au
+  })
+})
 //---------------------------------language-----------------------------------------------------
 
 /**
@@ -697,6 +915,25 @@ const onTitleWheel = (e: WheelEvent) => {
   if (!inputEl) return
   inputEl.scrollLeft += e.deltaY
 }
+
+//-----------------------------watch-------------------------------------
+
+watch(
+  [
+    () => activeTab.value?.type,
+    () => activeContentItem.value?.id,
+    () => currentReminderForm.value
+  ],
+  ([tabType, id, form], [prevTabType, prevId, prevForm]) => {
+    if (tabType !== 'reminders' || !id) return
+
+   
+    if (id !== prevId) return
+
+    scheduleSaveReminder(id)
+  },
+  { deep: true }
+)
 </script>
 
 

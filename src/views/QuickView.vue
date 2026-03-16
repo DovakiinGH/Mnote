@@ -8,8 +8,7 @@
           show-word-limit
           spellcheck="false"
         />
-        <!-- 只在 notes 时显示编辑区 -->
-        <el-scrollbar  class="editor-scroll">
+        <el-scrollbar  class="editor-scroll" >
           <el-input
             v-model="selectedContent"
             type="textarea"
@@ -36,7 +35,7 @@ watch([selectedName, selectedContent], () => {
     content: selectedContent.value
   })
 }, { immediate: true })
-//callback will be executed immediately when the watcher is created 
+//callback(second input of watch) will be executed immediately when the watcher is created 
 // (even if the variables haven't changed)
 // ensuring that the initial values are also synchronized
 </script>

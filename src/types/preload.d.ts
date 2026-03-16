@@ -12,6 +12,12 @@ declare global {
         shortcutUpdate: (accelerator: string) => Promise<boolean>
         quickNoteUpdate: (draft: { title: string; content: string }) => void
         onNotesChanged: (cb: () => void) => void
+        showReminder: (payload: { title: string; body: string }) => Promise<boolean>
+        openMandatoryReminder: (text: string) => Promise<boolean>
+        submitMandatoryReminder: (payload: { text: string }) => Promise<boolean>
+        remindersGetAll: () => Promise<any[]>
+        remindersUpsert: (payload: any) => Promise<boolean>
+        remindersDelete: (id: number) => Promise<boolean>
     }
   }
 }

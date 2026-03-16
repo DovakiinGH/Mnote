@@ -1,41 +1,17 @@
-/* 顶部蓝条 */
-.top-bar {
-  background: linear-gradient(to right,#45a5fa,#3794EA,#317EC7);
+/* =========================================================
+   App Shell / Global Layout
+   ========================================================= */
+.app {
+  width: 100%;
+  height: 100vh;
   display: flex;
-  align-items: center;
-  padding: 0 12px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  height: 6vh;
-  min-height: 32px;
-  max-height: 70px;
+  flex-direction: column;
 }
 
-/* 顶部菜单项：去掉 hover / active / focus 的背景 */
-.top-menu .el-menu-item:hover,
-.top-menu .el-menu-item:focus,
-.top-menu .el-menu-item:focus-visible,
-.top-menu .el-menu-item.is-active {
-  background-color: transparent !important;
-}
-
-/* 去掉点击时的轮廓 */
-.top-menu .el-menu-item:focus-visible {
-  outline: none !important;
-}
-
-.top-menu.el-menu--horizontal {
-  border-bottom: none;
-}
-
-/* 如果还需要去掉每个 item 的下划线 */
-.top-menu .el-menu-item {
-  border-bottom: none !important;
-}
-
-.top-btn {
-  font-size: clamp(5px, 2vw, 17px);
+.body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
 }
 
 .empty-placeholder {
@@ -54,109 +30,68 @@
   font-weight: clamp(400, 1.5vw, 700);
 }
 
-/* =================== sub item =================== */
-.sub-item {
-  cursor: pointer;
-  position: relative;
+
+/* =========================================================
+   Top Bar / Header / Top Menu
+   ========================================================= */
+/* 顶部蓝条 */
+.top-bar {
+  background: linear-gradient(to right,#45a5fa,#3794EA,#317EC7);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: 6vh;
+  min-height: 32px;
+  max-height: 70px;
 }
 
-.sub-item.active {
-  border: 1px solid #6aa8f7;
-  box-shadow: 0 0 0 2px rgba(106,168,247,0.2);
-}
-
-/* -------------------------------------------delete button-------------------------------------------------*/
-.item-del-btn {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  display: none;
-  padding: 0.8vw;
-}
-
-/* 悬停时显示 */
-.sub-item:hover .item-del-btn {
-  display: inline-flex;
-}
-
-/* 红色垃圾桶 */
-.item-del-icon {
-  color: #e34b4b;
-  font-size: 16px;
-}
-
-/* 确认按钮（红色） */
-.btn-confirm {
-  background: #e34b4b;
+/* 标题 */
+.app-title {
   color: #fff;
+  font-weight: 600;
+  margin-right: 16px;
+  margin-left: 16px;
+  font-size: clamp(2px, 2vw, 25px);
+}
+
+/* 菜单去掉默认边框 */
+.top-menu {
   border: none;
 }
 
-/* item 包一层内容，方便做模糊 */
-.item-content {
-  transition: filter 0.2s ease;
-  padding-right: 28px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.top-menu.el-menu--horizontal {
+  border-bottom: none;
 }
 
-.item-preview {
-  color: #888;
-  font-size: 12px;
-  margin-top: 4px;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  line-height: 1.4;
-  max-height: 2.8em;
-}
-/*------------------------------------------------置顶按钮----------------------------------------------*/
-.item-pin-btn {
-  position: absolute;
-  bottom: 6px;
-  right: 6px;
-  display: none;
-  padding: 0.8vw;
-}
-.sub-item:hover .item-pin-btn {
-  display: inline-flex;
-}
-.item-pin-icon {
-  color: #9aa0a6;
-  font-size: 16px;
+/* 顶部菜单项：去掉 hover / active / focus 的背景 */
+.top-menu .el-menu-item:hover,
+.top-menu .el-menu-item:focus,
+.top-menu .el-menu-item:focus-visible,
+.top-menu .el-menu-item.is-active {
+  background-color: transparent !important;
 }
 
-/*------------------------------------------------模糊----------------------------------------------*/
-/* 进入确认态时模糊内容 */
-.sub-item.is-confirm .item-content {
-  filter: blur(2px);
-  opacity: 0.6;
-}
-.sub-item.is-confirm .item-preview {
-  filter: blur(2px);
-  opacity: 0.6;
+/* 去掉点击时的轮廓 */
+.top-menu .el-menu-item:focus-visible {
+  outline: none !important;
 }
 
-/* 确认层，覆盖在 item 中间 */
-.item-confirm {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-  align-items: center;
+/* 如果还需要去掉每个 item 的下划线 */
+.top-menu .el-menu-item {
+  border-bottom: none !important;
 }
 
-/* 返回按钮（白色） */
-.btn-cancel {
-  background: #fff;
-  color: #333;
-  border: 1px solid #ddd;
+.top-btn {
+  font-size: clamp(5px, 2vw, 17px);
 }
 
-/* =================== side =================== */
+
+/* =========================================================
+   Side Menu
+   ========================================================= */
 .side {
   transition: width 0.3s ease;
   position: relative;
@@ -210,11 +145,6 @@
   height: clamp(14px, 1.5vh, 30px);
 }
 
-.gear-btn {
-  position: absolute;
-  left: 1%;
-  bottom: 1%;
-}
 
 /* 折叠时：按钮覆盖整个侧栏 */
 .side-hit {
@@ -233,12 +163,30 @@
   transform: translate(-50%, -50%);
 }
 
+.gear-btn {
+  position: absolute;
+  left: 1%;
+  bottom: 1%;
+}
 .side-close {
   right: 8px;
   bottom: 8px;
 }
+.side-close:hover,
+.side-close:focus,
+.side-close:active,
+.gear-btn:hover,
+.gear-btn:focus,
+.gear-btn:active {
+  background: transparent !important;
+  color: #9aa0a6 !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+}
 
-/* =================== sub-side =================== */
+/* =========================================================
+   Sub-side
+   ========================================================= */
 .sub-side {
   background: #f7f7f7;
   border-left: 1px solid #e5e5e5;
@@ -293,6 +241,18 @@
   gap: 2vh;
 }
 
+
+.sub-item {
+  cursor: pointer;
+  position: relative;
+}
+
+.sub-item.active {
+  border: 1px solid #6aa8f7;
+  box-shadow: 0 0 0 2px rgba(106,168,247,0.2);
+}
+
+
 .sub-item {
   background: #fff;
   border-radius: 6px;
@@ -302,6 +262,108 @@
   min-height: 7vw;
 }
 
+
+/* =========================================================
+   Sub Item Content / Preview / Delete / Pin / Confirm
+   ========================================================= */
+/* item content text */
+.item-content {
+  transition: filter 0.2s ease;
+  padding-right: 28px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item-preview {
+  color: #888;
+  font-size: 12px;
+  margin-top: 4px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.4;
+  max-height: 2.8em;
+}
+
+/* delete button */
+.item-del-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: none;
+  padding: 0.8vw;
+}
+
+/* show delete button on hover */
+.sub-item:hover .item-del-btn {
+  display: inline-flex;
+}
+
+/* delete icon */
+.item-del-icon {
+  color: #e34b4b;
+  font-size: 16px;
+}
+
+/* pin button */
+.item-pin-btn {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  display: none;
+  padding: 0.8vw;
+}
+
+.sub-item:hover .item-pin-btn {
+  display: inline-flex;
+}
+
+.item-pin-icon {
+  color: #9aa0a6;
+  font-size: 16px;
+}
+
+/* blur state while confirming delete */
+.sub-item.is-confirm .item-content {
+  filter: blur(2px);
+  opacity: 0.6;
+}
+
+.sub-item.is-confirm .item-preview {
+  filter: blur(2px);
+  opacity: 0.6;
+}
+
+/* confirm action overlay */
+.item-confirm {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+}
+
+/* confirm button */
+.btn-confirm {
+  background: #e34b4b;
+  color: #fff;
+  border: none;
+}
+
+/* cancel button */
+.btn-cancel {
+  background: #fff;
+  color: #333;
+  border: 1px solid #ddd;
+}
+
+
+/* =========================================================
+   New Button
+   ========================================================= */
 /* New 按钮整体 */
 .new-btn {
   height: 28px;
@@ -318,6 +380,8 @@
   position: relative;
   justify-content: center;
   padding-left: 2.2em;
+  background-color:#409EFF;
+  color: #ffffff;
 }
 
 /* 左侧圆形 + 号 */
@@ -337,13 +401,16 @@
   transform: translateY(-50%);
 }
 
-/* =================== content =================== */
+
+/* =========================================================
+   Main Content Area and Quick Content
+   ========================================================= */
 .content {
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-   padding: 0 !important;
+  padding: 0 !important;
 }
 
 .content-inner {
@@ -363,6 +430,25 @@
   min-height: 0;
 }
 
+.quick-content{
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+.reminder-panel.is-locked .lockable {
+  opacity: 0.5;
+}
+
+.reminder-panel.is-locked :deep(.is-disabled .el-input__wrapper),
+.reminder-panel.is-locked :deep(.is-disabled .el-textarea__inner),
+.reminder-panel.is-locked :deep(.is-disabled .el-select__wrapper) {
+  background: #f3f3f3 !important;
+}
+
+/* =========================================================
+  Note Editor / Title / Time
+   ========================================================= */
 /* 让 el-input 本体撑满 */
 .note-editor,
 .note-editor .el-textarea,
@@ -381,7 +467,7 @@
   padding: 12px;
 }
 
-/*title of content,which is a input place*/
+/* title input */
 .title-input .el-input__inner {
   font-size: 24px;
   font-weight: 700;
@@ -394,51 +480,36 @@
   border: none;
   box-shadow: none;
 }
+
 .title-input .el-input__wrapper {
   box-shadow: none !important;
   border: none !important;
   background: transparent !important;
 }
 
-
-/* 标题 */
-.app-title {
-  color: #fff;
-  font-weight: 600;
-  margin-right: 16px;
-  margin-left: 16px;
-  font-size: clamp(2px, 2vw, 25px);
+.note-time {
+  margin: 5px 13px;
 }
 
-/* 菜单去掉默认边框 */
-.top-menu {
-  border: none;
+.time-line {
+  height: 18px;       
+  line-height: 18px;
+  font-size: 12px;
+  color: #999;
 }
 
-/* 让容器撑满 */
-.app {
-  width: 100%;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
 
-.body {
-  flex: 1;
-  display: flex;
-  overflow: hidden;
-}
-
-/*Tab*/
+/* =========================================================
+   Tab Bar
+   ========================================================= */
 .tab-bar {
-  height: clamp(35px,4vh,100px); /* 你可以改成 28/36 */
+  height: clamp(35px,4vh,100px); 
   display: flex;
   align-items: stretch;
   padding: 0;
-  gap: 0;                 /* 无缝 */
+  gap: 0;                 
   background: linear-gradient(90deg, #7CBBF5 0%, #2697FF 100%);
   border-bottom: none;
-  
   flex-wrap: nowrap;
   white-space: nowrap;
 }
@@ -454,15 +525,15 @@
   align-items: center;
   justify-content: space-between;
 
-  /* 格子自身也用同样渐变 */
+ 
   background: linear-gradient(90deg, #7CBBF5 0%, #2697FF 100%);
   color: #fff;
   padding: 0 10px;
 }
 
 .tab.active {
-background: linear-gradient(90deg, #ffffff 0%, #f7f7f7 60% ,#e6f0ff 100%);
-color:#2697FF;
+  background: linear-gradient(90deg, #ffffff 0%, #f7f7f7 60% ,#e6f0ff 100%);
+  color:#2697FF;
 }
 
 .tab-title {
@@ -481,13 +552,14 @@ color:#2697FF;
   display: inline-block;
 }
 
-
 .tab-bar-scroll {
   height: clamp(35px,4vh,100px);
 }
 
 
-
+/* =========================================================
+   Reminder Form (inside MainView)
+   ========================================================= */
 .reminder-form {
   display: flex;
   flex-direction: column;
@@ -496,7 +568,7 @@ color:#2697FF;
   width: clamp(260px, 60vw, 720px);
 }
 
-/* 输入框统一去边框 */
+
 .reminder-form .el-input__wrapper,
 .reminder-form .el-select__wrapper,
 .reminder-form .el-input-number__wrapper,
@@ -518,10 +590,25 @@ color:#2697FF;
 .reminder-form input {
   font-size: clamp(13px, 1.2vw, 16px);
 }
+
+.reminder-panel {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(8px, 1.2vw, 16px);  /* 栏位间距 */
+  padding: 8px;
+}
+
+.reminder-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .reminder-textarea .el-textarea__inner {
   overflow-y: auto;
   resize: none;
 }
+
 .reminder-text-scroll {
   max-height: 40vh;  /* 控制可滚动高度 */
 }
@@ -530,7 +617,6 @@ color:#2697FF;
 .reminder-textarea .el-textarea,
 .reminder-textarea .el-textarea__inner {
   height: 100%;
-
 }
 
 .reminder-textarea .el-textarea__inner {
@@ -552,27 +638,4 @@ color:#2697FF;
   border: none !important;
   box-shadow: none !important;
   background: transparent;
-  resize: none;
-}
-.reminder-panel {
-  display: flex;
-  flex-direction: column;
-  gap: clamp(8px, 1.2vw, 16px);  /* 栏位间距 */
-  padding: 8px;
-}
-
-.reminder-status {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.note-time {
-  margin: 5px 13px;
-}
-
-.time-line {
-  height: 18px;       /* 固定高度，没内容也占位 */
-  line-height: 18px;
-  font-size: 12px;
-  color: #999;
 }
