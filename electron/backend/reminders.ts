@@ -16,6 +16,7 @@ export type ReminderRow = {
   createAt: number
   updatedAt: number
   pinned: number
+  lastTriggeredAt: number | null 
 }
 export type ReminderUpsertInput = {
   id: number
@@ -31,6 +32,7 @@ export type ReminderUpsertInput = {
   createAt?: number | null
   updatedAt?: number | null
   pinned?: number
+  lastTriggeredAt?: number | null 
 }
 
 export async function getAllReminders() {
@@ -61,9 +63,9 @@ export async function upsertReminder(input: ReminderUpsertInput) {
   await pool.execute(
     `
     INSERT INTO reminders
-      (id, title, text, enabled, mode, type, minutes, date, time, days, pinned, createAt, updatedAt)
+      (id, title, text, enabled, mode, type, minutes, date, time, days, pinned, createAt, updatedAt, lastTriggeredAt)
     VALUES
-      (?,?,?,?,?,?,?,?,?,?,?,?,?)
+      (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     ON DUPLICATE KEY UPDATE
       title = VALUES(title),
       text = VALUES(text),
@@ -75,7 +77,8 @@ export async function upsertReminder(input: ReminderUpsertInput) {
       time = VALUES(time),
       days = VALUES(days),
       pinned = VALUES(pinned),
-      updatedAt = VALUES(updatedAt)
+      updatedAt = VALUES(updatedAt),
+      lastTriggeredAt = COALESCE(VALUES(lastTriggeredAt), lastTriggeredAt)
     `,
     [
     //for ? in VALUES
@@ -91,7 +94,8 @@ export async function upsertReminder(input: ReminderUpsertInput) {
       days,
       input.pinned ?? 0,
       input.createAt ?? now,
-      input.updatedAt ?? now
+      input.updatedAt ?? now,
+      input.lastTriggeredAt ?? null
     ]
   )
   return true

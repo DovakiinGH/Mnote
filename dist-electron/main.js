@@ -24975,7 +24975,8 @@ async function initSchema() {
 
       pinned TINYINT(1) NOT NULL DEFAULT 0,
       createAt BIGINT NOT NULL,
-      updatedAt BIGINT NOT NULL
+      updatedAt BIGINT NOT NULL,
+      lastTriggeredAt BIGINT NULL
     )
   `);
   await pool.execute(`CREATE INDEX idx_reminders_enabled ON reminders(enabled)`).catch(() => {
@@ -24997,6 +24998,12 @@ async function initSchema() {
   await pool.execute(`ALTER TABLE reminders MODIFY COLUMN \`date\` DATE NULL`).catch(() => {
   });
   await pool.execute(`ALTER TABLE reminders MODIFY COLUMN \`time\` TIME NULL`).catch(() => {
+  });
+  await pool.execute(`
+    ALTER TABLE reminders
+    ADD COLUMN lastTriggeredAt BIGINT NULL
+  `).catch((e) => {
+    console.error("[schema] add lastTriggeredAt failed:", e);
   });
 }
 async function getAllNotes() {
@@ -25050,9 +25057,9 @@ async function upsertReminder(input) {
   await pool.execute(
     `
     INSERT INTO reminders
-      (id, title, text, enabled, mode, type, minutes, date, time, days, pinned, createAt, updatedAt)
+      (id, title, text, enabled, mode, type, minutes, date, time, days, pinned, createAt, updatedAt, lastTriggeredAt)
     VALUES
-      (?,?,?,?,?,?,?,?,?,?,?,?,?)
+      (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     ON DUPLICATE KEY UPDATE
       title = VALUES(title),
       text = VALUES(text),
@@ -25064,7 +25071,8 @@ async function upsertReminder(input) {
       time = VALUES(time),
       days = VALUES(days),
       pinned = VALUES(pinned),
-      updatedAt = VALUES(updatedAt)
+      updatedAt = VALUES(updatedAt),
+      lastTriggeredAt = COALESCE(VALUES(lastTriggeredAt), lastTriggeredAt)
     `,
     [
       //for ? in VALUES
@@ -25080,7 +25088,8 @@ async function upsertReminder(input) {
       days,
       input.pinned ?? 0,
       input.createAt ?? now,
-      input.updatedAt ?? now
+      input.updatedAt ?? now,
+      input.lastTriggeredAt ?? null
     ]
   );
   return true;

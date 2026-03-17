@@ -303,6 +303,13 @@ import { useI18n } from 'vue-i18n'
 import { computed, onMounted } from 'vue'
 import { watch } from 'vue'
 
+import type { UnitItem, TabType, ReminderForm, ReminderTypeKey, ReminderMode } from '../types/mainView'
+import { REMINDER_TYPES, normalizeReminderByType } from '../services/reminderUtils'
+import { formatTime } from '../services/timeUtils'
+import { useWheelScroll } from '../composables/useWheelScroll'
+const { onTabWheel, onTitleWheel } = useWheelScroll()
+
+
 const { t, locale } = useI18n()
 const activeIndex = ref('1')
 const isCollapse = ref(true)
@@ -421,7 +428,6 @@ const saveAllReminders = async () => {
     await saveReminder(r.id)
   }
 }
-// 接收关闭通知
 window.api.onSaveBeforeClose(async () => {
   try {
     if (saveTimer) {
@@ -438,7 +444,7 @@ window.api.onSaveBeforeClose(async () => {
   } catch (e) {
     console.error('[onSaveBeforeClose] failed:', e)
   } finally {
-    window.api.notifySaveDone() // 必须放 finally
+    window.api.notifySaveDone() 
   }
 })
 
@@ -474,14 +480,6 @@ const scheduleSaveReminder = (id: number) => {
 
 
 //--------------------------const-------------------------------------------------------------------------------------
-type UnitItem = {
-  id: number
-  name: string
-  contentId: number
-  createAt?: number | null
-  updatedAt?: number | null
-  pinned?: boolean
-}
 
 const dataMap = ref<{
   notes: UnitItem[]
@@ -500,25 +498,6 @@ const contentStore = ref<Record<number, string>>({
 //----------------------------reminder const-----------------------------------------------------------------
 const reminderStore = ref<Record<number, ReminderForm>>({})
 
-type ReminderTypeKey = 'AFTER_MINUTES' | 'DATE_TIME' | 'EVERY_DAYS'
-type ReminderMode = 'NOTIFICATION' | 'POPUP_WINDOW'
-
-const REMINDER_TYPES = [
-  { key: 'AFTER_MINUTES', label: 'minutes later' },
-  { key: 'DATE_TIME', label: 'yy/mm/dd' },
-  { key: 'EVERY_DAYS', label: 'evey few days' }
-] as const
-
-type ReminderForm = {
-  type: ReminderTypeKey
-  mode: ReminderMode
-  text: string
-  enabled: boolean
-  minutes?: number
-  date?: string
-  time?: string
-  days?: number
-}
 const isReminderLocked = computed(() => {
   return currentReminderForm.value.enabled === true
 })
@@ -538,241 +517,6 @@ const currentReminderForm = computed<ReminderForm>(() => {
 }
   return reminderStore.value[id]
 })
-
-const normalizeReminderByType = (f: ReminderForm) => {
-  if (f.type === 'AFTER_MINUTES') {
-    return {
-      minutes: f.minutes ?? 1,
-      date: null,
-      time: null,
-      days: null
-    }
-  }
-
-  if (f.type === 'DATE_TIME') {
-    return {
-      minutes: null,
-      date: f.date ?? null,
-      time: f.time ?? null, // 可选
-      days: null
-    }
-  }
-
-  // EVERY_DAYS
-  return {
-    minutes: null,
-    date: null,
-    time: f.time ?? null,   // 可选
-    days: f.days ?? 1
-  }
-}
-
-//--------------------------------handleing side menus-----------------------------------------------------------------
-
-const onSelectSideMenu = (index: string) => {
-  activeIndex.value = index
-   isSubOpen.value = true
-
-  const type = index === '1' ? 'notes' : 'reminders'
-  const tab = tabs.value.find(t => t.type === type)
-  if (tab) {
-    activeTabKey.value = tab.key
-    selectedSubId.value = tab.itemId
-  } else {
-    selectedSubId.value = null
-  }
-}
-
-const onSubSideEndClick=() => {
-  isCollapse.value=true
-  isSubOpen.value = false
-}
-
-
-const currentCategoryName = computed<'notes'|'reminders'>(() => {
-  return activeIndex.value === '1' ? 'notes' : 'reminders'
-})  
-
-const currentItems = computed(() => {
-  if (currentCategoryName.value === 'notes') return sortedNotes.value
-  if (currentCategoryName.value === 'reminders')return sortedReminders.value
-  return []
-})
-
-//-----------------------------------Tabs----------------------------------------------------------
-type TabType = 'notes' | 'reminders'
-
-type Tab = {
-  key: string
-  type: TabType
-  itemId: number
-  // title: string
-}
-
-const tabs = ref<Tab[]>([])
-const activeTabKey = ref<string | null>(null)
-
-const makeTabKey = (type: TabType, id: number) => `${type}-${id}`
-//造边栏id
-
-
-const onSubItemClick = (id: number) => {
-  selectedSubId.value = id
-  //用type+id 创建 tab的key
-  const type: TabType = currentCategoryName.value
-  const key = makeTabKey(type, id)
-
-  // 确保 tab 存在 若不存在则使其存在
-  if (!tabs.value.find(t => t.key === key)) {
-    tabs.value.push({ key, type, itemId: id })
-  }
-
-  // 通过更改activeTabKey 激活该 tab
-  activeTabKey.value = key
-} //点击边栏 激活tab
-
-const activeTab = computed(() => {
-  return tabs.value.find(t => t.key === activeTabKey.value) || null
-}) //返回活跃的tab
-
-const activateTab = (key: string) => {
-  //点击tab 切换边栏
-  activeTabKey.value = key
-
-  const tab = tabs.value.find(t => t.key === key)
-  if (!tab) return
-
-  activeIndex.value = tab.type === 'notes' ? '1' : '2'
-  selectedSubId.value = tab.itemId
-} //更新边栏
-
-const activeContentItem = computed(() => {
-  if (!activeTab.value) return null
-  const list = dataMap.value[activeTab.value.type]
-  return list.find(i => i.id === activeTab.value!.itemId) || null
-}) //返回活跃的边栏item
-
-const closeTab = (key: string) => {
-  const idx = tabs.value.findIndex(t => t.key === key)
-  if (idx === -1) return
-
-  tabs.value.splice(idx, 1)
-
-  if (activeTabKey.value === key) {
-    activeTabKey.value = tabs.value[idx - 1]?.key || tabs.value[idx]?.key || null
-  }
-}
-let dragKey: string | null = null
-
-const onDragStart = (key: string) => {
-  dragKey = key
-}
-
-const onDrop = (key: string) => {
-    // 1. 合法性检查
-  if (!dragKey || dragKey === key) return
-    // 2. 找到被拖拽标签和释放目标标签的下标
-  const from = tabs.value.findIndex(t => t.key === dragKey)
-  const to = tabs.value.findIndex(t => t.key === key)
-    // 3. 从原位置移除被拖拽项
-  const [moved] = tabs.value.splice(from, 1)
-    // 4. 插入到目标位置
-  tabs.value.splice(to, 0, moved)
-    // 5. 清除记录
-  dragKey = null
-}
-
-
-//-----------------------------------------------------name and content---------------------------------------------------
-// const selectedSubItem = computed(() => {
-//   return currentItems.value.find(i => i.id === selectedSubId.value)|| null}) 
-
-//content
-const selectedContent = computed({
-  get() {
-    const id = activeContentItem.value?.contentId
-    return id ? contentStore.value[id] ?? '' : ''
-  },
-  set(val: string) {
-    const id = activeContentItem.value?.contentId
-     if (id) {
-      contentStore.value[id] = val
-      activeContentItem.value.updatedAt = Date.now()
-      if (activeTab.value?.type === 'notes') scheduleSave(id)
-    }
-  }
-})
-// name
-const selectedName = computed({
-  get() {
-    return activeContentItem.value?.name ?? ''
-  },
-  set(val: string) {
-    // if (activeContentItem.value) activeContentItem.value.name = val
-     if (activeContentItem.value) {
-      activeContentItem.value.name = val
-      activeContentItem.value.updatedAt = Date.now()
-      if (activeTab.value?.type === 'notes') scheduleSave(activeContentItem.value.id)
-      if (activeTab.value?.type === 'reminders') scheduleSaveReminder(activeContentItem.value.id)
-    }
-  }
-})
-
-//---------------------------------------item delete---------------------------------------------
-const confirmDeleteId = ref<number | null>(null)
-
-const onDeleteItem = (id: number) => {
-  console.log('delete', id)
-  confirmDeleteId.value = id
-}
-
-const onCancelDelete = () => {
-  confirmDeleteId.value = null
-}
-const onConfirmDelete = async (id: number) => {
-  // 1) 找到当前分类的列表（notes 或 reminders）
-  const list = dataMap.value[currentCategoryName.value]
-  // 2) 在这个列表中找到要删除的 item 的下标
-  const idx = list.findIndex(i => i.id === id)
-  // 3) 如果找到了（idx !== -1）
-  if (idx !== -1) {
-    // 4) 先取出它对应的 contentId
-    const contentId = list[idx].contentId
-     if (currentCategoryName.value === 'notes') {
-      await window.api.notesDelete(id)
-    }else if (currentCategoryName.value === 'reminders') {
-      await window.api.reminderDelete(id)
-      delete reminderStore.value[id] // 同步清理内存表单
-    }
-    // 5) 从列表里删除这个 item
-    list.splice(idx, 1)
-    // 6) 从 contentStore 里删除对应的内容
-    if (contentId !== undefined) {
-      delete contentStore.value[contentId]
-    }   
-  }
-    // 7) 关闭对应tab
-    const key = `${currentCategoryName.value}-${id}`
-    closeTab(key)
-    // 8) 退出“确认删除”状态
-    confirmDeleteId.value = null
-}
-//---------------------------------------item pinned-----------------------------------------------------------
-const onTogglePin = (item: UnitItem) => {
-  item.pinned = !item.pinned
-    if (currentCategoryName.value === 'notes') {
-    scheduleSave(item.id)
-  }else if (currentCategoryName.value === 'reminders') {
-    scheduleSaveReminder(item.id)
-  }
-}
-
-//------------------------------preview----------------------------------------------------------------------
-const getPreview = (contentId?: number) => {
-  if (!contentId) return ''
-  const text = contentStore.value[contentId] ?? ''
-  return text.replace(/\s+/g, ' ').trim().slice(0, 40)
-}
 //--------------------------------add new item------------------------------------------------------------
 const onNewItem = async() => {
   const list = dataMap.value[currentCategoryName.value]
@@ -837,15 +581,205 @@ const getTabTitle = (tab: Tab) => {
   return list.find(i => i.id === tab.itemId)?.name ?? 'Untitled'
 }
 
-const formatTime = (ts: number) => {
-  const d = new Date(ts)
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  const hh = String(d.getHours()).padStart(2, '0')
-  const mm = String(d.getMinutes()).padStart(2, '0')
-  return `${y}-${m}-${day} ${hh}:${mm}`
+
+//--------------------------------handleing side menus-----------------------------------------------------------------
+
+const onSelectSideMenu = (index: string) => {
+  activeIndex.value = index
+   isSubOpen.value = true
+
+  const type = index === '1' ? 'notes' : 'reminders'
+  const tab = tabs.value.find(t => t.type === type)
+  if (tab) {
+    activeTabKey.value = tab.key
+    selectedSubId.value = tab.itemId
+  } else {
+    selectedSubId.value = null
+  }
 }
+
+const onSubSideEndClick=() => {
+  isCollapse.value=true
+  isSubOpen.value = false
+}
+
+
+const currentCategoryName = computed<'notes'|'reminders'>(() => {
+  return activeIndex.value === '1' ? 'notes' : 'reminders'
+})  
+
+const currentItems = computed(() => {
+  if (currentCategoryName.value === 'notes') return sortedNotes.value
+  if (currentCategoryName.value === 'reminders')return sortedReminders.value
+  return []
+})
+
+//-----------------------------------Tabs----------------------------------------------------------
+type Tab = {
+  key: string
+  type: TabType
+  itemId: number
+}
+
+const tabs = ref<Tab[]>([])
+const activeTabKey = ref<string | null>(null)
+
+const makeTabKey = (type: TabType, id: number) => `${type}-${id}`
+//造边栏id
+
+
+const onSubItemClick = (id: number) => {
+  selectedSubId.value = id
+  //用type+id 创建 tab的key
+  const type: TabType = currentCategoryName.value
+  const key = makeTabKey(type, id)
+
+  // 确保 tab 存在 若不存在则使其存在
+  if (!tabs.value.find(t => t.key === key)) {
+    tabs.value.push({ key, type, itemId: id })
+  }
+
+  // 通过更改activeTabKey 激活该 tab
+  activeTabKey.value = key
+} //点击边栏 激活tab
+
+const activeTab = computed(() => {
+  return tabs.value.find(t => t.key === activeTabKey.value) || null
+}) //返回活跃的tab
+
+const activateTab = (key: string) => {
+  //点击tab 切换边栏
+  activeTabKey.value = key
+
+  const tab = tabs.value.find(t => t.key === key)
+  if (!tab) return
+
+  activeIndex.value = tab.type === 'notes' ? '1' : '2'
+  selectedSubId.value = tab.itemId
+} //更新边栏
+
+const activeContentItem = computed(() => {
+  if (!activeTab.value) return null
+  const list = dataMap.value[activeTab.value.type]
+  return list.find(i => i.id === activeTab.value!.itemId) || null
+}) //返回活跃的边栏item
+
+const closeTab = (key: string) => {
+  const idx = tabs.value.findIndex(t => t.key === key)
+  if (idx === -1) return
+
+  tabs.value.splice(idx, 1)
+
+  if (activeTabKey.value === key) {
+    activeTabKey.value = tabs.value[idx - 1]?.key || tabs.value[idx]?.key || null
+  }
+}
+let dragKey: string | null = null
+
+const onDragStart = (key: string) => {
+  dragKey = key
+}
+
+const onDrop = (key: string) => {
+  if (!dragKey || dragKey === key) return
+    // 2. 找到被拖拽标签和释放目标标签的下标
+  const from = tabs.value.findIndex(t => t.key === dragKey)
+  const to = tabs.value.findIndex(t => t.key === key)
+    // 3. 从原位置移除被拖拽项
+  const [moved] = tabs.value.splice(from, 1)
+    // 4. 插入到目标位置
+  tabs.value.splice(to, 0, moved)
+    // 5. 清除记录
+  dragKey = null
+}
+
+//-----------------------------------------------------name and content---------------------------------------------------
+//content
+const selectedContent = computed({
+  get() {
+    const id = activeContentItem.value?.contentId
+    return id ? contentStore.value[id] ?? '' : ''
+  },
+  set(val: string) {
+    const id = activeContentItem.value?.contentId
+     if (id) {
+      contentStore.value[id] = val
+      activeContentItem.value.updatedAt = Date.now()
+      if (activeTab.value?.type === 'notes') scheduleSave(id)
+    }
+  }
+})
+// name
+const selectedName = computed({
+  get() {
+    return activeContentItem.value?.name ?? ''
+  },
+  set(val: string) {
+     if (activeContentItem.value) {
+      activeContentItem.value.name = val
+      activeContentItem.value.updatedAt = Date.now()
+      if (activeTab.value?.type === 'notes') scheduleSave(activeContentItem.value.id)
+      if (activeTab.value?.type === 'reminders') scheduleSaveReminder(activeContentItem.value.id)
+    }
+  }
+})
+
+//---------------------------------------item delete---------------------------------------------
+const confirmDeleteId = ref<number | null>(null)
+
+const onDeleteItem = (id: number) => {
+  console.log('delete', id)
+  confirmDeleteId.value = id
+}
+
+const onCancelDelete = () => {
+  confirmDeleteId.value = null
+}
+const onConfirmDelete = async (id: number) => {
+  // 1) 找到当前分类的列表（notes 或 reminders）
+  const list = dataMap.value[currentCategoryName.value]
+  // 2) 在这个列表中找到要删除的 item 的下标
+  const idx = list.findIndex(i => i.id === id)
+  // 3) 如果找到了（idx !== -1）
+  if (idx !== -1) {
+    // 4) 先取出它对应的 contentId
+    const contentId = list[idx].contentId
+     if (currentCategoryName.value === 'notes') {
+      await window.api.notesDelete(id)
+    }else if (currentCategoryName.value === 'reminders') {
+      await window.api.reminderDelete(id)
+      delete reminderStore.value[id] // 同步清理内存表单
+    }
+    // 5) 从列表里删除这个 item
+    list.splice(idx, 1)
+    // 6) 从 contentStore 里删除对应的内容
+    if (contentId !== undefined) {
+      delete contentStore.value[contentId]
+    }   
+  }
+    // 7) 关闭对应tab
+    const key = `${currentCategoryName.value}-${id}`
+    closeTab(key)
+    // 8) 退出“确认删除”状态
+    confirmDeleteId.value = null
+}
+//---------------------------------------item pinned-----------------------------------------------------------
+const onTogglePin = (item: UnitItem) => {
+  item.pinned = !item.pinned
+    if (currentCategoryName.value === 'notes') {
+    scheduleSave(item.id)
+  }else if (currentCategoryName.value === 'reminders') {
+    scheduleSaveReminder(item.id)
+  }
+}
+
+//------------------------------preview----------------------------------------------------------------------
+const getPreview = (contentId?: number) => {
+  if (!contentId) return ''
+  const text = contentStore.value[contentId] ?? ''
+  return text.replace(/\s+/g, ' ').trim().slice(0, 40)
+}
+
 //----------------------------------sort of items------------------------------------------------
 const sortedNotes = computed(() => {
   return [...dataMap.value.notes].sort((a, b) => {
@@ -901,20 +835,7 @@ const epLocale = computed(() => {
 })
 
 
-//------------------------------------about wheel----------------------------------------------
-const onTabWheel = (e: WheelEvent) => {
-  const wrap = (e.currentTarget as HTMLElement)
-    .querySelector('.el-scrollbar__wrap') as HTMLElement | null
-  if (!wrap) return
-  wrap.scrollLeft += e.deltaY
-}
-const onTitleWheel = (e: WheelEvent) => {
-  const root = e.currentTarget as HTMLElement | null
-  if (!root) return
-  const inputEl = root.querySelector('input') as HTMLInputElement | null
-  if (!inputEl) return
-  inputEl.scrollLeft += e.deltaY
-}
+
 
 //-----------------------------watch-------------------------------------
 

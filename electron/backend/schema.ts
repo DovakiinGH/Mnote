@@ -46,7 +46,8 @@ export async function initSchema() {
 
       pinned TINYINT(1) NOT NULL DEFAULT 0,
       createAt BIGINT NOT NULL,
-      updatedAt BIGINT NOT NULL
+      updatedAt BIGINT NOT NULL,
+      lastTriggeredAt BIGINT NULL
     )
   `)
 
@@ -63,5 +64,11 @@ export async function initSchema() {
   await pool.execute(`ALTER TABLE reminders ADD COLUMN \`time\` TIME NULL`).catch(() => {})
   await pool.execute(`ALTER TABLE reminders ADD COLUMN days INT NULL`).catch(() => {})
   await pool.execute(`ALTER TABLE reminders MODIFY COLUMN \`date\` DATE NULL`).catch(() => {})
-await pool.execute(`ALTER TABLE reminders MODIFY COLUMN \`time\` TIME NULL`).catch(() => {})
+  await pool.execute(`ALTER TABLE reminders MODIFY COLUMN \`time\` TIME NULL`).catch(() => {})
+  await pool.execute(`
+    ALTER TABLE reminders
+    ADD COLUMN lastTriggeredAt BIGINT NULL
+  `).catch((e) => {
+    console.error('[schema] add lastTriggeredAt failed:', e)
+  })
 }
