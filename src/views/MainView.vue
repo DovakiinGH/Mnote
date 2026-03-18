@@ -304,7 +304,7 @@ import { computed, onMounted } from 'vue'
 import { watch } from 'vue'
 
 import type { UnitItem, TabType, ReminderForm, ReminderTypeKey, ReminderMode } from '../types/mainView'
-import { REMINDER_TYPES, normalizeReminderByType } from '../services/reminderUtils'
+import {REMINDER_TYPES} from '../services/reminderUtils'
 import { formatTime } from '../services/timeUtils'
 import { useWheelScroll } from '../composables/useWheelScroll'
 const { onTabWheel, onTitleWheel } = useWheelScroll()
@@ -332,7 +332,6 @@ const testClickSecond=async ()=>{
 const loadNotes = async () => {
   const rows = await window.api.notesGetAll()
 
-  // 映射到你的 dataMap / contentStore
   dataMap.value.notes = rows.map(r => ({
     id: r.id,
     name: r.title,
@@ -387,13 +386,13 @@ const saveNote = async (id: number) => {
     pinned: note.pinned ? 1 : 0
   })
 }
+
 const saveReminder = async (id: number) => {
   const item = dataMap.value.reminders.find(r => r.id === id)
   if (!item) return
   const f = reminderStore.value[id]
   if (!f) return
 
-  const normalized = normalizeReminderByType(f)
   await window.api.reminderUpsert({
     id,
     title: item.name ?? '',
@@ -401,15 +400,16 @@ const saveReminder = async (id: number) => {
     enabled: f.enabled ? 1 : 0,
     mode: f.mode,
     type: f.type,
-    minutes: normalized.minutes,
-    date: normalized.date,
-    time: normalized.time,
-    days: normalized.days,
+    minutes: f.minutes ?? null,
+    date: f.date ?? null,
+    time: f.time ?? null,
+    days: f.days ?? null,
     createAt: item.createAt ?? Date.now(),
-    updatedAt: item.updatedAt ?? Date.now(), 
+    updatedAt: item.updatedAt ?? Date.now(),
     pinned: item.pinned ? 1 : 0
   })
 }
+
 const saveAllNotes = async () => {
   const list = dataMap.value.notes
   for (const n of list) {
@@ -485,8 +485,8 @@ const dataMap = ref<{
   notes: UnitItem[]
   reminders: UnitItem[]
 }>({
-  notes: [{ id: 1, name: 'sasasasa', contentId: 101 }],
-  reminders: [{ id: 10, name: 'b', contentId: 101 }]
+  notes: [{ id: 1, name: 'no', contentId: 101 }],
+  reminders: [{ id: 10, name: 'no', contentId: 101 }]
 }) //格式：ref<T>(initialValue)
 
 
@@ -518,62 +518,19 @@ const currentReminderForm = computed<ReminderForm>(() => {
   return reminderStore.value[id]
 })
 //--------------------------------add new item------------------------------------------------------------
-const onNewItem = async() => {
-  const list = dataMap.value[currentCategoryName.value]
-  const now = Date.now()
 
-  const newId = Date.now()
-  const newContentId = newId
-
-  const newItem = {
-    id: newId,
-    name: 'new',
-    contentId: newContentId,
-    createAt: now,
-    updatedAt: now,
-    pinned: false
-  }
-  // 添加到当前列表
-  list.unshift(newItem)
-  // 初始化内容
-  contentStore.value[newContentId] = ''
-  // 自动选中新建项
-  selectedSubId.value = newId
+const onNewItem = async () => {
   if (currentCategoryName.value === 'notes') {
-    await window.api.notesUpsert({
-      id: newId,
-      title: newItem.name,
-      content: '',
-      updatedAt: now,
-      createAt: now,
-      pinned: 0
-    })
+    const n = await window.api.notesCreate()
+    await loadNotes()
+    selectedSubId.value = Number(n.id)
+    onSubItemClick(Number(n.id))
+    return
   }
-  if (currentCategoryName.value === 'reminders') {
-  reminderStore.value[newId] = {
-    type: 'AFTER_MINUTES',
-    mode: 'NOTIFICATION',
-    text: '',
-    minutes: 5,
-    enabled: false
-  }
-
-  await window.api.reminderUpsert({
-    id: newId,
-    title: newItem.name,
-    text: '',
-    enabled: 0,
-    mode: 'NOTIFICATION',
-    type: 'AFTER_MINUTES',
-    minutes: 5,
-    date: null,
-    time: null,
-    days: null,
-    createAt: now,
-    updatedAt: now,
-    pinned: 0
-  })
-}
+  const r = await window.api.reminderCreate()
+  await loadReminders()
+  selectedSubId.value = Number(r.id)
+  onSubItemClick(Number(r.id))
 }
 
 const getTabTitle = (tab: Tab) => {
@@ -626,8 +583,6 @@ const activeTabKey = ref<string | null>(null)
 
 const makeTabKey = (type: TabType, id: number) => `${type}-${id}`
 //造边栏id
-
-
 const onSubItemClick = (id: number) => {
   selectedSubId.value = id
   //用type+id 创建 tab的key

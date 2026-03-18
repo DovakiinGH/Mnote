@@ -46,20 +46,7 @@ export async function getAllReminders() {
 
 export async function upsertReminder(input: ReminderUpsertInput) {
   const now = Date.now()
-    let minutes: number | null = null
-    let date: string | null = null
-    let time: string | null = null
-    let days: number | null = null
 
-    if (input.type === 'AFTER_MINUTES') {
-        minutes = input.minutes ?? 1
-    } else if (input.type === 'DATE_TIME') {
-        date = input.date ?? null
-        time = input.time ?? null
-    } else if (input.type === 'EVERY_DAYS') {
-        days = input.days ?? 1
-        time = input.time ?? null
-    }
   await pool.execute(
     `
     INSERT INTO reminders
@@ -88,10 +75,10 @@ export async function upsertReminder(input: ReminderUpsertInput) {
       input.enabled,
       input.mode,
       input.type,
-      minutes,
-      date,
-      time,
-      days,
+      input.minutes ?? null,
+      input.date ?? null,
+      input.time ?? null,
+      input.days ?? null,
       input.pinned ?? 0,
       input.createAt ?? now,
       input.updatedAt ?? now,
@@ -103,4 +90,7 @@ export async function upsertReminder(input: ReminderUpsertInput) {
 export async function deleteReminder(id: number) {
   await pool.execute(`DELETE FROM reminders WHERE id = ?`, [id])
   return true
+}
+export async function markReminderTriggered(id: number, ts = Date.now()): Promise<void> {
+  await pool.execute(`UPDATE reminders SET lastTriggeredAt = ? WHERE id = ?`, [ts, id])
 }

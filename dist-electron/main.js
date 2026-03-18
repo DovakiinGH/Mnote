@@ -25006,98 +25006,6 @@ async function initSchema() {
     console.error("[schema] add lastTriggeredAt failed:", e);
   });
 }
-async function getAllNotes() {
-  const [rows] = await pool.execute(
-    "SELECT id, title, content, updatedAt, createAt, pinned FROM notes ORDER BY pinned DESC, updatedAt DESC;"
-  );
-  return rows;
-}
-async function upsertNote(note) {
-  const { id, title, content, updatedAt, createAt, pinned } = note;
-  await pool.execute(
-    `INSERT INTO notes (id, title, content, updatedAt, createAt, pinned)
-    VALUES (?, ?, ?, ?, ?, ?)
-    ON DUPLICATE KEY UPDATE
-    title=VALUES(title),
-    content=VALUES(content),
-    updatedAt=VALUES(updatedAt),
-    createAt=VALUES(createAt),
-    pinned=VALUES(pinned)`,
-    [id, title, content, updatedAt ?? null, createAt ?? null, pinned ? 1 : 0]
-  );
-  return true;
-}
-async function deleteNote(id) {
-  await pool.execute("DELETE FROM notes WHERE id = ?", [id]);
-  return true;
-}
-async function getAllReminders() {
-  const [rows] = await pool.query(`
-    SELECT *
-    FROM reminders
-    ORDER BY updatedAt DESC
-  `);
-  return rows;
-}
-async function upsertReminder(input) {
-  const now = Date.now();
-  let minutes = null;
-  let date = null;
-  let time = null;
-  let days = null;
-  if (input.type === "AFTER_MINUTES") {
-    minutes = input.minutes ?? 1;
-  } else if (input.type === "DATE_TIME") {
-    date = input.date ?? null;
-    time = input.time ?? null;
-  } else if (input.type === "EVERY_DAYS") {
-    days = input.days ?? 1;
-    time = input.time ?? null;
-  }
-  await pool.execute(
-    `
-    INSERT INTO reminders
-      (id, title, text, enabled, mode, type, minutes, date, time, days, pinned, createAt, updatedAt, lastTriggeredAt)
-    VALUES
-      (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-    ON DUPLICATE KEY UPDATE
-      title = VALUES(title),
-      text = VALUES(text),
-      enabled = VALUES(enabled),
-      mode = VALUES(mode),
-      type = VALUES(type),
-      minutes = VALUES(minutes),
-      date = VALUES(date),
-      time = VALUES(time),
-      days = VALUES(days),
-      pinned = VALUES(pinned),
-      updatedAt = VALUES(updatedAt),
-      lastTriggeredAt = COALESCE(VALUES(lastTriggeredAt), lastTriggeredAt)
-    `,
-    [
-      //for ? in VALUES
-      input.id,
-      input.title,
-      input.text,
-      input.enabled,
-      input.mode,
-      input.type,
-      minutes,
-      date,
-      time,
-      days,
-      input.pinned ?? 0,
-      input.createAt ?? now,
-      input.updatedAt ?? now,
-      input.lastTriggeredAt ?? null
-    ]
-  );
-  return true;
-}
-async function deleteReminder(id) {
-  await pool.execute(`DELETE FROM reminders WHERE id = ?`, [id]);
-  return true;
-}
 let quickWin = null;
 function openQuickWindow(VITE_DEV_SERVER_URL2, RENDERER_DIST2, __dirname, onBeforeClose) {
   if (quickWin && !quickWin.isDestroyed()) {
@@ -25506,6 +25414,208 @@ var cliOptions = function optionMatcher(args) {
     )
   );
 })();
+async function upsertNote(note) {
+  const { id, title, content, updatedAt, createAt, pinned } = note;
+  await pool.execute(
+    `INSERT INTO notes (id, title, content, updatedAt, createAt, pinned)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE
+    title=VALUES(title),
+    content=VALUES(content),
+    updatedAt=VALUES(updatedAt),
+    createAt=VALUES(createAt),
+    pinned=VALUES(pinned)`,
+    [id, title, content, updatedAt ?? null, createAt ?? null, pinned ? 1 : 0]
+  );
+  return true;
+}
+async function findAllNotes() {
+  const [rows] = await pool.query(`
+    SELECT id, title, content, createAt, updatedAt, pinned
+    FROM notes
+    ORDER BY pinned DESC, updatedAt DESC
+  `);
+  return rows;
+}
+async function deleteNote(id) {
+  await pool.execute("DELETE FROM notes WHERE id = ?", [id]);
+  return true;
+}
+async function listNotesService() {
+  return findAllNotes();
+}
+async function saveNoteService(input) {
+  const now = Date.now();
+  await upsertNote({
+    ...input,
+    title: (input.title ?? "").trim() || "Untitled",
+    content: input.content ?? "",
+    createAt: input.createAt ?? now,
+    updatedAt: input.updatedAt ?? now,
+    pinned: input.pinned ?? 0
+  });
+  return true;
+}
+async function removeNoteService(id) {
+  await deleteNote(id);
+  return true;
+}
+async function createNoteService() {
+  const now = Date.now();
+  const id = now;
+  const note = {
+    id,
+    title: "new",
+    content: "",
+    createAt: now,
+    updatedAt: now,
+    pinned: 0
+  };
+  await saveNoteService(note);
+  return note;
+}
+async function getAllReminders() {
+  const [rows] = await pool.query(`
+    SELECT *
+    FROM reminders
+    ORDER BY updatedAt DESC
+  `);
+  return rows;
+}
+async function upsertReminder(input) {
+  const now = Date.now();
+  await pool.execute(
+    `
+    INSERT INTO reminders
+      (id, title, text, enabled, mode, type, minutes, date, time, days, pinned, createAt, updatedAt, lastTriggeredAt)
+    VALUES
+      (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    ON DUPLICATE KEY UPDATE
+      title = VALUES(title),
+      text = VALUES(text),
+      enabled = VALUES(enabled),
+      mode = VALUES(mode),
+      type = VALUES(type),
+      minutes = VALUES(minutes),
+      date = VALUES(date),
+      time = VALUES(time),
+      days = VALUES(days),
+      pinned = VALUES(pinned),
+      updatedAt = VALUES(updatedAt),
+      lastTriggeredAt = COALESCE(VALUES(lastTriggeredAt), lastTriggeredAt)
+    `,
+    [
+      //for ? in VALUES
+      input.id,
+      input.title,
+      input.text,
+      input.enabled,
+      input.mode,
+      input.type,
+      input.minutes ?? null,
+      input.date ?? null,
+      input.time ?? null,
+      input.days ?? null,
+      input.pinned ?? 0,
+      input.createAt ?? now,
+      input.updatedAt ?? now,
+      input.lastTriggeredAt ?? null
+    ]
+  );
+  return true;
+}
+async function deleteReminder(id) {
+  await pool.execute(`DELETE FROM reminders WHERE id = ?`, [id]);
+  return true;
+}
+async function markReminderTriggered(id, ts = Date.now()) {
+  await pool.execute(`UPDATE reminders SET lastTriggeredAt = ? WHERE id = ?`, [ts, id]);
+}
+function normalizeReminderByType(f) {
+  if (f.type === "AFTER_MINUTES") {
+    return { minutes: f.minutes ?? 1, date: null, time: null, days: null };
+  }
+  if (f.type === "DATE_TIME") {
+    return { minutes: null, date: f.date ?? null, time: f.time ?? null, days: null };
+  }
+  return { minutes: null, date: null, time: f.time ?? null, days: f.days ?? 1 };
+}
+async function listRemindersService() {
+  return getAllReminders();
+}
+async function saveReminderService(input) {
+  const now = Date.now();
+  const normalized = normalizeReminderByType(input);
+  await upsertReminder({
+    ...input,
+    ...normalized,
+    title: (input.title ?? "").trim() || "Untitled",
+    text: input.text ?? "",
+    enabled: input.enabled ? 1 : 0,
+    pinned: input.pinned ?? 0,
+    createAt: input.createAt ?? now,
+    updatedAt: input.updatedAt ?? now
+    // lastTriggeredAt 不传时由 repo 的 COALESCE 保留旧值
+  });
+  return true;
+}
+async function removeReminderService(id) {
+  await deleteReminder(id);
+  return true;
+}
+async function markReminderTriggeredService(id, ts = Date.now()) {
+  await markReminderTriggered(id, ts);
+  return true;
+}
+async function createReminderService() {
+  const now = Date.now();
+  const id = now;
+  const reminder = {
+    id,
+    title: "new",
+    text: "",
+    enabled: 0,
+    mode: "NOTIFICATION",
+    type: "AFTER_MINUTES",
+    minutes: 5,
+    date: null,
+    time: null,
+    days: null,
+    createAt: now,
+    updatedAt: now,
+    pinned: 0,
+    lastTriggeredAt: null
+  };
+  await saveReminderService(reminder);
+  return reminder;
+}
+let quickDraft = { title: "", content: "" };
+function updateQuickNote(note) {
+  quickDraft = {
+    title: (note == null ? void 0 : note.title) ?? "",
+    content: (note == null ? void 0 : note.content) ?? ""
+  };
+}
+function clearQuickNote() {
+  quickDraft = { title: "", content: "" };
+}
+async function saveQuickNote() {
+  var _a;
+  const title = ((_a = quickDraft.title) == null ? void 0 : _a.trim()) ?? "";
+  const content = quickDraft.content ?? "";
+  if (!title && !content) return;
+  const now = Date.now();
+  const id = now;
+  await saveNoteService({
+    id,
+    title: title || "Untitled",
+    content,
+    createAt: now,
+    updatedAt: now,
+    pinned: 0
+  });
+  clearQuickNote();
+}
 console.log("[main] main.ts loaded");
 createRequire(import.meta.url);
 const __dirname$1 = path$1.dirname(fileURLToPath(import.meta.url));
@@ -25599,31 +25709,10 @@ function registerHotkey(accelerator) {
   currentShortcut = accelerator;
   return true;
 }
-let quickNote = { title: "", content: "" };
-const saveQuickNote = async () => {
-  const title = quickNote.title;
-  const content = quickNote.content;
-  if (!title && !content) return;
-  const now = Date.now();
-  const id = Date.now();
-  await upsertNote({
-    id,
-    title: title || "Untitled",
-    content,
-    createAt: now,
-    updatedAt: now,
-    pinned: 0
-  });
-  win == null ? void 0 : win.webContents.send("notes:changed");
-  quickNote = { title: "", content: "" };
-};
 function openReminderMandatoryWindow(initialText) {
   const hasParent = !!win && !win.isDestroyed();
   const popup = new BrowserWindow({
     ...hasParent ? { parent: win, modal: true } : {},
-    ///...merging the options into the main object.
-    // width: 520,
-    // height: 320,
     center: true,
     resizable: false,
     minimizable: false,
@@ -25657,26 +25746,6 @@ async function bootstrap() {
     await app.whenReady();
     await initSchema();
     console.log("[main] schema init ok");
-    ipcMain.handle("notes:getAll", async () => {
-      return await getAllNotes();
-    });
-    ipcMain.handle("notes:upsert", async (_event, note) => {
-      return await upsertNote(note);
-    });
-    ipcMain.handle("notes:delete", async (_event, id) => {
-      return await deleteNote(id);
-    });
-    ipcMain.handle("reminders:getAll", async () => {
-      return await getAllReminders();
-    });
-    ipcMain.handle("reminders:upsert", async (_event, payload) => {
-      return await upsertReminder(payload);
-      return true;
-    });
-    ipcMain.handle("reminders:delete", async (_event, id) => {
-      await deleteReminder(id);
-      return true;
-    });
     ipcMain.on("app:save-done", () => {
       isQuitting = true;
       win == null ? void 0 : win.close();
@@ -25686,10 +25755,7 @@ async function bootstrap() {
     });
     ipcMain.handle("shortcut:get", () => currentShortcut);
     ipcMain.on("quick:note:update", (_event, note) => {
-      quickNote = {
-        title: (note == null ? void 0 : note.title) ?? "",
-        content: (note == null ? void 0 : note.content) ?? ""
-      };
+      updateQuickNote(note);
     });
     ipcMain.handle("reminder:show", (_event, payload) => {
       const n = new Notification({
@@ -25703,6 +25769,18 @@ async function bootstrap() {
       openReminderMandatoryWindow(text || "");
       return true;
     });
+    ipcMain.handle("notes:getAll", async () => listNotesService());
+    ipcMain.handle("notes:upsert", async (_e, payload) => saveNoteService(payload));
+    ipcMain.handle("notes:delete", async (_e, id) => removeNoteService(id));
+    ipcMain.handle("notes:create", async () => createNoteService());
+    ipcMain.handle("reminders:getAll", async () => listRemindersService());
+    ipcMain.handle("reminders:upsert", async (_e, payload) => saveReminderService(payload));
+    ipcMain.handle("reminders:delete", async (_e, id) => removeReminderService(id));
+    ipcMain.handle("reminder:create", async () => createReminderService());
+    ipcMain.handle(
+      "reminders:markTriggered",
+      async (_e, id, ts) => markReminderTriggeredService(id, ts)
+    );
     Menu.setApplicationMenu(null);
     createWindow();
     registerHotkey(currentShortcut);

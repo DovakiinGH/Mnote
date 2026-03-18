@@ -3,12 +3,11 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { initSchema } from './backend/schema'
-import { getAllNotes, upsertNote, deleteNote } from './backend/notes'
-import { getAllReminders,upsertReminder,deleteReminder } from './backend/reminders'
 import { openQuickWindow } from './quickWindow'
 import 'dotenv/config'
-
-
+import { listNotesService,saveNoteService,removeNoteService,createNoteService } from './backend/notes.service'
+import { listRemindersService, saveReminderService, removeReminderService, markReminderTriggeredService,createReminderService} from './backend/reminders.service' // 你文件名按实际改
+import { updateQuickNote, saveQuickNote } from './backend/quick.service'
 console.log('[main] main.ts loaded')
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -83,8 +82,6 @@ function resolveResourcePath(fileName: string) {
   // 开发时：项目根目录/resources
   return path.join(process.cwd(), 'resources', fileName)
 }
-
-
 function requestQuitWithSave() {
   win?.webContents.send('app:save-before-close')
    setTimeout(() => {
@@ -142,43 +139,11 @@ function registerHotkey(accelerator: string) {
   currentShortcut = accelerator
   return true
 }
-//--------------------------------------------save form quick window-------------------------------------
-type QuickNote={
-  title:string
-  content:string
-}
-let quickNote: QuickNote = { title: '', content: '' }
-const saveQuickNote=async()=>{
-  const title = quickNote.title
-  const content = quickNote.content
-  if (!title && !content) return
-  const now = Date.now()
-  const id = Date.now()
-
-  await upsertNote({
-    id,
-    title: title || 'Untitled',
-    content,
-    createAt: now,
-    updatedAt: now,
-    pinned: 0
-  })
-  win?.webContents.send('notes:changed')
-  // let mainView load note
-
-  //remove the quick note
-  quickNote = { title: '', content: '' }
-
-  
-}
 //------------------------------------pop windows------------------------------------------------
 function openReminderMandatoryWindow(initialText: string) {
   const hasParent = !!win && !win.isDestroyed()
   const popup = new BrowserWindow({
     ...(hasParent ? { parent: win!, modal: true } : {}), 
-    ///...merging the options into the main object.
-    // width: 520,
-    // height: 320,
     center: true,
     resizable: false,
     minimizable: false,
@@ -221,28 +186,6 @@ async function bootstrap() {
     console.log('[main] schema init ok')
 
     //------------------ipc-------------------------------------------//
-    ipcMain.handle('notes:getAll', async () => {
-      return await getAllNotes()
-    })
-
-    ipcMain.handle('notes:upsert', async (_event, note) => {
-      return await upsertNote(note)
-    })
-
-    ipcMain.handle('notes:delete', async (_event, id: number) => {
-      return await deleteNote(id)
-    })
-    ipcMain.handle('reminders:getAll',async()=>{
-      return await getAllReminders()
-    })
-    ipcMain.handle('reminders:upsert',async(_event,payload)=>{
-      return await upsertReminder(payload)
-      return true
-    })
-    ipcMain.handle('reminders:delete', async (_event, id: number) => {
-      await deleteReminder(id)
-      return true
-    })
 
     ipcMain.on('app:save-done', () => {
       isQuitting = true
@@ -252,11 +195,8 @@ async function bootstrap() {
       return registerHotkey(accelerator)
     })
     ipcMain.handle('shortcut:get', () => currentShortcut)
-    ipcMain.on('quick:note:update', (_event, note: QuickNote) => {
-      quickNote = {
-        title: note?.title ?? '',
-        content: note?.content ?? ''
-      }
+    ipcMain.on('quick:note:update', (_event, note: { title: string; content: string }) => {
+      updateQuickNote(note)
     })
     ipcMain.handle('reminder:show', (_event, payload: { title: string; body: string }) => {
       const n = new Notification({
@@ -270,6 +210,19 @@ async function bootstrap() {
       openReminderMandatoryWindow(text || '')
       return true
     })
+     
+    ipcMain.handle('notes:getAll', async () => listNotesService())
+    ipcMain.handle('notes:upsert', async (_e, payload) => saveNoteService(payload))
+    ipcMain.handle('notes:delete', async (_e, id: number) => removeNoteService(id))
+    ipcMain.handle('notes:create', async () => createNoteService())
+
+    ipcMain.handle('reminders:getAll', async () => listRemindersService())
+    ipcMain.handle('reminders:upsert', async (_e, payload) => saveReminderService(payload))
+    ipcMain.handle('reminders:delete', async (_e, id: number) => removeReminderService(id))
+    ipcMain.handle('reminder:create', async () => createReminderService())
+    ipcMain.handle('reminders:markTriggered', async (_e, id: number, ts?: number) =>
+      markReminderTriggeredService(id, ts)
+    )
 
     //---------------------------------------------------------------//
 
