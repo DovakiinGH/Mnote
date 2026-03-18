@@ -6,5 +6,6 @@ export const pool = mysql.createPool({
   user: 'root',
   password: '20040701',
   database: 'mnote',
-  connectionLimit: 10
+  connectionLimit: 10,
+  dateStrings: true
 })

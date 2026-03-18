@@ -1,7 +1,7 @@
-import { app, ipcMain, Menu, BrowserWindow } from "electron";
+import { BrowserWindow, app, globalShortcut, ipcMain, Notification, Menu, nativeImage, Tray } from "electron";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import path from "node:path";
+import path$1 from "node:path";
 import require$$0$4 from "events";
 import require$$0$3 from "process";
 import require$$0$7 from "net";
@@ -14,6 +14,9 @@ import require$$0$2 from "crypto";
 import require$$0$5 from "zlib";
 import require$$1$3 from "util";
 import require$$0$6 from "url";
+import require$$0$8 from "fs";
+import require$$1$4 from "path";
+import require$$2$3 from "os";
 var commonjsGlobal = typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : {};
 function getDefaultExportFromCjs(x) {
   return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, "default") ? x["default"] : x;
@@ -216,15 +219,15 @@ var sqlstring = SqlString$2;
 var lib$3 = {};
 Object.defineProperty(lib$3, "__esModule", { value: true });
 lib$3.createLRU = void 0;
-const createLRU$3 = (options) => {
-  let { max } = options;
+const createLRU$3 = (options2) => {
+  let { max } = options2;
   if (!(Number.isInteger(max) && max > 0))
     throw new TypeError("`max` must be a positive integer");
   let size2 = 0;
   let head = 0;
   let tail = 0;
   let free = [];
-  const { onEviction } = options;
+  const { onEviction } = options2;
   const keyMap = /* @__PURE__ */ new Map();
   const keyList = new Array(max).fill(void 0);
   const valList = new Array(max).fill(void 0);
@@ -446,18 +449,18 @@ const { createLRU: createLRU$2 } = lib$3;
 const parserCache$2 = createLRU$2({
   max: 15e3
 });
-function keyFromFields(type, fields2, options, config) {
+function keyFromFields(type, fields2, options2, config2) {
   const res = [
     type,
-    typeof options.nestTables,
-    options.nestTables,
-    Boolean(options.rowsAsArray),
-    Boolean(options.supportBigNumbers || config.supportBigNumbers),
-    Boolean(options.bigNumberStrings || config.bigNumberStrings),
-    typeof options.typeCast === "boolean" ? options.typeCast : typeof options.typeCast,
-    options.timezone || config.timezone,
-    Boolean(options.decimalNumbers),
-    options.dateStrings
+    typeof options2.nestTables,
+    options2.nestTables,
+    Boolean(options2.rowsAsArray),
+    Boolean(options2.supportBigNumbers || config2.supportBigNumbers),
+    Boolean(options2.bigNumberStrings || config2.bigNumberStrings),
+    typeof options2.typeCast === "boolean" ? options2.typeCast : typeof options2.typeCast,
+    options2.timezone || config2.timezone,
+    Boolean(options2.decimalNumbers),
+    options2.dateStrings
   ];
   for (let i = 0; i < fields2.length; ++i) {
     const field = fields2[i];
@@ -473,13 +476,13 @@ function keyFromFields(type, fields2, options, config) {
   }
   return JSON.stringify(res, null, 0);
 }
-function getParser(type, fields2, options, config, compiler) {
-  const key2 = keyFromFields(type, fields2, options, config);
+function getParser(type, fields2, options2, config2, compiler) {
+  const key2 = keyFromFields(type, fields2, options2, config2);
   let parser = parserCache$2.get(key2);
   if (parser) {
     return parser;
   }
-  parser = compiler(fields2, options, config);
+  parser = compiler(fields2, options2, config2);
   parserCache$2.set(key2, parser);
   return parser;
 }
@@ -495,9 +498,9 @@ var parser_cache = {
   clearCache,
   _keyFromFields: keyFromFields
 };
-function Denque(array, options) {
-  var options = options || {};
-  this._capacity = options.capacity;
+function Denque(array, options2) {
+  var options2 = options2 || {};
+  this._capacity = options2.capacity;
   this._head = 0;
   this._tail = 0;
   if (Array.isArray(array)) {
@@ -5796,7 +5799,7 @@ var safer_1 = safer;
 var bomHandling = {};
 var BOMChar = "\uFEFF";
 bomHandling.PrependBOM = PrependBOMWrapper;
-function PrependBOMWrapper(encoder, options) {
+function PrependBOMWrapper(encoder, options2) {
   this.encoder = encoder;
   this.addBOM = true;
 }
@@ -5811,10 +5814,10 @@ PrependBOMWrapper.prototype.end = function() {
   return this.encoder.end();
 };
 bomHandling.StripBOM = StripBOMWrapper;
-function StripBOMWrapper(decoder, options) {
+function StripBOMWrapper(decoder, options2) {
   this.decoder = decoder;
   this.pass = false;
-  this.options = options || {};
+  this.options = options2 || {};
 }
 StripBOMWrapper.prototype.write = function(buf) {
   var res = this.decoder.write(buf);
@@ -5881,7 +5884,7 @@ function requireInternal() {
   InternalCodec.prototype.encoder = InternalEncoder;
   InternalCodec.prototype.decoder = InternalDecoder;
   var StringDecoder = require$$1$1.StringDecoder;
-  function InternalDecoder(options, codec) {
+  function InternalDecoder(options2, codec) {
     this.decoder = new StringDecoder(codec.enc);
   }
   InternalDecoder.prototype.write = function(buf) {
@@ -5893,7 +5896,7 @@ function requireInternal() {
   InternalDecoder.prototype.end = function() {
     return this.decoder.end();
   };
-  function InternalEncoder(options, codec) {
+  function InternalEncoder(options2, codec) {
     this.enc = codec.enc;
   }
   InternalEncoder.prototype.write = function(str) {
@@ -5901,7 +5904,7 @@ function requireInternal() {
   };
   InternalEncoder.prototype.end = function() {
   };
-  function InternalEncoderBase64(options, codec) {
+  function InternalEncoderBase64(options2, codec) {
     this.prevStr = "";
   }
   InternalEncoderBase64.prototype.write = function(str) {
@@ -5914,7 +5917,7 @@ function requireInternal() {
   InternalEncoderBase64.prototype.end = function() {
     return Buffer2.from(this.prevStr, "base64");
   };
-  function InternalEncoderCesu8(options, codec) {
+  function InternalEncoderCesu8(options2, codec) {
   }
   InternalEncoderCesu8.prototype.write = function(str) {
     var buf = Buffer2.alloc(str.length * 3);
@@ -5936,7 +5939,7 @@ function requireInternal() {
   };
   InternalEncoderCesu8.prototype.end = function() {
   };
-  function InternalDecoderCesu8(options, codec) {
+  function InternalDecoderCesu8(options2, codec) {
     this.acc = 0;
     this.contBytes = 0;
     this.accBytes = 0;
@@ -5998,7 +6001,7 @@ function requireInternal() {
     }
     return res;
   };
-  function InternalEncoderUtf8(options, codec) {
+  function InternalEncoderUtf8(options2, codec) {
     this.highSurrogate = "";
   }
   InternalEncoderUtf8.prototype.write = function(str) {
@@ -6042,7 +6045,7 @@ function requireUtf32() {
   utf32.ucs4be = "utf32be";
   Utf32Codec.prototype.encoder = Utf32Encoder;
   Utf32Codec.prototype.decoder = Utf32Decoder;
-  function Utf32Encoder(options, codec) {
+  function Utf32Encoder(options2, codec) {
     this.isLE = codec.isLE;
     this.highSurrogate = 0;
   }
@@ -6093,7 +6096,7 @@ function requireUtf32() {
     this.highSurrogate = 0;
     return buf;
   };
-  function Utf32Decoder(options, codec) {
+  function Utf32Decoder(options2, codec) {
     this.isLE = codec.isLE;
     this.badChar = codec.iconv.defaultCharUnicode.charCodeAt(0);
     this.overflow = [];
@@ -6156,17 +6159,17 @@ function requireUtf32() {
   };
   utf32.utf32 = Utf32AutoCodec;
   utf32.ucs4 = "utf32";
-  function Utf32AutoCodec(options, iconv) {
+  function Utf32AutoCodec(options2, iconv) {
     this.iconv = iconv;
   }
   Utf32AutoCodec.prototype.encoder = Utf32AutoEncoder;
   Utf32AutoCodec.prototype.decoder = Utf32AutoDecoder;
-  function Utf32AutoEncoder(options, codec) {
-    options = options || {};
-    if (options.addBOM === void 0) {
-      options.addBOM = true;
+  function Utf32AutoEncoder(options2, codec) {
+    options2 = options2 || {};
+    if (options2.addBOM === void 0) {
+      options2.addBOM = true;
     }
-    this.encoder = codec.iconv.getEncoder(options.defaultEncoding || "utf-32le", options);
+    this.encoder = codec.iconv.getEncoder(options2.defaultEncoding || "utf-32le", options2);
   }
   Utf32AutoEncoder.prototype.write = function(str) {
     return this.encoder.write(str);
@@ -6174,11 +6177,11 @@ function requireUtf32() {
   Utf32AutoEncoder.prototype.end = function() {
     return this.encoder.end();
   };
-  function Utf32AutoDecoder(options, codec) {
+  function Utf32AutoDecoder(options2, codec) {
     this.decoder = null;
     this.initialBufs = [];
     this.initialBufsLen = 0;
-    this.options = options || {};
+    this.options = options2 || {};
     this.iconv = codec.iconv;
   }
   Utf32AutoDecoder.prototype.write = function(buf) {
@@ -6312,12 +6315,12 @@ function requireUtf16() {
   }
   Utf16Codec.prototype.encoder = Utf16Encoder;
   Utf16Codec.prototype.decoder = Utf16Decoder;
-  function Utf16Encoder(options, codec) {
-    options = options || {};
-    if (options.addBOM === void 0) {
-      options.addBOM = true;
+  function Utf16Encoder(options2, codec) {
+    options2 = options2 || {};
+    if (options2.addBOM === void 0) {
+      options2.addBOM = true;
     }
-    this.encoder = codec.iconv.getEncoder("utf-16le", options);
+    this.encoder = codec.iconv.getEncoder("utf-16le", options2);
   }
   Utf16Encoder.prototype.write = function(str) {
     return this.encoder.write(str);
@@ -6325,11 +6328,11 @@ function requireUtf16() {
   Utf16Encoder.prototype.end = function() {
     return this.encoder.end();
   };
-  function Utf16Decoder(options, codec) {
+  function Utf16Decoder(options2, codec) {
     this.decoder = null;
     this.initialBufs = [];
     this.initialBufsLen = 0;
-    this.options = options || {};
+    this.options = options2 || {};
     this.iconv = codec.iconv;
   }
   Utf16Decoder.prototype.write = function(buf) {
@@ -6413,7 +6416,7 @@ function requireUtf7() {
   Utf7Codec.prototype.decoder = Utf7Decoder;
   Utf7Codec.prototype.bomAware = true;
   var nonDirectChars = /[^A-Za-z0-9'\(\),-\.\/:\? \n\r\t]+/g;
-  function Utf7Encoder(options, codec) {
+  function Utf7Encoder(options2, codec) {
     this.iconv = codec.iconv;
   }
   Utf7Encoder.prototype.write = function(str) {
@@ -6423,7 +6426,7 @@ function requireUtf7() {
   };
   Utf7Encoder.prototype.end = function() {
   };
-  function Utf7Decoder(options, codec) {
+  function Utf7Decoder(options2, codec) {
     this.iconv = codec.iconv;
     this.inBase64 = false;
     this.base64Accum = "";
@@ -6494,7 +6497,7 @@ function requireUtf7() {
   Utf7IMAPCodec.prototype.encoder = Utf7IMAPEncoder;
   Utf7IMAPCodec.prototype.decoder = Utf7IMAPDecoder;
   Utf7IMAPCodec.prototype.bomAware = true;
-  function Utf7IMAPEncoder(options, codec) {
+  function Utf7IMAPEncoder(options2, codec) {
     this.iconv = codec.iconv;
     this.inBase64 = false;
     this.base64Accum = Buffer2.alloc(6);
@@ -6555,7 +6558,7 @@ function requireUtf7() {
     }
     return buf.slice(0, bufIdx);
   };
-  function Utf7IMAPDecoder(options, codec) {
+  function Utf7IMAPDecoder(options2, codec) {
     this.iconv = codec.iconv;
     this.inBase64 = false;
     this.base64Accum = "";
@@ -6645,7 +6648,7 @@ function requireSbcsCodec() {
   }
   SBCSCodec.prototype.encoder = SBCSEncoder;
   SBCSCodec.prototype.decoder = SBCSDecoder;
-  function SBCSEncoder(options, codec) {
+  function SBCSEncoder(options2, codec) {
     this.encodeBuf = codec.encodeBuf;
   }
   SBCSEncoder.prototype.write = function(str) {
@@ -6657,7 +6660,7 @@ function requireSbcsCodec() {
   };
   SBCSEncoder.prototype.end = function() {
   };
-  function SBCSDecoder(options, codec) {
+  function SBCSDecoder(options2, codec) {
     this.decodeBuf = codec.decodeBuf;
   }
   SBCSDecoder.prototype.write = function(buf) {
@@ -7516,7 +7519,7 @@ function requireDbcsCodec() {
     }
     return hasValues;
   };
-  function DBCSEncoder(options, codec) {
+  function DBCSEncoder(options2, codec) {
     this.leadSurrogate = -1;
     this.seqObj = void 0;
     this.encodeTable = codec.encodeTable;
@@ -7649,7 +7652,7 @@ function requireDbcsCodec() {
     return newBuf.slice(0, j);
   };
   DBCSEncoder.prototype.findIdx = findIdx;
-  function DBCSDecoder(options, codec) {
+  function DBCSDecoder(options2, codec) {
     this.nodeIdx = 0;
     this.prevBytes = [];
     this.decodeTables = codec.decodeTables;
@@ -12407,7 +12410,7 @@ const gbChars = [
   39394,
   189e3
 ];
-const require$$4 = {
+const require$$4$1 = {
   uChars,
   gbChars
 };
@@ -16124,7 +16127,7 @@ function requireDbcsData() {
         return require$$2.concat(require$$3$1);
       },
       gb18030: function() {
-        return require$$4;
+        return require$$4$1;
       },
       encodeSkipVals: [128],
       encodeAdd: { "€": 41699 }
@@ -16299,11 +16302,11 @@ function requireStreams() {
   var Buffer2 = safer_1.Buffer;
   streams = function(streamModule) {
     var Transform = streamModule.Transform;
-    function IconvLiteEncoderStream(conv, options) {
+    function IconvLiteEncoderStream(conv, options2) {
       this.conv = conv;
-      options = options || {};
-      options.decodeStrings = false;
-      Transform.call(this, options);
+      options2 = options2 || {};
+      options2.decodeStrings = false;
+      Transform.call(this, options2);
     }
     IconvLiteEncoderStream.prototype = Object.create(Transform.prototype, {
       constructor: { value: IconvLiteEncoderStream }
@@ -16340,11 +16343,11 @@ function requireStreams() {
       });
       return this;
     };
-    function IconvLiteDecoderStream(conv, options) {
+    function IconvLiteDecoderStream(conv, options2) {
       this.conv = conv;
-      options = options || {};
-      options.encoding = this.encoding = "utf8";
-      Transform.call(this, options);
+      options2 = options2 || {};
+      options2.encoding = this.encoding = "utf8";
+      Transform.call(this, options2);
     }
     IconvLiteDecoderStream.prototype = Object.create(Transform.prototype, {
       constructor: { value: IconvLiteDecoderStream }
@@ -16396,14 +16399,14 @@ lib$2.exports;
   module.exports.encodings = null;
   module.exports.defaultCharUnicode = "�";
   module.exports.defaultCharSingleByte = "?";
-  module.exports.encode = function encode(str, encoding, options) {
+  module.exports.encode = function encode(str, encoding, options2) {
     str = "" + (str || "");
-    var encoder = module.exports.getEncoder(encoding, options);
+    var encoder = module.exports.getEncoder(encoding, options2);
     var res = encoder.write(str);
     var trail = encoder.end();
     return trail && trail.length > 0 ? Buffer2.concat([res, trail]) : res;
   };
-  module.exports.decode = function decode(buf, encoding, options) {
+  module.exports.decode = function decode(buf, encoding, options2) {
     if (typeof buf === "string") {
       if (!module.exports.skipDecodeWarning) {
         console.error("Iconv-lite warning: decode()-ing strings is deprecated. Refer to https://github.com/ashtuchkin/iconv-lite/wiki/Use-Buffers-when-decoding");
@@ -16411,7 +16414,7 @@ lib$2.exports;
       }
       buf = Buffer2.from("" + (buf || ""), "binary");
     }
-    var decoder = module.exports.getDecoder(encoding, options);
+    var decoder = module.exports.getDecoder(encoding, options2);
     var res = decoder.write(buf);
     var trail = decoder.end();
     return trail ? res + trail : res;
@@ -16469,19 +16472,19 @@ lib$2.exports;
   module.exports._canonicalizeEncoding = function(encoding) {
     return ("" + encoding).toLowerCase().replace(/:\d{4}$|[^0-9a-z]/g, "");
   };
-  module.exports.getEncoder = function getEncoder(encoding, options) {
+  module.exports.getEncoder = function getEncoder(encoding, options2) {
     var codec = module.exports.getCodec(encoding);
-    var encoder = new codec.encoder(options, codec);
-    if (codec.bomAware && options && options.addBOM) {
-      encoder = new bomHandling$1.PrependBOM(encoder, options);
+    var encoder = new codec.encoder(options2, codec);
+    if (codec.bomAware && options2 && options2.addBOM) {
+      encoder = new bomHandling$1.PrependBOM(encoder, options2);
     }
     return encoder;
   };
-  module.exports.getDecoder = function getDecoder(encoding, options) {
+  module.exports.getDecoder = function getDecoder(encoding, options2) {
     var codec = module.exports.getCodec(encoding);
-    var decoder = new codec.decoder(options, codec);
-    if (codec.bomAware && !(options && options.stripBOM === false)) {
-      decoder = new bomHandling$1.StripBOM(decoder, options);
+    var decoder = new codec.decoder(options2, codec);
+    if (codec.bomAware && !(options2 && options2.stripBOM === false)) {
+      decoder = new bomHandling$1.StripBOM(decoder, options2);
     }
     return decoder;
   };
@@ -16492,11 +16495,11 @@ lib$2.exports;
     var streams2 = requireStreams()(streamModule2);
     module.exports.IconvLiteEncoderStream = streams2.IconvLiteEncoderStream;
     module.exports.IconvLiteDecoderStream = streams2.IconvLiteDecoderStream;
-    module.exports.encodeStream = function encodeStream(encoding, options) {
-      return new module.exports.IconvLiteEncoderStream(module.exports.getEncoder(encoding, options), options);
+    module.exports.encodeStream = function encodeStream(encoding, options2) {
+      return new module.exports.IconvLiteEncoderStream(module.exports.getEncoder(encoding, options2), options2);
     };
-    module.exports.decodeStream = function decodeStream(encoding, options) {
-      return new module.exports.IconvLiteDecoderStream(module.exports.getDecoder(encoding, options), options);
+    module.exports.decodeStream = function decodeStream(encoding, options2) {
+      return new module.exports.IconvLiteDecoderStream(module.exports.getDecoder(encoding, options2), options2);
     };
     module.exports.supportsStreams = true;
   };
@@ -16519,19 +16522,19 @@ const { createLRU: createLRU$1 } = lib$3;
 const decoderCache = createLRU$1({
   max: 500
 });
-string.decode = function(buffer2, encoding, start, end, options) {
+string.decode = function(buffer2, encoding, start, end, options2) {
   if (Buffer.isEncoding(encoding)) {
     return buffer2.toString(encoding, start, end);
   }
   let decoder;
-  if (!options) {
+  if (!options2) {
     decoder = decoderCache.get(encoding);
     if (!decoder) {
       decoder = Iconv.getDecoder(encoding);
       decoderCache.set(encoding, decoder);
     }
   } else {
-    const decoderArgs = { encoding, options };
+    const decoderArgs = { encoding, options: options2 };
     const decoderKey = JSON.stringify(decoderArgs);
     decoder = decoderCache.get(decoderKey);
     if (!decoder) {
@@ -16543,11 +16546,11 @@ string.decode = function(buffer2, encoding, start, end, options) {
   const trail = decoder.end();
   return trail ? res + trail : res;
 };
-string.encode = function(string2, encoding, options) {
+string.encode = function(string2, encoding, options2) {
   if (Buffer.isEncoding(encoding)) {
     return Buffer.from(string2, encoding);
   }
-  const encoder = Iconv.getEncoder(encoding, options || {});
+  const encoder = Iconv.getEncoder(encoding, options2 || {});
   const res = encoder.write(string2);
   const trail = encoder.end();
   return trail && trail.length > 0 ? Buffer.concat([res, trail]) : res;
@@ -17831,9 +17834,9 @@ client.REMEMBER_OPTIONS = 2147483648;
 client.MULTI_FACTOR_AUTHENTICATION = 268435456;
 var auth_41 = {};
 (function(exports$1) {
-  const crypto = require$$0$2;
+  const crypto2 = require$$0$2;
   function sha1(msg, msg1, msg2) {
-    const hash = crypto.createHash("sha1");
+    const hash = crypto2.createHash("sha1");
     hash.update(msg);
     if (msg1) {
       hash.update(msg1);
@@ -19445,7 +19448,7 @@ function requireSha256_password() {
   if (hasRequiredSha256_password) return sha256_password;
   hasRequiredSha256_password = 1;
   const PLUGIN_NAME = "sha256_password";
-  const crypto = require$$0$2;
+  const crypto2 = require$$0$2;
   const { xorRotating } = auth_41;
   const Tls2 = require$$2$1;
   const REQUEST_SERVER_KEY_PACKET = Buffer.from([1]);
@@ -19454,7 +19457,7 @@ function requireSha256_password() {
   const STATE_FINAL = -1;
   function encrypt(password, scramble, key2) {
     const stage1 = xorRotating(Buffer.from(`${password}\0`, "utf8"), scramble);
-    return crypto.publicEncrypt(key2, stage1);
+    return crypto2.publicEncrypt(key2, stage1);
   }
   sha256_password = (pluginOptions = {}) => ({ connection: connection2 }) => {
     let state = 0;
@@ -19500,7 +19503,7 @@ function requireCaching_sha2_password() {
   if (hasRequiredCaching_sha2_password) return caching_sha2_password;
   hasRequiredCaching_sha2_password = 1;
   const PLUGIN_NAME = "caching_sha2_password";
-  const crypto = require$$0$2;
+  const crypto2 = require$$0$2;
   const { xor, xorRotating } = auth_41;
   const REQUEST_SERVER_KEY_PACKET = Buffer.from([2]);
   const FAST_AUTH_SUCCESS_PACKET = Buffer.from([3]);
@@ -19510,7 +19513,7 @@ function requireCaching_sha2_password() {
   const STATE_WAIT_SERVER_KEY = 2;
   const STATE_FINAL = -1;
   function sha256(msg) {
-    const hash = crypto.createHash("sha256");
+    const hash = crypto2.createHash("sha256");
     hash.update(msg);
     return hash.digest();
   }
@@ -19525,10 +19528,10 @@ function requireCaching_sha2_password() {
   }
   function encrypt(password, scramble, key2) {
     const stage1 = xorRotating(Buffer.from(`${password}\0`, "utf8"), scramble);
-    return crypto.publicEncrypt(
+    return crypto2.publicEncrypt(
       {
         key: key2,
-        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
+        padding: crypto2.constants.RSA_PKCS1_OAEP_PADDING
       },
       stage1
     );
@@ -20821,15 +20824,15 @@ const typeNames$3 = [];
 for (const t in Types$3) {
   typeNames$3[Types$3[t]] = t;
 }
-function readCodeFor$1(type, charset, encodingExpr, config, options) {
+function readCodeFor$1(type, charset, encodingExpr, config2, options2) {
   const supportBigNumbers = Boolean(
-    options.supportBigNumbers || config.supportBigNumbers
+    options2.supportBigNumbers || config2.supportBigNumbers
   );
   const bigNumberStrings = Boolean(
-    options.bigNumberStrings || config.bigNumberStrings
+    options2.bigNumberStrings || config2.bigNumberStrings
   );
-  const timezone = options.timezone || config.timezone;
-  const dateStrings = options.dateStrings || config.dateStrings;
+  const timezone = options2.timezone || config2.timezone;
+  const dateStrings = options2.dateStrings || config2.dateStrings;
   switch (type) {
     case Types$3.TINY:
     case Types$3.SHORT:
@@ -20849,7 +20852,7 @@ function readCodeFor$1(type, charset, encodingExpr, config, options) {
       return "packet.readLengthCodedNumber()";
     case Types$3.DECIMAL:
     case Types$3.NEWDECIMAL:
-      if (config.decimalNumbers) {
+      if (config2.decimalNumbers) {
         return "packet.parseLengthCodedFloat()";
       }
       return 'packet.readLengthCodedString("ascii")';
@@ -20871,7 +20874,7 @@ function readCodeFor$1(type, charset, encodingExpr, config, options) {
     case Types$3.VECTOR:
       return "packet.parseVector()";
     case Types$3.JSON:
-      return config.jsonStrings ? 'packet.readLengthCodedString("utf8")' : 'JSON.parse(packet.readLengthCodedString("utf8"))';
+      return config2.jsonStrings ? 'packet.readLengthCodedString("utf8")' : 'JSON.parse(packet.readLengthCodedString("utf8"))';
     default:
       if (charset === Charsets$4.BINARY) {
         return "packet.readLengthCodedBuffer()";
@@ -20879,9 +20882,9 @@ function readCodeFor$1(type, charset, encodingExpr, config, options) {
       return `packet.readLengthCodedString(${encodingExpr})`;
   }
 }
-function compile$1(fields2, options, config) {
-  if (typeof config.typeCast === "function" && typeof options.typeCast !== "function") {
-    options.typeCast = config.typeCast;
+function compile$1(fields2, options2, config2) {
+  if (typeof config2.typeCast === "function" && typeof options2.typeCast !== "function") {
+    options2.typeCast = config2.typeCast;
   }
   function wrap(field, _this) {
     return {
@@ -20909,7 +20912,7 @@ function compile$1(fields2, options, config) {
   const parserFn = genFunc$1();
   parserFn("(function () {")("return class TextRow {");
   parserFn("constructor(fields) {");
-  if (typeof options.typeCast === "function") {
+  if (typeof options2.typeCast === "function") {
     parserFn("const _this = this;");
     parserFn("for(let i=0; i<fields.length; ++i) {");
     parserFn("this[`wrap${i}`] = wrap(fields[i], _this);");
@@ -20918,14 +20921,14 @@ function compile$1(fields2, options, config) {
   parserFn("}");
   parserFn("next(packet, fields, options) {");
   parserFn("this.packet = packet;");
-  if (options.rowsAsArray) {
+  if (options2.rowsAsArray) {
     parserFn(`const result = new Array(${fields2.length});`);
   } else {
     parserFn("const result = {};");
   }
   const resultTables = {};
   let resultTablesArray = [];
-  if (options.nestTables === true) {
+  if (options2.nestTables === true) {
     for (let i = 0; i < fields2.length; i++) {
       resultTables[fields2[i].table] = 1;
     }
@@ -20939,18 +20942,18 @@ function compile$1(fields2, options, config) {
   let tableName = "";
   for (let i = 0; i < fields2.length; i++) {
     fieldName = helpers$3.fieldEscape(fields2[i].name);
-    if (typeof options.nestTables === "string") {
-      lvalue = `result[${helpers$3.fieldEscape(fields2[i].table + options.nestTables + fields2[i].name)}]`;
-    } else if (options.nestTables === true) {
+    if (typeof options2.nestTables === "string") {
+      lvalue = `result[${helpers$3.fieldEscape(fields2[i].table + options2.nestTables + fields2[i].name)}]`;
+    } else if (options2.nestTables === true) {
       tableName = helpers$3.fieldEscape(fields2[i].table);
       parserFn(`if (!result[${tableName}]) result[${tableName}] = {};`);
       lvalue = `result[${tableName}][${fieldName}]`;
-    } else if (options.rowsAsArray) {
+    } else if (options2.rowsAsArray) {
       lvalue = `result[${i.toString(10)}]`;
     } else {
       lvalue = `result[${fieldName}]`;
     }
-    if (options.typeCast === false) {
+    if (options2.typeCast === false) {
       parserFn(`${lvalue} = packet.readLengthCodedBuffer();`);
     } else {
       const encodingExpr = `fields[${i}].encoding`;
@@ -20958,10 +20961,10 @@ function compile$1(fields2, options, config) {
         fields2[i].columnType,
         fields2[i].characterSet,
         encodingExpr,
-        config,
-        options
+        config2,
+        options2
       );
-      if (typeof options.typeCast === "function") {
+      if (typeof options2.typeCast === "function") {
         parserFn(
           `${lvalue} = options.typeCast(this.wrap${i}, function() { return ${readCode} });`
         );
@@ -20973,19 +20976,19 @@ function compile$1(fields2, options, config) {
   parserFn("return result;");
   parserFn("}");
   parserFn("};")("})()");
-  if (config.debug) {
+  if (config2.debug) {
     helpers$3.printDebugWithCode(
       "Compiled text protocol row parser",
       parserFn.toString()
     );
   }
-  if (typeof options.typeCast === "function") {
+  if (typeof options2.typeCast === "function") {
     return parserFn.toFunction({ wrap });
   }
   return parserFn.toFunction();
 }
-function getTextParser$2(fields2, options, config) {
-  return parserCache$1.getParser("text", fields2, options, config, compile$1);
+function getTextParser$2(fields2, options2, config2) {
+  return parserCache$1.getParser("text", fields2, options2, config2, compile$1);
 }
 var text_parser = getTextParser$2;
 const Types$2 = requireTypes();
@@ -20995,15 +20998,15 @@ const typeNames$2 = [];
 for (const t in Types$2) {
   typeNames$2[Types$2[t]] = t;
 }
-function readField({ packet: packet2, type, charset, encoding, config, options }) {
+function readField({ packet: packet2, type, charset, encoding, config: config2, options: options2 }) {
   const supportBigNumbers = Boolean(
-    options.supportBigNumbers || config.supportBigNumbers
+    options2.supportBigNumbers || config2.supportBigNumbers
   );
   const bigNumberStrings = Boolean(
-    options.bigNumberStrings || config.bigNumberStrings
+    options2.bigNumberStrings || config2.bigNumberStrings
   );
-  const timezone = options.timezone || config.timezone;
-  const dateStrings = options.dateStrings || config.dateStrings;
+  const timezone = options2.timezone || config2.timezone;
+  const dateStrings = options2.dateStrings || config2.dateStrings;
   switch (type) {
     case Types$2.TINY:
     case Types$2.SHORT:
@@ -21022,7 +21025,7 @@ function readField({ packet: packet2, type, charset, encoding, config, options }
     case Types$2.NULL:
     case Types$2.DECIMAL:
     case Types$2.NEWDECIMAL:
-      if (config.decimalNumbers) {
+      if (config2.decimalNumbers) {
         return packet2.parseLengthCodedFloat();
       }
       return packet2.readLengthCodedString("ascii");
@@ -21044,7 +21047,7 @@ function readField({ packet: packet2, type, charset, encoding, config, options }
     case Types$2.VECTOR:
       return packet2.parseVector();
     case Types$2.JSON:
-      return config.jsonStrings ? packet2.readLengthCodedString("utf8") : JSON.parse(packet2.readLengthCodedString("utf8"));
+      return config2.jsonStrings ? packet2.readLengthCodedString("utf8") : JSON.parse(packet2.readLengthCodedString("utf8"));
     default:
       if (charset === Charsets$3.BINARY) {
         return packet2.readLengthCodedBuffer();
@@ -21075,34 +21078,34 @@ function createTypecastField(field, packet2) {
     }
   };
 }
-function getTextParser$1(_fields, _options, config) {
+function getTextParser$1(_fields, _options, config2) {
   return {
-    next(packet2, fields2, options) {
-      const result = options.rowsAsArray ? [] : {};
+    next(packet2, fields2, options2) {
+      const result = options2.rowsAsArray ? [] : {};
       for (let i = 0; i < fields2.length; i++) {
         const field = fields2[i];
-        const typeCast = options.typeCast ? options.typeCast : config.typeCast;
+        const typeCast = options2.typeCast ? options2.typeCast : config2.typeCast;
         const next = () => readField({
           packet: packet2,
           type: field.columnType,
           encoding: field.encoding,
           charset: field.characterSet,
-          config,
-          options
+          config: config2,
+          options: options2
         });
         let value;
-        if (options.typeCast === false) {
+        if (options2.typeCast === false) {
           value = packet2.readLengthCodedBuffer();
         } else if (typeof typeCast === "function") {
           value = typeCast(createTypecastField(field, packet2), next);
         } else {
           value = next();
         }
-        if (options.rowsAsArray) {
+        if (options2.rowsAsArray) {
           result.push(value);
-        } else if (typeof options.nestTables === "string") {
-          result[`${helpers$2.fieldEscape(field.table, false)}${options.nestTables}${helpers$2.fieldEscape(field.name, false)}`] = value;
-        } else if (options.nestTables) {
+        } else if (typeof options2.nestTables === "string") {
+          result[`${helpers$2.fieldEscape(field.table, false)}${options2.nestTables}${helpers$2.fieldEscape(field.name, false)}`] = value;
+        } else if (options2.nestTables) {
           const tableName = helpers$2.fieldEscape(field.table, false);
           if (!result[tableName]) {
             result[tableName] = {};
@@ -21127,14 +21130,14 @@ const staticParser = static_text_parser;
 const ServerStatus = server_status;
 const EmptyPacket = new Packets$7.Packet(0, Buffer.allocUnsafe(4), 0, 4);
 let Query$2 = class Query2 extends Command$8 {
-  constructor(options, callback) {
+  constructor(options2, callback) {
     super();
-    this.sql = options.sql;
-    this.values = options.values;
-    this._queryOptions = options;
-    this.namedPlaceholders = options.namedPlaceholders || false;
+    this.sql = options2.sql;
+    this.values = options2.values;
+    this._queryOptions = options2;
+    this.namedPlaceholders = options2.namedPlaceholders || false;
     this.onResult = callback;
-    this.timeout = options.timeout;
+    this.timeout = options2.timeout;
     this.queryTimeout = null;
     this._fieldCount = 0;
     this._rowParser = null;
@@ -21145,7 +21148,7 @@ let Query$2 = class Query2 extends Command$8 {
     this._localStream = null;
     this._unpipeStream = function() {
     };
-    this._streamFactory = options.infileStreamFactory;
+    this._streamFactory = options2.infileStreamFactory;
     this._connection = null;
   }
   then() {
@@ -21356,11 +21359,11 @@ let Query$2 = class Query2 extends Command$8 {
     const rs = new Packets$7.ResultSetHeader(packet2, connection2);
     return this.doneInsert(rs);
   }
-  stream(options) {
-    options = options || /* @__PURE__ */ Object.create(null);
-    options.objectMode = true;
+  stream(options2) {
+    options2 = options2 || /* @__PURE__ */ Object.create(null);
+    options2.objectMode = true;
     const stream = new Readable$1({
-      ...options,
+      ...options2,
       emitClose: true,
       autoDestroy: true,
       read: () => {
@@ -21451,15 +21454,15 @@ const typeNames$1 = [];
 for (const t in Types$1) {
   typeNames$1[Types$1[t]] = t;
 }
-function readCodeFor(field, config, options, fieldNum) {
+function readCodeFor(field, config2, options2, fieldNum) {
   const supportBigNumbers = Boolean(
-    options.supportBigNumbers || config.supportBigNumbers
+    options2.supportBigNumbers || config2.supportBigNumbers
   );
   const bigNumberStrings = Boolean(
-    options.bigNumberStrings || config.bigNumberStrings
+    options2.bigNumberStrings || config2.bigNumberStrings
   );
-  const timezone = options.timezone || config.timezone;
-  const dateStrings = options.dateStrings || config.dateStrings;
+  const timezone = options2.timezone || config2.timezone;
+  const dateStrings = options2.dateStrings || config2.dateStrings;
   const unsigned = field.flags & FieldFlags$1.UNSIGNED;
   switch (field.columnType) {
     case Types$1.TINY:
@@ -21489,7 +21492,7 @@ function readCodeFor(field, config, options, fieldNum) {
       return "packet.readTimeString()";
     case Types$1.DECIMAL:
     case Types$1.NEWDECIMAL:
-      if (config.decimalNumbers) {
+      if (config2.decimalNumbers) {
         return "packet.parseLengthCodedFloat();";
       }
       return 'packet.readLengthCodedString("ascii");';
@@ -21498,7 +21501,7 @@ function readCodeFor(field, config, options, fieldNum) {
     case Types$1.VECTOR:
       return "packet.parseVector()";
     case Types$1.JSON:
-      return config.jsonStrings ? 'packet.readLengthCodedString("utf8")' : 'JSON.parse(packet.readLengthCodedString("utf8"));';
+      return config2.jsonStrings ? 'packet.readLengthCodedString("utf8")' : 'JSON.parse(packet.readLengthCodedString("utf8"));';
     case Types$1.LONGLONG:
       if (!supportBigNumbers) {
         return unsigned ? "packet.readInt64JSNumber();" : "packet.readSInt64JSNumber();";
@@ -21514,7 +21517,7 @@ function readCodeFor(field, config, options, fieldNum) {
       return `packet.readLengthCodedString(fields[${fieldNum}].encoding)`;
   }
 }
-function compile(fields2, options, config) {
+function compile(fields2, options2, config2) {
   const parserFn = genFunc();
   const nullBitmapLength = Math.floor((fields2.length + 7 + 2) / 8);
   function wrap(field, packet2) {
@@ -21561,13 +21564,13 @@ function compile(fields2, options, config) {
   parserFn("constructor() {");
   parserFn("}");
   parserFn("next(packet, fields, options) {");
-  if (options.rowsAsArray) {
+  if (options2.rowsAsArray) {
     parserFn(`const result = new Array(${fields2.length});`);
   } else {
     parserFn("const result = {};");
   }
-  if (typeof config.typeCast === "function" && typeof options.typeCast !== "function") {
-    options.typeCast = config.typeCast;
+  if (typeof config2.typeCast === "function" && typeof options2.typeCast !== "function") {
+    options2.typeCast = config2.typeCast;
   }
   parserFn("packet.readInt8();");
   for (let i = 0; i < nullBitmapLength; ++i) {
@@ -21580,13 +21583,13 @@ function compile(fields2, options, config) {
   let tableName = "";
   for (let i = 0; i < fields2.length; i++) {
     fieldName = helpers$1.fieldEscape(fields2[i].name);
-    if (typeof options.nestTables === "string") {
-      lvalue = `result[${helpers$1.fieldEscape(fields2[i].table + options.nestTables + fields2[i].name)}]`;
-    } else if (options.nestTables === true) {
+    if (typeof options2.nestTables === "string") {
+      lvalue = `result[${helpers$1.fieldEscape(fields2[i].table + options2.nestTables + fields2[i].name)}]`;
+    } else if (options2.nestTables === true) {
       tableName = helpers$1.fieldEscape(fields2[i].table);
       parserFn(`if (!result[${tableName}]) result[${tableName}] = {};`);
       lvalue = `result[${tableName}][${fieldName}]`;
-    } else if (options.rowsAsArray) {
+    } else if (options2.rowsAsArray) {
       lvalue = `result[${i.toString(10)}]`;
     } else {
       lvalue = `result[${fieldName}]`;
@@ -21594,13 +21597,13 @@ function compile(fields2, options, config) {
     parserFn(`if (nullBitmaskByte${nullByteIndex} & ${currentFieldNullBit}) `);
     parserFn(`${lvalue} = null;`);
     parserFn("else {");
-    if (options.typeCast === false) {
+    if (options2.typeCast === false) {
       parserFn(`${lvalue} = packet.readLengthCodedBuffer();`);
     } else {
       const fieldWrapperVar = `fieldWrapper${i}`;
       parserFn(`const ${fieldWrapperVar} = wrap(fields[${i}], packet);`);
-      const readCode = readCodeFor(fields2[i], config, options, i);
-      if (typeof options.typeCast === "function") {
+      const readCode = readCodeFor(fields2[i], config2, options2, i);
+      if (typeof options2.typeCast === "function") {
         parserFn(
           `${lvalue} = options.typeCast(${fieldWrapperVar}, function() { return ${readCode} });`
         );
@@ -21618,7 +21621,7 @@ function compile(fields2, options, config) {
   parserFn("return result;");
   parserFn("}");
   parserFn("};")("})()");
-  if (config.debug) {
+  if (config2.debug) {
     helpers$1.printDebugWithCode(
       "Compiled binary protocol row parser",
       parserFn.toString()
@@ -21626,8 +21629,8 @@ function compile(fields2, options, config) {
   }
   return parserFn.toFunction({ wrap });
 }
-function getBinaryParser$2(fields2, options, config) {
-  return parserCache.getParser("binary", fields2, options, config, compile);
+function getBinaryParser$2(fields2, options2, config2) {
+  return parserCache.getParser("binary", fields2, options2, config2, compile);
 }
 var binary_parser = getBinaryParser$2;
 const FieldFlags = field_flags;
@@ -21638,16 +21641,16 @@ const typeNames = [];
 for (const t in Types) {
   typeNames[Types[t]] = t;
 }
-function getBinaryParser$1(fields2, _options, config) {
-  function readCode(field, config2, options, fieldNum, packet2) {
+function getBinaryParser$1(fields2, _options, config2) {
+  function readCode(field, config3, options2, fieldNum, packet2) {
     const supportBigNumbers = Boolean(
-      options.supportBigNumbers || config2.supportBigNumbers
+      options2.supportBigNumbers || config3.supportBigNumbers
     );
     const bigNumberStrings = Boolean(
-      options.bigNumberStrings || config2.bigNumberStrings
+      options2.bigNumberStrings || config3.bigNumberStrings
     );
-    const timezone = options.timezone || config2.timezone;
-    const dateStrings = options.dateStrings || config2.dateStrings;
+    const timezone = options2.timezone || config3.timezone;
+    const dateStrings = options2.dateStrings || config3.dateStrings;
     const unsigned = field.flags & FieldFlags.UNSIGNED;
     switch (field.columnType) {
       case Types.TINY:
@@ -21678,13 +21681,13 @@ function getBinaryParser$1(fields2, _options, config) {
         return packet2.readTimeString();
       case Types.DECIMAL:
       case Types.NEWDECIMAL:
-        return config2.decimalNumbers ? packet2.parseLengthCodedFloat() : packet2.readLengthCodedString("ascii");
+        return config3.decimalNumbers ? packet2.parseLengthCodedFloat() : packet2.readLengthCodedString("ascii");
       case Types.GEOMETRY:
         return packet2.parseGeometryValue();
       case Types.VECTOR:
         return packet2.parseVector();
       case Types.JSON:
-        return config2.jsonStrings ? packet2.readLengthCodedString("utf8") : JSON.parse(packet2.readLengthCodedString("utf8"));
+        return config3.jsonStrings ? packet2.readLengthCodedString("utf8") : JSON.parse(packet2.readLengthCodedString("utf8"));
       case Types.LONGLONG:
         if (!supportBigNumbers)
           return unsigned ? packet2.readInt64JSNumber() : packet2.readSInt64JSNumber();
@@ -21696,26 +21699,26 @@ function getBinaryParser$1(fields2, _options, config) {
   return class BinaryRow {
     constructor() {
     }
-    next(packet2, fields3, options) {
+    next(packet2, fields3, options2) {
       packet2.readInt8();
       const nullBitmapLength = Math.floor((fields3.length + 7 + 2) / 8);
       const nullBitmaskBytes = new Array(nullBitmapLength);
       for (let i = 0; i < nullBitmapLength; i++) {
         nullBitmaskBytes[i] = packet2.readInt8();
       }
-      const result = options.rowsAsArray ? new Array(fields3.length) : {};
+      const result = options2.rowsAsArray ? new Array(fields3.length) : {};
       let currentFieldNullBit = 4;
       let nullByteIndex = 0;
       for (let i = 0; i < fields3.length; i++) {
         const field = fields3[i];
-        const typeCast = options.typeCast !== void 0 ? options.typeCast : config.typeCast;
+        const typeCast = options2.typeCast !== void 0 ? options2.typeCast : config2.typeCast;
         let value;
         if (nullBitmaskBytes[nullByteIndex] & currentFieldNullBit) {
           value = null;
-        } else if (options.typeCast === false) {
+        } else if (options2.typeCast === false) {
           value = packet2.readLengthCodedBuffer();
         } else {
-          const next = () => readCode(field, config, options, i, packet2);
+          const next = () => readCode(field, config2, options2, i, packet2);
           value = typeof typeCast === "function" ? typeCast(
             {
               type: typeNames[field.columnType],
@@ -21762,15 +21765,15 @@ function getBinaryParser$1(fields2, _options, config) {
             next
           ) : next();
         }
-        if (options.rowsAsArray) {
+        if (options2.rowsAsArray) {
           result[i] = value;
-        } else if (typeof options.nestTables === "string") {
+        } else if (typeof options2.nestTables === "string") {
           const key2 = helpers.fieldEscape(
-            field.table + options.nestTables + field.name,
+            field.table + options2.nestTables + field.name,
             false
           );
           result[key2] = value;
-        } else if (options.nestTables === true) {
+        } else if (options2.nestTables === true) {
           const tableName = helpers.fieldEscape(field.table, false);
           if (!result[tableName]) {
             result[tableName] = {};
@@ -21798,27 +21801,27 @@ const Packets$5 = packetsExports;
 const getBinaryParser = binary_parser;
 const getStaticBinaryParser = static_binary_parser;
 let Execute$2 = class Execute2 extends Command$6 {
-  constructor(options, callback) {
+  constructor(options2, callback) {
     super();
-    this.statement = options.statement;
-    this.sql = options.sql;
-    this.values = options.values;
+    this.statement = options2.statement;
+    this.sql = options2.sql;
+    this.values = options2.values;
     this.onResult = callback;
-    this.parameters = options.values;
+    this.parameters = options2.values;
     this.insertId = 0;
-    this.timeout = options.timeout;
+    this.timeout = options2.timeout;
     this.queryTimeout = null;
     this._rows = [];
     this._fields = [];
     this._result = [];
     this._fieldCount = 0;
     this._rowParser = null;
-    this._executeOptions = options;
+    this._executeOptions = options2;
     this._resultIndex = 0;
     this._localStream = null;
     this._unpipeStream = function() {
     };
-    this._streamFactory = options.infileStreamFactory;
+    this._streamFactory = options2.infileStreamFactory;
     this._connection = null;
   }
   buildParserFromFields(fields2, connection2) {
@@ -21907,16 +21910,16 @@ class PreparedStatementInfo {
   }
 }
 let Prepare$1 = class Prepare extends Command$5 {
-  constructor(options, callback) {
+  constructor(options2, callback) {
     super();
-    this.query = options.sql;
+    this.query = options2.sql;
     this.onResult = callback;
     this.id = 0;
     this.fieldCount = 0;
     this.parameterCount = 0;
     this.fields = [];
     this.parameterDefinitions = [];
-    this.options = options;
+    this.options = options2;
   }
   start(packet2, connection2) {
     const Connection3 = connection2.constructor;
@@ -22259,18 +22262,18 @@ const ClientConstants$1 = client;
 const ClientHandshake$1 = client_handshake;
 const CharsetToEncoding$1 = requireCharset_encodings();
 let ChangeUser$1 = class ChangeUser2 extends Command$1 {
-  constructor(options, callback) {
+  constructor(options2, callback) {
     super();
     this.onResult = callback;
-    this.user = options.user;
-    this.password = options.password;
-    this.password1 = options.password;
-    this.password2 = options.password2;
-    this.password3 = options.password3;
-    this.database = options.database;
-    this.passwordSha1 = options.passwordSha1;
-    this.charsetNumber = options.charsetNumber;
-    this.currentConfig = options.currentConfig;
+    this.user = options2.user;
+    this.password = options2.password;
+    this.password1 = options2.password;
+    this.password2 = options2.password2;
+    this.password3 = options2.password3;
+    this.database = options2.database;
+    this.passwordSha1 = options2.passwordSha1;
+    this.charsetNumber = options2.charsetNumber;
+    this.currentConfig = options2.currentConfig;
     this.authenticationFactor = 0;
   }
   start(packet2, connection2) {
@@ -22347,9 +22350,9 @@ var commands = {
   ChangeUser: ChangeUser3,
   Quit: Quit2
 };
-const version$1 = "3.16.1";
+const version$3 = "3.16.1";
 const require$$3 = {
-  version: version$1
+  version: version$3
 };
 var ssl_profiles = {};
 var lib$1 = { exports: {} };
@@ -22526,10 +22529,10 @@ function requireSsl_profiles() {
   })(ssl_profiles);
   return ssl_profiles;
 }
-const { URL } = require$$0$6;
+const { URL: URL$1 } = require$$0$6;
 const ClientConstants = client;
 const Charsets = requireCharsets();
-const { version } = require$$3;
+const { version: version$2 } = require$$3;
 let SSLProfiles = null;
 const validOptions = {
   authPlugins: 1,
@@ -22589,66 +22592,66 @@ const validOptions = {
   gracefulEnd: 1
 };
 let ConnectionConfig$3 = class ConnectionConfig {
-  constructor(options) {
-    if (typeof options === "string") {
-      options = ConnectionConfig.parseUrl(options);
-    } else if (options && options.uri) {
-      const uriOptions = ConnectionConfig.parseUrl(options.uri);
+  constructor(options2) {
+    if (typeof options2 === "string") {
+      options2 = ConnectionConfig.parseUrl(options2);
+    } else if (options2 && options2.uri) {
+      const uriOptions = ConnectionConfig.parseUrl(options2.uri);
       for (const key2 in uriOptions) {
         if (!Object.prototype.hasOwnProperty.call(uriOptions, key2)) continue;
-        if (options[key2]) continue;
-        options[key2] = uriOptions[key2];
+        if (options2[key2]) continue;
+        options2[key2] = uriOptions[key2];
       }
     }
-    for (const key2 in options) {
-      if (!Object.prototype.hasOwnProperty.call(options, key2)) continue;
+    for (const key2 in options2) {
+      if (!Object.prototype.hasOwnProperty.call(options2, key2)) continue;
       if (validOptions[key2] !== 1) {
         console.error(
           `Ignoring invalid configuration option passed to Connection: ${key2}. This is currently a warning, but in future versions of MySQL2, an error will be thrown if you pass an invalid configuration option to a Connection`
         );
       }
     }
-    this.isServer = options.isServer;
-    this.stream = options.stream;
-    this.host = options.host || "localhost";
-    this.port = (typeof options.port === "string" ? parseInt(options.port, 10) : options.port) || 3306;
-    this.localAddress = options.localAddress;
-    this.socketPath = options.socketPath;
-    this.user = options.user || void 0;
-    this.password = options.password || options.password1 || void 0;
-    this.password2 = options.password2 || void 0;
-    this.password3 = options.password3 || void 0;
-    this.passwordSha1 = options.passwordSha1 || void 0;
-    this.database = options.database;
-    this.connectTimeout = isNaN(options.connectTimeout) ? 10 * 1e3 : options.connectTimeout;
-    this.insecureAuth = options.insecureAuth || false;
-    this.infileStreamFactory = options.infileStreamFactory || void 0;
-    this.supportBigNumbers = options.supportBigNumbers || false;
-    this.bigNumberStrings = options.bigNumberStrings || false;
-    this.decimalNumbers = options.decimalNumbers || false;
-    this.dateStrings = options.dateStrings || false;
-    this.debug = options.debug;
-    this.trace = options.trace !== false;
-    this.stringifyObjects = options.stringifyObjects || false;
-    this.enableKeepAlive = options.enableKeepAlive !== false;
-    this.keepAliveInitialDelay = options.keepAliveInitialDelay;
-    if (options.timezone && !/^(?:local|Z|[ +-]\d\d:\d\d)$/.test(options.timezone)) {
+    this.isServer = options2.isServer;
+    this.stream = options2.stream;
+    this.host = options2.host || "localhost";
+    this.port = (typeof options2.port === "string" ? parseInt(options2.port, 10) : options2.port) || 3306;
+    this.localAddress = options2.localAddress;
+    this.socketPath = options2.socketPath;
+    this.user = options2.user || void 0;
+    this.password = options2.password || options2.password1 || void 0;
+    this.password2 = options2.password2 || void 0;
+    this.password3 = options2.password3 || void 0;
+    this.passwordSha1 = options2.passwordSha1 || void 0;
+    this.database = options2.database;
+    this.connectTimeout = isNaN(options2.connectTimeout) ? 10 * 1e3 : options2.connectTimeout;
+    this.insecureAuth = options2.insecureAuth || false;
+    this.infileStreamFactory = options2.infileStreamFactory || void 0;
+    this.supportBigNumbers = options2.supportBigNumbers || false;
+    this.bigNumberStrings = options2.bigNumberStrings || false;
+    this.decimalNumbers = options2.decimalNumbers || false;
+    this.dateStrings = options2.dateStrings || false;
+    this.debug = options2.debug;
+    this.trace = options2.trace !== false;
+    this.stringifyObjects = options2.stringifyObjects || false;
+    this.enableKeepAlive = options2.enableKeepAlive !== false;
+    this.keepAliveInitialDelay = options2.keepAliveInitialDelay;
+    if (options2.timezone && !/^(?:local|Z|[ +-]\d\d:\d\d)$/.test(options2.timezone)) {
       console.error(
-        `Ignoring invalid timezone passed to Connection: ${options.timezone}. This is currently a warning, but in future versions of MySQL2, an error will be thrown if you pass an invalid configuration option to a Connection`
+        `Ignoring invalid timezone passed to Connection: ${options2.timezone}. This is currently a warning, but in future versions of MySQL2, an error will be thrown if you pass an invalid configuration option to a Connection`
       );
       this.timezone = "Z";
     } else {
-      this.timezone = options.timezone || "local";
+      this.timezone = options2.timezone || "local";
     }
-    this.queryFormat = options.queryFormat;
-    this.pool = options.pool || void 0;
-    this.ssl = typeof options.ssl === "string" ? ConnectionConfig.getSSLProfile(options.ssl) : options.ssl || false;
-    this.multipleStatements = options.multipleStatements || false;
-    this.rowsAsArray = options.rowsAsArray || false;
-    this.namedPlaceholders = options.namedPlaceholders || false;
-    this.nestTables = options.nestTables === void 0 ? void 0 : options.nestTables;
-    this.typeCast = options.typeCast === void 0 ? true : options.typeCast;
-    this.disableEval = Boolean(options.disableEval);
+    this.queryFormat = options2.queryFormat;
+    this.pool = options2.pool || void 0;
+    this.ssl = typeof options2.ssl === "string" ? ConnectionConfig.getSSLProfile(options2.ssl) : options2.ssl || false;
+    this.multipleStatements = options2.multipleStatements || false;
+    this.rowsAsArray = options2.rowsAsArray || false;
+    this.namedPlaceholders = options2.namedPlaceholders || false;
+    this.nestTables = options2.nestTables === void 0 ? void 0 : options2.nestTables;
+    this.typeCast = options2.typeCast === void 0 ? true : options2.typeCast;
+    this.disableEval = Boolean(options2.disableEval);
     if (this.timezone[0] === " ") {
       this.timezone = `+${this.timezone.slice(1)}`;
     }
@@ -22661,25 +22664,25 @@ let ConnectionConfig$3 = class ConnectionConfig {
       this.ssl.rejectUnauthorized = this.ssl.rejectUnauthorized !== false;
     }
     this.maxPacketSize = 0;
-    this.charsetNumber = options.charset ? ConnectionConfig.getCharsetNumber(options.charset) : options.charsetNumber || Charsets.UTF8MB4_UNICODE_CI;
-    this.compress = options.compress || false;
-    this.authPlugins = options.authPlugins;
-    this.authSwitchHandler = options.authSwitchHandler;
+    this.charsetNumber = options2.charset ? ConnectionConfig.getCharsetNumber(options2.charset) : options2.charsetNumber || Charsets.UTF8MB4_UNICODE_CI;
+    this.compress = options2.compress || false;
+    this.authPlugins = options2.authPlugins;
+    this.authSwitchHandler = options2.authSwitchHandler;
     this.clientFlags = ConnectionConfig.mergeFlags(
-      ConnectionConfig.getDefaultFlags(options),
-      options.flags || ""
+      ConnectionConfig.getDefaultFlags(options2),
+      options2.flags || ""
     );
     const defaultConnectAttributes = {
       _client_name: "Node-MySQL-2",
-      _client_version: version
+      _client_version: version$2
     };
     this.connectAttributes = {
       ...defaultConnectAttributes,
-      ...options.connectAttributes || {}
+      ...options2.connectAttributes || {}
     };
-    this.maxPreparedStatements = options.maxPreparedStatements || 16e3;
-    this.jsonStrings = options.jsonStrings || false;
-    this.gracefulEnd = options.gracefulEnd || false;
+    this.maxPreparedStatements = options2.maxPreparedStatements || 16e3;
+    this.jsonStrings = options2.jsonStrings || false;
+    this.gracefulEnd = options2.gracefulEnd || false;
   }
   static mergeFlags(default_flags, user_flags) {
     let flags = 0, i;
@@ -22703,7 +22706,7 @@ let ConnectionConfig$3 = class ConnectionConfig {
     }
     return flags;
   }
-  static getDefaultFlags(options) {
+  static getDefaultFlags(options2) {
     const defaultFlags = [
       "LONG_PASSWORD",
       "FOUND_ROWS",
@@ -22722,7 +22725,7 @@ let ConnectionConfig$3 = class ConnectionConfig {
       "SESSION_TRACK",
       "CONNECT_ATTRS"
     ];
-    if (options && options.multipleStatements) {
+    if (options2 && options2.multipleStatements) {
       defaultFlags.push("MULTI_STATEMENTS");
     }
     defaultFlags.push("PLUGIN_AUTH");
@@ -22747,8 +22750,8 @@ let ConnectionConfig$3 = class ConnectionConfig {
     return ssl;
   }
   static parseUrl(url) {
-    const parsedUrl = new URL(url);
-    const options = {
+    const parsedUrl = new URL$1(url);
+    const options2 = {
       host: decodeURIComponent(parsedUrl.hostname),
       port: parseInt(parsedUrl.port, 10),
       database: decodeURIComponent(parsedUrl.pathname.slice(1)),
@@ -22757,12 +22760,12 @@ let ConnectionConfig$3 = class ConnectionConfig {
     };
     parsedUrl.searchParams.forEach((value, key2) => {
       try {
-        options[key2] = JSON.parse(value);
+        options2[key2] = JSON.parse(value);
       } catch (err) {
-        options[key2] = value;
+        options2[key2] = value;
       }
     });
-    return options;
+    return options2;
   }
 };
 var connection_config = ConnectionConfig$3;
@@ -22772,7 +22775,7 @@ function requireNamedPlaceholders() {
   if (hasRequiredNamedPlaceholders) return namedPlaceholders.exports;
   hasRequiredNamedPlaceholders = 1;
   const RE_PARAM = /(?:\?)|(?::(\d+|(?:[a-zA-Z][a-zA-Z0-9_]*)))/g, DQUOTE = 34, SQUOTE = 39, BSLASH = 92;
-  function parse(query2) {
+  function parse2(query2) {
     let ppos = RE_PARAM.exec(query2);
     let curpos = 0;
     let start = 0;
@@ -22824,20 +22827,20 @@ function requireNamedPlaceholders() {
     }
     return [query2];
   }
-  function createCompiler(config) {
-    if (!config) config = {};
-    if (!config.placeholder) {
-      config.placeholder = "?";
+  function createCompiler(config2) {
+    if (!config2) config2 = {};
+    if (!config2.placeholder) {
+      config2.placeholder = "?";
     }
     let ncache = 100;
     let cache;
-    if (typeof config.cache === "number") {
-      ncache = config.cache;
+    if (typeof config2.cache === "number") {
+      ncache = config2.cache;
     }
-    if (typeof config.cache === "object") {
-      cache = config.cache;
+    if (typeof config2.cache === "object") {
+      cache = config2.cache;
     }
-    if (config.cache !== false && !cache) {
+    if (config2.cache !== false && !cache) {
       cache = lib$3.createLRU({ max: ncache });
     }
     function toArrayParams(tree, params) {
@@ -22868,17 +22871,17 @@ function requireNamedPlaceholders() {
       let unnamed = noTailingSemicolon(tree[0][0]);
       for (let i = 1; i < tree[0].length; ++i) {
         if (tree[0][i - 1].slice(-1) === ":") {
-          unnamed += config.placeholder;
+          unnamed += config2.placeholder;
         }
-        unnamed += config.placeholder;
+        unnamed += config2.placeholder;
         unnamed += noTailingSemicolon(tree[0][i]);
       }
       const last = tree[0][tree[0].length - 1];
       if (tree[0].length === tree[1].length) {
         if (last.slice(-1) === ":") {
-          unnamed += config.placeholder;
+          unnamed += config2.placeholder;
         }
-        unnamed += config.placeholder;
+        unnamed += config2.placeholder;
       }
       return [unnamed, tree[1]];
     }
@@ -22887,17 +22890,17 @@ function requireNamedPlaceholders() {
       if (cache && (tree = cache.get(query2))) {
         return toArrayParams(tree, paramsObj);
       }
-      tree = join(parse(query2));
+      tree = join(parse2(query2));
       if (cache) {
         cache.set(query2, tree);
       }
       return toArrayParams(tree, paramsObj);
     }
-    compile2.parse = parse;
+    compile2.parse = parse2;
     return compile2;
   }
   function toNumbered(q, params) {
-    const tree = parse(q);
+    const tree = parse2(q);
     const paramsArr = [];
     if (tree.length === 1) {
       return [tree[0], paramsArr];
@@ -23379,18 +23382,18 @@ let BaseConnection$4 = class BaseConnection extends EventEmitter$4 {
   raw(sql) {
     return SqlString$1.raw(sql);
   }
-  _resolveNamedPlaceholders(options) {
+  _resolveNamedPlaceholders(options2) {
     let unnamed;
-    if (this.config.namedPlaceholders || options.namedPlaceholders) {
-      if (Array.isArray(options.values)) {
+    if (this.config.namedPlaceholders || options2.namedPlaceholders) {
+      if (Array.isArray(options2.values)) {
         return;
       }
       if (convertNamedPlaceholders === null) {
         convertNamedPlaceholders = requireNamedPlaceholders()();
       }
-      unnamed = convertNamedPlaceholders(options.sql, options.values);
-      options.sql = unnamed[0];
-      options.values = unnamed[1];
+      unnamed = convertNamedPlaceholders(options2.sql, options2.values);
+      options2.sql = unnamed[0];
+      options2.values = unnamed[1];
     }
   }
   query(sql, values, cb) {
@@ -23424,20 +23427,20 @@ let BaseConnection$4 = class BaseConnection extends EventEmitter$4 {
     this.stream.resume();
   }
   // TODO: named placeholders support
-  prepare(options, cb) {
-    if (typeof options === "string") {
-      options = { sql: options };
+  prepare(options2, cb) {
+    if (typeof options2 === "string") {
+      options2 = { sql: options2 };
     }
-    return this.addCommand(new Commands.Prepare(options, cb));
+    return this.addCommand(new Commands.Prepare(options2, cb));
   }
   unprepare(sql) {
-    let options = {};
+    let options2 = {};
     if (typeof sql === "object") {
-      options = sql;
+      options2 = sql;
     } else {
-      options.sql = sql;
+      options2.sql = sql;
     }
-    const key2 = BaseConnection.statementKey(options);
+    const key2 = BaseConnection.statementKey(options2);
     const stmt = this._statements.get(key2);
     if (stmt) {
       this._statements.delete(key2);
@@ -23446,12 +23449,12 @@ let BaseConnection$4 = class BaseConnection extends EventEmitter$4 {
     return stmt;
   }
   execute(sql, values, cb) {
-    let options = {
+    let options2 = {
       infileStreamFactory: this.config.infileStreamFactory
     };
     if (typeof sql === "object") {
-      options = {
-        ...options,
+      options2 = {
+        ...options2,
         ...sql,
         sql: sql.sql,
         values: sql.values
@@ -23459,25 +23462,25 @@ let BaseConnection$4 = class BaseConnection extends EventEmitter$4 {
       if (typeof values === "function") {
         cb = values;
       } else {
-        options.values = options.values || values;
+        options2.values = options2.values || values;
       }
     } else if (typeof values === "function") {
       cb = values;
-      options.sql = sql;
-      options.values = void 0;
+      options2.sql = sql;
+      options2.values = void 0;
     } else {
-      options.sql = sql;
-      options.values = values;
+      options2.sql = sql;
+      options2.values = values;
     }
-    this._resolveNamedPlaceholders(options);
-    if (options.values) {
-      if (!Array.isArray(options.values)) {
+    this._resolveNamedPlaceholders(options2);
+    if (options2.values) {
+      if (!Array.isArray(options2.values)) {
         throw new TypeError(
           "Bind parameters must be array if namedPlaceholders parameter is not enabled"
         );
       }
-      options.values.forEach((val) => {
-        if (!Array.isArray(options.values)) {
+      options2.values.forEach((val) => {
+        if (!Array.isArray(options2.values)) {
           throw new TypeError(
             "Bind parameters must be array if namedPlaceholders parameter is not enabled"
           );
@@ -23494,8 +23497,8 @@ let BaseConnection$4 = class BaseConnection extends EventEmitter$4 {
         }
       });
     }
-    const executeCommand = new Commands.Execute(options, cb);
-    const prepareCommand = new Commands.Prepare(options, (err, stmt) => {
+    const executeCommand = new Commands.Execute(options2, cb);
+    const prepareCommand = new Commands.Prepare(options2, (err, stmt) => {
       if (err) {
         executeCommand.start = function() {
           return null;
@@ -23514,25 +23517,25 @@ let BaseConnection$4 = class BaseConnection extends EventEmitter$4 {
     this.addCommand(executeCommand);
     return executeCommand;
   }
-  changeUser(options, callback) {
-    if (!callback && typeof options === "function") {
-      callback = options;
-      options = {};
+  changeUser(options2, callback) {
+    if (!callback && typeof options2 === "function") {
+      callback = options2;
+      options2 = {};
     }
-    const charsetNumber = options.charset ? ConnectionConfig$2.getCharsetNumber(options.charset) : this.config.charsetNumber;
+    const charsetNumber = options2.charset ? ConnectionConfig$2.getCharsetNumber(options2.charset) : this.config.charsetNumber;
     return this.addCommand(
       new Commands.ChangeUser(
         {
-          user: options.user || this.config.user,
+          user: options2.user || this.config.user,
           // for the purpose of multi-factor authentication, or not, the main
           // password (used for the 1st authentication factor) can also be
           // provided via the "password1" option
-          password: options.password || options.password1 || this.config.password || this.config.password1,
-          password2: options.password2 || this.config.password2,
-          password3: options.password3 || this.config.password3,
-          passwordSha1: options.passwordSha1 || this.config.passwordSha1,
-          database: options.database || this.config.database,
-          timeout: options.timeout,
+          password: options2.password || options2.password1 || this.config.password || this.config.password1,
+          password2: options2.password2 || this.config.password2,
+          password3: options2.password3 || this.config.password3,
+          passwordSha1: options2.passwordSha1 || this.config.passwordSha1,
+          database: options2.database || this.config.database,
+          timeout: options2.timeout,
           charsetNumber,
           currentConfig: this.config
         },
@@ -23696,14 +23699,14 @@ let BaseConnection$4 = class BaseConnection extends EventEmitter$4 {
     this.addCommand = this._addCommandClosedState;
     return quitCmd;
   }
-  static createQuery(sql, values, cb, config) {
-    let options = {
-      rowsAsArray: config.rowsAsArray,
-      infileStreamFactory: config.infileStreamFactory
+  static createQuery(sql, values, cb, config2) {
+    let options2 = {
+      rowsAsArray: config2.rowsAsArray,
+      infileStreamFactory: config2.infileStreamFactory
     };
     if (typeof sql === "object") {
-      options = {
-        ...options,
+      options2 = {
+        ...options2,
         ...sql,
         sql: sql.sql,
         values: sql.values
@@ -23711,27 +23714,27 @@ let BaseConnection$4 = class BaseConnection extends EventEmitter$4 {
       if (typeof values === "function") {
         cb = values;
       } else if (values !== void 0) {
-        options.values = values;
+        options2.values = values;
       }
     } else if (typeof values === "function") {
       cb = values;
-      options.sql = sql;
-      options.values = void 0;
+      options2.sql = sql;
+      options2.values = void 0;
     } else {
-      options.sql = sql;
-      options.values = values;
+      options2.sql = sql;
+      options2.values = values;
     }
-    return new Commands.Query(options, cb);
+    return new Commands.Query(options2, cb);
   }
-  static statementKey(options) {
-    return `${typeof options.nestTables}/${options.nestTables}/${options.rowsAsArray}${options.sql}`;
+  static statementKey(options2) {
+    return `${typeof options2.nestTables}/${options2.nestTables}/${options2.rowsAsArray}${options2.sql}`;
   }
 };
 var connection$2 = BaseConnection$4;
 const BaseConnection$3 = connection$2;
 let BasePoolConnection$2 = class BasePoolConnection extends BaseConnection$3 {
-  constructor(pool2, options) {
-    super(options);
+  constructor(pool2, options2) {
+    super(options2);
     this._pool = pool2;
     this.lastActiveTime = Date.now();
     this.once("end", () => {
@@ -23960,12 +23963,12 @@ let PromiseConnection$1 = class PromiseConnection extends EventEmitter$3 {
       });
     });
   }
-  prepare(options) {
+  prepare(options2) {
     const c = this.connection;
     const promiseImpl = this.Promise;
     const localErr = new Error();
     return new this.Promise((resolve, reject) => {
-      c.prepare(options, (err, statement) => {
+      c.prepare(options2, (err, statement) => {
         if (err) {
           localErr.message = err.message;
           localErr.code = err.code;
@@ -23983,11 +23986,11 @@ let PromiseConnection$1 = class PromiseConnection extends EventEmitter$3 {
       });
     });
   }
-  changeUser(options) {
+  changeUser(options2) {
     const c = this.connection;
     const localErr = new Error();
     return new this.Promise((resolve, reject) => {
-      c.changeUser(options, (err) => {
+      c.changeUser(options2, (err) => {
         if (err) {
           localErr.message = err.message;
           localErr.code = err.code;
@@ -24074,9 +24077,9 @@ function spliceConnection(queue, connection2) {
   }
 }
 let BasePool$2 = class BasePool extends EventEmitter$2 {
-  constructor(options) {
+  constructor(options2) {
     super();
-    this.config = options.config;
+    this.config = options2.config;
     this.config.connectionConfig.pool = this;
     this._allConnections = new Queue();
     this._freeConnections = new Queue();
@@ -24369,16 +24372,16 @@ let Pool$2 = class Pool extends BasePool2 {
 var pool$1 = Pool$2;
 const ConnectionConfig$1 = connection_config;
 let PoolConfig$2 = class PoolConfig {
-  constructor(options) {
-    if (typeof options === "string") {
-      options = ConnectionConfig$1.parseUrl(options);
+  constructor(options2) {
+    if (typeof options2 === "string") {
+      options2 = ConnectionConfig$1.parseUrl(options2);
     }
-    this.connectionConfig = new ConnectionConfig$1(options);
-    this.waitForConnections = options.waitForConnections === void 0 ? true : Boolean(options.waitForConnections);
-    this.connectionLimit = isNaN(options.connectionLimit) ? 10 : Number(options.connectionLimit);
-    this.maxIdle = isNaN(options.maxIdle) ? this.connectionLimit : Number(options.maxIdle);
-    this.idleTimeout = isNaN(options.idleTimeout) ? 6e4 : Number(options.idleTimeout);
-    this.queueLimit = isNaN(options.queueLimit) ? 0 : Number(options.queueLimit);
+    this.connectionConfig = new ConnectionConfig$1(options2);
+    this.waitForConnections = options2.waitForConnections === void 0 ? true : Boolean(options2.waitForConnections);
+    this.connectionLimit = isNaN(options2.connectionLimit) ? 10 : Number(options2.connectionLimit);
+    this.maxIdle = isNaN(options2.maxIdle) ? this.connectionLimit : Number(options2.maxIdle);
+    this.idleTimeout = isNaN(options2.idleTimeout) ? 6e4 : Number(options2.idleTimeout);
+    this.queueLimit = isNaN(options2.queueLimit) ? 0 : Number(options2.queueLimit);
   }
 };
 var pool_config = PoolConfig$2;
@@ -24516,13 +24519,13 @@ class PoolNamespace {
   }
 }
 let PoolCluster$1 = class PoolCluster extends EventEmitter {
-  constructor(config) {
+  constructor(config2) {
     super();
-    config = config || {};
-    this._canRetry = typeof config.canRetry === "undefined" ? true : config.canRetry;
-    this._removeNodeErrorCount = config.removeNodeErrorCount || 5;
-    this._restoreNodeTimeout = config.restoreNodeTimeout || 0;
-    this._defaultSelector = config.defaultSelector || "RR";
+    config2 = config2 || {};
+    this._canRetry = typeof config2.canRetry === "undefined" ? true : config2.canRetry;
+    this._removeNodeErrorCount = config2.removeNodeErrorCount || 5;
+    this._restoreNodeTimeout = config2.restoreNodeTimeout || 0;
+    this._defaultSelector = config2.defaultSelector || "RR";
     this._closed = false;
     this._lastId = 0;
     this._nodes = {};
@@ -24543,16 +24546,16 @@ let PoolCluster$1 = class PoolCluster extends EventEmitter {
     }
     return this._namespaces[key2];
   }
-  add(id, config) {
+  add(id, config2) {
     if (typeof id === "object") {
-      config = id;
+      config2 = id;
       id = `CLUSTER::${++this._lastId}`;
     }
     if (typeof this._nodes[id] === "undefined") {
       this._nodes[id] = {
         id,
         errorCount: 0,
-        pool: new Pool$1({ config: new PoolConfig$1(config) }),
+        pool: new Pool$1({ config: new PoolConfig$1(config2) }),
         _offlineUntil: 0
       };
       this._serviceableNodeIds.push(id);
@@ -24696,13 +24699,13 @@ function createConnection(opts) {
 var create_connection = createConnection;
 const Pool2 = pool$1;
 const PoolConfig2 = pool_config;
-function createPool(config) {
-  return new Pool2({ config: new PoolConfig2(config) });
+function createPool(config2) {
+  return new Pool2({ config: new PoolConfig2(config2) });
 }
 var create_pool = createPool;
 const PoolCluster2 = pool_cluster$1;
-function createPoolCluster(config) {
-  return new PoolCluster2(config);
+function createPoolCluster(config2) {
+  return new PoolCluster2(config2);
 }
 var create_pool_cluster = createPoolCluster;
 const PromisePoolConnection2 = pool_connection$1;
@@ -24930,14 +24933,15 @@ const pool = mysql.createPool({
   user: "root",
   password: "20040701",
   database: "mnote",
-  connectionLimit: 10
+  connectionLimit: 10,
+  dateStrings: true
 });
 async function initSchema() {
   const bootstrapConn = await mysql.createConnection({
-    host: "127.0.0.1",
-    port: 3306,
-    user: "root",
-    password: "20040701"
+    host: process.env.DB_HOST ?? "127.0.0.1",
+    port: Number(process.env.DB_PORT ?? 3306),
+    user: process.env.DB_USER ?? "root",
+    password: process.env.DB_PASSWORD ?? ""
   });
   await bootstrapConn.execute(`
     CREATE DATABASE IF NOT EXISTS mnote
@@ -24955,13 +24959,52 @@ async function initSchema() {
       pinned TINYINT(1) NOT NULL DEFAULT 0
     )
   `);
-  try {
-    await pool.execute(`
-          ALTER TABLE notes
-          ADD COLUMN pinned TINYINT(1) NOT NULL DEFAULT 0
-        `);
-  } catch (e) {
-  }
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS reminders (
+      id BIGINT PRIMARY KEY,
+      title VARCHAR(100) NOT NULL DEFAULT '',
+      text MEDIUMTEXT NOT NULL,
+      enabled TINYINT(1) NOT NULL DEFAULT 0,
+      mode VARCHAR(20) NOT NULL DEFAULT 'NOTIFICATION',
+      type VARCHAR(20) NOT NULL DEFAULT 'AFTER_MINUTES',
+
+      minutes INT NULL,     -- AFTER_MINUTES 使用
+      \`date\` DATE NULL,     -- DATE_TIME 使用
+      \`time\` TIME NULL,     -- DATE_TIME / EVERY_DAYS 可选
+      days INT NULL,        -- EVERY_DAYS 使用
+
+      pinned TINYINT(1) NOT NULL DEFAULT 0,
+      createAt BIGINT NOT NULL,
+      updatedAt BIGINT NOT NULL,
+      lastTriggeredAt BIGINT NULL
+    )
+  `);
+  await pool.execute(`CREATE INDEX idx_reminders_enabled ON reminders(enabled)`).catch(() => {
+  });
+  await pool.execute(`CREATE INDEX idx_reminders_updatedAt ON reminders(updatedAt)`).catch(() => {
+  });
+  await pool.execute(`ALTER TABLE notes ADD COLUMN pinned TINYINT(1) NOT NULL DEFAULT 0`).catch(() => {
+  });
+  await pool.execute(`ALTER TABLE reminders ADD COLUMN pinned TINYINT(1) NOT NULL DEFAULT 0`).catch(() => {
+  });
+  await pool.execute(`ALTER TABLE reminders ADD COLUMN minutes INT NULL`).catch(() => {
+  });
+  await pool.execute(`ALTER TABLE reminders ADD COLUMN \`date\` DATE NULL`).catch(() => {
+  });
+  await pool.execute(`ALTER TABLE reminders ADD COLUMN \`time\` TIME NULL`).catch(() => {
+  });
+  await pool.execute(`ALTER TABLE reminders ADD COLUMN days INT NULL`).catch(() => {
+  });
+  await pool.execute(`ALTER TABLE reminders MODIFY COLUMN \`date\` DATE NULL`).catch(() => {
+  });
+  await pool.execute(`ALTER TABLE reminders MODIFY COLUMN \`time\` TIME NULL`).catch(() => {
+  });
+  await pool.execute(`
+    ALTER TABLE reminders
+    ADD COLUMN lastTriggeredAt BIGINT NULL
+  `).catch((e) => {
+    console.error("[schema] add lastTriggeredAt failed:", e);
+  });
 }
 async function getAllNotes() {
   const [rows] = await pool.execute(
@@ -24988,40 +25031,626 @@ async function deleteNote(id) {
   await pool.execute("DELETE FROM notes WHERE id = ?", [id]);
   return true;
 }
+async function getAllReminders() {
+  const [rows] = await pool.query(`
+    SELECT *
+    FROM reminders
+    ORDER BY updatedAt DESC
+  `);
+  return rows;
+}
+async function upsertReminder(input) {
+  const now = Date.now();
+  let minutes = null;
+  let date = null;
+  let time = null;
+  let days = null;
+  if (input.type === "AFTER_MINUTES") {
+    minutes = input.minutes ?? 1;
+  } else if (input.type === "DATE_TIME") {
+    date = input.date ?? null;
+    time = input.time ?? null;
+  } else if (input.type === "EVERY_DAYS") {
+    days = input.days ?? 1;
+    time = input.time ?? null;
+  }
+  await pool.execute(
+    `
+    INSERT INTO reminders
+      (id, title, text, enabled, mode, type, minutes, date, time, days, pinned, createAt, updatedAt, lastTriggeredAt)
+    VALUES
+      (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    ON DUPLICATE KEY UPDATE
+      title = VALUES(title),
+      text = VALUES(text),
+      enabled = VALUES(enabled),
+      mode = VALUES(mode),
+      type = VALUES(type),
+      minutes = VALUES(minutes),
+      date = VALUES(date),
+      time = VALUES(time),
+      days = VALUES(days),
+      pinned = VALUES(pinned),
+      updatedAt = VALUES(updatedAt),
+      lastTriggeredAt = COALESCE(VALUES(lastTriggeredAt), lastTriggeredAt)
+    `,
+    [
+      //for ? in VALUES
+      input.id,
+      input.title,
+      input.text,
+      input.enabled,
+      input.mode,
+      input.type,
+      minutes,
+      date,
+      time,
+      days,
+      input.pinned ?? 0,
+      input.createAt ?? now,
+      input.updatedAt ?? now,
+      input.lastTriggeredAt ?? null
+    ]
+  );
+  return true;
+}
+async function deleteReminder(id) {
+  await pool.execute(`DELETE FROM reminders WHERE id = ?`, [id]);
+  return true;
+}
+let quickWin = null;
+function openQuickWindow(VITE_DEV_SERVER_URL2, RENDERER_DIST2, __dirname, onBeforeClose) {
+  if (quickWin && !quickWin.isDestroyed()) {
+    quickWin.show();
+    quickWin.focus();
+    return;
+  }
+  let allowClose = false;
+  quickWin = new BrowserWindow({
+    width: 520,
+    height: 360,
+    show: false,
+    alwaysOnTop: true,
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: path$1.join(__dirname, "preload.mjs")
+    }
+  });
+  if (VITE_DEV_SERVER_URL2) {
+    quickWin.loadURL(`${VITE_DEV_SERVER_URL2}#/quick`);
+  } else {
+    quickWin.loadFile(path$1.join(RENDERER_DIST2, "index.html"), { hash: "/quick" });
+  }
+  quickWin.once("ready-to-show", () => {
+    quickWin == null ? void 0 : quickWin.show();
+    quickWin == null ? void 0 : quickWin.focus();
+  });
+  quickWin.on("close", (e) => {
+    if (allowClose) return;
+    e.preventDefault();
+    Promise.resolve(onBeforeClose == null ? void 0 : onBeforeClose()).finally(() => {
+      allowClose = true;
+      quickWin == null ? void 0 : quickWin.close();
+    });
+  });
+  quickWin.on("closed", () => {
+    quickWin = null;
+  });
+}
+var main = { exports: {} };
+const version$1 = "17.3.1";
+const require$$4 = {
+  version: version$1
+};
+const fs = require$$0$8;
+const path = require$$1$4;
+const os = require$$2$3;
+const crypto = require$$0$2;
+const packageJson = require$$4;
+const version = packageJson.version;
+const TIPS = [
+  "🔐 encrypt with Dotenvx: https://dotenvx.com",
+  "🔐 prevent committing .env to code: https://dotenvx.com/precommit",
+  "🔐 prevent building .env in docker: https://dotenvx.com/prebuild",
+  "🤖 agentic secret storage: https://dotenvx.com/as2",
+  "⚡️ secrets for agents: https://dotenvx.com/as2",
+  "🛡️ auth for agents: https://vestauth.com",
+  "🛠️  run anywhere with `dotenvx run -- yourcommand`",
+  "⚙️  specify custom .env file path with { path: '/custom/path/.env' }",
+  "⚙️  enable debug logging with { debug: true }",
+  "⚙️  override existing env vars with { override: true }",
+  "⚙️  suppress all logs with { quiet: true }",
+  "⚙️  write to custom object with { processEnv: myObject }",
+  "⚙️  load multiple .env files with { path: ['.env.local', '.env'] }"
+];
+function _getRandomTip() {
+  return TIPS[Math.floor(Math.random() * TIPS.length)];
+}
+function parseBoolean(value) {
+  if (typeof value === "string") {
+    return !["false", "0", "no", "off", ""].includes(value.toLowerCase());
+  }
+  return Boolean(value);
+}
+function supportsAnsi() {
+  return process.stdout.isTTY;
+}
+function dim(text) {
+  return supportsAnsi() ? `\x1B[2m${text}\x1B[0m` : text;
+}
+const LINE = /(?:^|^)\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`(?:\\`|[^`])*`|[^#\r\n]+)?\s*(?:#.*)?(?:$|$)/mg;
+function parse(src) {
+  const obj = {};
+  let lines = src.toString();
+  lines = lines.replace(/\r\n?/mg, "\n");
+  let match;
+  while ((match = LINE.exec(lines)) != null) {
+    const key2 = match[1];
+    let value = match[2] || "";
+    value = value.trim();
+    const maybeQuote = value[0];
+    value = value.replace(/^(['"`])([\s\S]*)\1$/mg, "$2");
+    if (maybeQuote === '"') {
+      value = value.replace(/\\n/g, "\n");
+      value = value.replace(/\\r/g, "\r");
+    }
+    obj[key2] = value;
+  }
+  return obj;
+}
+function _parseVault(options2) {
+  options2 = options2 || {};
+  const vaultPath = _vaultPath(options2);
+  options2.path = vaultPath;
+  const result = DotenvModule.configDotenv(options2);
+  if (!result.parsed) {
+    const err = new Error(`MISSING_DATA: Cannot parse ${vaultPath} for an unknown reason`);
+    err.code = "MISSING_DATA";
+    throw err;
+  }
+  const keys = _dotenvKey(options2).split(",");
+  const length2 = keys.length;
+  let decrypted;
+  for (let i = 0; i < length2; i++) {
+    try {
+      const key2 = keys[i].trim();
+      const attrs = _instructions(result, key2);
+      decrypted = DotenvModule.decrypt(attrs.ciphertext, attrs.key);
+      break;
+    } catch (error) {
+      if (i + 1 >= length2) {
+        throw error;
+      }
+    }
+  }
+  return DotenvModule.parse(decrypted);
+}
+function _warn(message) {
+  console.error(`[dotenv@${version}][WARN] ${message}`);
+}
+function _debug(message) {
+  console.log(`[dotenv@${version}][DEBUG] ${message}`);
+}
+function _log(message) {
+  console.log(`[dotenv@${version}] ${message}`);
+}
+function _dotenvKey(options2) {
+  if (options2 && options2.DOTENV_KEY && options2.DOTENV_KEY.length > 0) {
+    return options2.DOTENV_KEY;
+  }
+  if (process.env.DOTENV_KEY && process.env.DOTENV_KEY.length > 0) {
+    return process.env.DOTENV_KEY;
+  }
+  return "";
+}
+function _instructions(result, dotenvKey) {
+  let uri;
+  try {
+    uri = new URL(dotenvKey);
+  } catch (error) {
+    if (error.code === "ERR_INVALID_URL") {
+      const err = new Error("INVALID_DOTENV_KEY: Wrong format. Must be in valid uri format like dotenv://:key_1234@dotenvx.com/vault/.env.vault?environment=development");
+      err.code = "INVALID_DOTENV_KEY";
+      throw err;
+    }
+    throw error;
+  }
+  const key2 = uri.password;
+  if (!key2) {
+    const err = new Error("INVALID_DOTENV_KEY: Missing key part");
+    err.code = "INVALID_DOTENV_KEY";
+    throw err;
+  }
+  const environment = uri.searchParams.get("environment");
+  if (!environment) {
+    const err = new Error("INVALID_DOTENV_KEY: Missing environment part");
+    err.code = "INVALID_DOTENV_KEY";
+    throw err;
+  }
+  const environmentKey = `DOTENV_VAULT_${environment.toUpperCase()}`;
+  const ciphertext = result.parsed[environmentKey];
+  if (!ciphertext) {
+    const err = new Error(`NOT_FOUND_DOTENV_ENVIRONMENT: Cannot locate environment ${environmentKey} in your .env.vault file.`);
+    err.code = "NOT_FOUND_DOTENV_ENVIRONMENT";
+    throw err;
+  }
+  return { ciphertext, key: key2 };
+}
+function _vaultPath(options2) {
+  let possibleVaultPath = null;
+  if (options2 && options2.path && options2.path.length > 0) {
+    if (Array.isArray(options2.path)) {
+      for (const filepath of options2.path) {
+        if (fs.existsSync(filepath)) {
+          possibleVaultPath = filepath.endsWith(".vault") ? filepath : `${filepath}.vault`;
+        }
+      }
+    } else {
+      possibleVaultPath = options2.path.endsWith(".vault") ? options2.path : `${options2.path}.vault`;
+    }
+  } else {
+    possibleVaultPath = path.resolve(process.cwd(), ".env.vault");
+  }
+  if (fs.existsSync(possibleVaultPath)) {
+    return possibleVaultPath;
+  }
+  return null;
+}
+function _resolveHome(envPath) {
+  return envPath[0] === "~" ? path.join(os.homedir(), envPath.slice(1)) : envPath;
+}
+function _configVault(options2) {
+  const debug = parseBoolean(process.env.DOTENV_CONFIG_DEBUG || options2 && options2.debug);
+  const quiet = parseBoolean(process.env.DOTENV_CONFIG_QUIET || options2 && options2.quiet);
+  if (debug || !quiet) {
+    _log("Loading env from encrypted .env.vault");
+  }
+  const parsed = DotenvModule._parseVault(options2);
+  let processEnv = process.env;
+  if (options2 && options2.processEnv != null) {
+    processEnv = options2.processEnv;
+  }
+  DotenvModule.populate(processEnv, parsed, options2);
+  return { parsed };
+}
+function configDotenv(options2) {
+  const dotenvPath = path.resolve(process.cwd(), ".env");
+  let encoding = "utf8";
+  let processEnv = process.env;
+  if (options2 && options2.processEnv != null) {
+    processEnv = options2.processEnv;
+  }
+  let debug = parseBoolean(processEnv.DOTENV_CONFIG_DEBUG || options2 && options2.debug);
+  let quiet = parseBoolean(processEnv.DOTENV_CONFIG_QUIET || options2 && options2.quiet);
+  if (options2 && options2.encoding) {
+    encoding = options2.encoding;
+  } else {
+    if (debug) {
+      _debug("No encoding is specified. UTF-8 is used by default");
+    }
+  }
+  let optionPaths = [dotenvPath];
+  if (options2 && options2.path) {
+    if (!Array.isArray(options2.path)) {
+      optionPaths = [_resolveHome(options2.path)];
+    } else {
+      optionPaths = [];
+      for (const filepath of options2.path) {
+        optionPaths.push(_resolveHome(filepath));
+      }
+    }
+  }
+  let lastError;
+  const parsedAll = {};
+  for (const path2 of optionPaths) {
+    try {
+      const parsed = DotenvModule.parse(fs.readFileSync(path2, { encoding }));
+      DotenvModule.populate(parsedAll, parsed, options2);
+    } catch (e) {
+      if (debug) {
+        _debug(`Failed to load ${path2} ${e.message}`);
+      }
+      lastError = e;
+    }
+  }
+  const populated = DotenvModule.populate(processEnv, parsedAll, options2);
+  debug = parseBoolean(processEnv.DOTENV_CONFIG_DEBUG || debug);
+  quiet = parseBoolean(processEnv.DOTENV_CONFIG_QUIET || quiet);
+  if (debug || !quiet) {
+    const keysCount = Object.keys(populated).length;
+    const shortPaths = [];
+    for (const filePath of optionPaths) {
+      try {
+        const relative = path.relative(process.cwd(), filePath);
+        shortPaths.push(relative);
+      } catch (e) {
+        if (debug) {
+          _debug(`Failed to load ${filePath} ${e.message}`);
+        }
+        lastError = e;
+      }
+    }
+    _log(`injecting env (${keysCount}) from ${shortPaths.join(",")} ${dim(`-- tip: ${_getRandomTip()}`)}`);
+  }
+  if (lastError) {
+    return { parsed: parsedAll, error: lastError };
+  } else {
+    return { parsed: parsedAll };
+  }
+}
+function config(options2) {
+  if (_dotenvKey(options2).length === 0) {
+    return DotenvModule.configDotenv(options2);
+  }
+  const vaultPath = _vaultPath(options2);
+  if (!vaultPath) {
+    _warn(`You set DOTENV_KEY but you are missing a .env.vault file at ${vaultPath}. Did you forget to build it?`);
+    return DotenvModule.configDotenv(options2);
+  }
+  return DotenvModule._configVault(options2);
+}
+function decrypt(encrypted, keyStr) {
+  const key2 = Buffer.from(keyStr.slice(-64), "hex");
+  let ciphertext = Buffer.from(encrypted, "base64");
+  const nonce = ciphertext.subarray(0, 12);
+  const authTag = ciphertext.subarray(-16);
+  ciphertext = ciphertext.subarray(12, -16);
+  try {
+    const aesgcm = crypto.createDecipheriv("aes-256-gcm", key2, nonce);
+    aesgcm.setAuthTag(authTag);
+    return `${aesgcm.update(ciphertext)}${aesgcm.final()}`;
+  } catch (error) {
+    const isRange = error instanceof RangeError;
+    const invalidKeyLength = error.message === "Invalid key length";
+    const decryptionFailed = error.message === "Unsupported state or unable to authenticate data";
+    if (isRange || invalidKeyLength) {
+      const err = new Error("INVALID_DOTENV_KEY: It must be 64 characters long (or more)");
+      err.code = "INVALID_DOTENV_KEY";
+      throw err;
+    } else if (decryptionFailed) {
+      const err = new Error("DECRYPTION_FAILED: Please check your DOTENV_KEY");
+      err.code = "DECRYPTION_FAILED";
+      throw err;
+    } else {
+      throw error;
+    }
+  }
+}
+function populate(processEnv, parsed, options2 = {}) {
+  const debug = Boolean(options2 && options2.debug);
+  const override = Boolean(options2 && options2.override);
+  const populated = {};
+  if (typeof parsed !== "object") {
+    const err = new Error("OBJECT_REQUIRED: Please check the processEnv argument being passed to populate");
+    err.code = "OBJECT_REQUIRED";
+    throw err;
+  }
+  for (const key2 of Object.keys(parsed)) {
+    if (Object.prototype.hasOwnProperty.call(processEnv, key2)) {
+      if (override === true) {
+        processEnv[key2] = parsed[key2];
+        populated[key2] = parsed[key2];
+      }
+      if (debug) {
+        if (override === true) {
+          _debug(`"${key2}" is already defined and WAS overwritten`);
+        } else {
+          _debug(`"${key2}" is already defined and was NOT overwritten`);
+        }
+      }
+    } else {
+      processEnv[key2] = parsed[key2];
+      populated[key2] = parsed[key2];
+    }
+  }
+  return populated;
+}
+const DotenvModule = {
+  configDotenv,
+  _configVault,
+  _parseVault,
+  config,
+  decrypt,
+  parse,
+  populate
+};
+main.exports.configDotenv = DotenvModule.configDotenv;
+main.exports._configVault = DotenvModule._configVault;
+main.exports._parseVault = DotenvModule._parseVault;
+main.exports.config = DotenvModule.config;
+main.exports.decrypt = DotenvModule.decrypt;
+main.exports.parse = DotenvModule.parse;
+main.exports.populate = DotenvModule.populate;
+main.exports = DotenvModule;
+var mainExports = main.exports;
+const options = {};
+if (process.env.DOTENV_CONFIG_ENCODING != null) {
+  options.encoding = process.env.DOTENV_CONFIG_ENCODING;
+}
+if (process.env.DOTENV_CONFIG_PATH != null) {
+  options.path = process.env.DOTENV_CONFIG_PATH;
+}
+if (process.env.DOTENV_CONFIG_QUIET != null) {
+  options.quiet = process.env.DOTENV_CONFIG_QUIET;
+}
+if (process.env.DOTENV_CONFIG_DEBUG != null) {
+  options.debug = process.env.DOTENV_CONFIG_DEBUG;
+}
+if (process.env.DOTENV_CONFIG_OVERRIDE != null) {
+  options.override = process.env.DOTENV_CONFIG_OVERRIDE;
+}
+if (process.env.DOTENV_CONFIG_DOTENV_KEY != null) {
+  options.DOTENV_KEY = process.env.DOTENV_CONFIG_DOTENV_KEY;
+}
+var envOptions = options;
+const re = /^dotenv_config_(encoding|path|quiet|debug|override|DOTENV_KEY)=(.+)$/;
+var cliOptions = function optionMatcher(args) {
+  const options2 = args.reduce(function(acc, cur) {
+    const matches = cur.match(re);
+    if (matches) {
+      acc[matches[1]] = matches[2];
+    }
+    return acc;
+  }, {});
+  if (!("quiet" in options2)) {
+    options2.quiet = "true";
+  }
+  return options2;
+};
+(function() {
+  mainExports.config(
+    Object.assign(
+      {},
+      envOptions,
+      cliOptions(process.argv)
+    )
+  );
+})();
 console.log("[main] main.ts loaded");
 createRequire(import.meta.url);
-const __dirname$1 = path.dirname(fileURLToPath(import.meta.url));
-process.env.APP_ROOT = path.join(__dirname$1, "..");
+const __dirname$1 = path$1.dirname(fileURLToPath(import.meta.url));
+process.env.APP_ROOT = path$1.join(__dirname$1, "..");
 const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
-const MAIN_DIST = path.join(process.env.APP_ROOT, "dist-electron");
-const RENDERER_DIST = path.join(process.env.APP_ROOT, "dist");
-process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, "public") : RENDERER_DIST;
-let win;
+const MAIN_DIST = path$1.join(process.env.APP_ROOT, "dist-electron");
+const RENDERER_DIST = path$1.join(process.env.APP_ROOT, "dist");
+process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path$1.join(process.env.APP_ROOT, "public") : RENDERER_DIST;
+let win = null;
 let isQuitting = false;
-app.on("before-quit", () => {
-  isQuitting = true;
-});
+let tray = null;
+if (process.platform === "win32") {
+  app.setAppUserModelId("com.yourapp.mnote");
+}
 function createWindow() {
   win = new BrowserWindow({
-    icon: path.join(process.env.VITE_PUBLIC, "electron-vite.svg"),
+    icon: path$1.join(process.env.VITE_PUBLIC, "electron-vite.svg"),
     webPreferences: {
-      preload: path.join(__dirname$1, "preload.mjs")
+      preload: path$1.join(__dirname$1, "preload.mjs")
     }
   });
   win.on("close", (e) => {
     if (!isQuitting) {
       e.preventDefault();
-      win == null ? void 0 : win.webContents.send("app:save-before-close");
+      win == null ? void 0 : win.hide();
     }
   });
   win.webContents.on("did-finish-load", () => {
     win == null ? void 0 : win.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
   });
   if (VITE_DEV_SERVER_URL) {
-    win.loadURL(VITE_DEV_SERVER_URL);
+    win.loadURL(`${VITE_DEV_SERVER_URL}#/`);
   } else {
-    win.loadFile(path.join(RENDERER_DIST, "index.html"));
+    win.loadFile(path$1.join(RENDERER_DIST, "index.html"), { hash: "/" });
   }
+}
+function resolveResourcePath(fileName) {
+  if (app.isPackaged) {
+    return path$1.join(process.resourcesPath, fileName);
+  }
+  return path$1.join(process.cwd(), "resources", fileName);
+}
+function requestQuitWithSave() {
+  win == null ? void 0 : win.webContents.send("app:save-before-close");
+  setTimeout(() => {
+    if (!isQuitting) {
+      isQuitting = true;
+      app.quit();
+    }
+  }, 1e4);
+}
+function createTray() {
+  const trayIconPath = resolveResourcePath("tray.ico");
+  const trayIcon = nativeImage.createFromPath(trayIconPath);
+  tray = new Tray(trayIcon);
+  tray.setToolTip("MNote");
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: "Main Window",
+      click: () => {
+        if (!win) return;
+        win.show();
+        win.focus();
+      }
+    },
+    {
+      label: "Exit",
+      click: () => {
+        requestQuitWithSave();
+      }
+    }
+  ]);
+  tray.setContextMenu(contextMenu);
+  tray.on("click", () => {
+    if (!win) return;
+    if (win.isVisible()) win.hide();
+    else {
+      win.show();
+      win.focus();
+    }
+  });
+}
+let currentShortcut = "Alt+Space";
+function registerHotkey(accelerator) {
+  globalShortcut.unregisterAll();
+  const ok = globalShortcut.register(accelerator, () => {
+    console.log("[main] hotkey triggered:", accelerator);
+    openQuickWindow(VITE_DEV_SERVER_URL, RENDERER_DIST, __dirname$1, saveQuickNote);
+  });
+  if (!ok) return false;
+  currentShortcut = accelerator;
+  return true;
+}
+let quickNote = { title: "", content: "" };
+const saveQuickNote = async () => {
+  const title = quickNote.title;
+  const content = quickNote.content;
+  if (!title && !content) return;
+  const now = Date.now();
+  const id = Date.now();
+  await upsertNote({
+    id,
+    title: title || "Untitled",
+    content,
+    createAt: now,
+    updatedAt: now,
+    pinned: 0
+  });
+  win == null ? void 0 : win.webContents.send("notes:changed");
+  quickNote = { title: "", content: "" };
+};
+function openReminderMandatoryWindow(initialText) {
+  const hasParent = !!win && !win.isDestroyed();
+  const popup = new BrowserWindow({
+    ...hasParent ? { parent: win, modal: true } : {},
+    ///...merging the options into the main object.
+    // width: 520,
+    // height: 320,
+    center: true,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    alwaysOnTop: true,
+    skipTaskbar: false,
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: path$1.join(__dirname$1, "preload.mjs")
+    }
+  });
+  popup.show();
+  popup.focus();
+  if (VITE_DEV_SERVER_URL) {
+    popup.loadURL(`${VITE_DEV_SERVER_URL}#/reminder-mandatory?text=${encodeURIComponent(initialText)}`);
+  } else {
+    popup.loadFile(path$1.join(RENDERER_DIST, "index.html"), { hash: "/reminder-mandatory" });
+  }
+  let handled = false;
+  popup.on("close", (event) => {
+    if (!handled) event.preventDefault();
+  });
+  ipcMain.handleOnce("reminder:submit-mandatory", async (_event, payload) => {
+    handled = true;
+    popup.close();
+    return true;
+  });
 }
 async function bootstrap() {
   try {
@@ -25037,12 +25666,47 @@ async function bootstrap() {
     ipcMain.handle("notes:delete", async (_event, id) => {
       return await deleteNote(id);
     });
+    ipcMain.handle("reminders:getAll", async () => {
+      return await getAllReminders();
+    });
+    ipcMain.handle("reminders:upsert", async (_event, payload) => {
+      return await upsertReminder(payload);
+      return true;
+    });
+    ipcMain.handle("reminders:delete", async (_event, id) => {
+      await deleteReminder(id);
+      return true;
+    });
     ipcMain.on("app:save-done", () => {
       isQuitting = true;
       win == null ? void 0 : win.close();
     });
+    ipcMain.handle("shortcut:update", (_event, accelerator) => {
+      return registerHotkey(accelerator);
+    });
+    ipcMain.handle("shortcut:get", () => currentShortcut);
+    ipcMain.on("quick:note:update", (_event, note) => {
+      quickNote = {
+        title: (note == null ? void 0 : note.title) ?? "",
+        content: (note == null ? void 0 : note.content) ?? ""
+      };
+    });
+    ipcMain.handle("reminder:show", (_event, payload) => {
+      const n = new Notification({
+        title: payload.title || "Reminder",
+        body: payload.body || ""
+      });
+      n.show();
+      return true;
+    });
+    ipcMain.handle("reminder:open-mandatory", (_e, text) => {
+      openReminderMandatoryWindow(text || "");
+      return true;
+    });
     Menu.setApplicationMenu(null);
     createWindow();
+    registerHotkey(currentShortcut);
+    createTray();
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
@@ -25057,6 +25721,12 @@ app.on("window-all-closed", () => {
     app.quit();
     win = null;
   }
+});
+app.on("before-quit", () => {
+  isQuitting = true;
+});
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
 });
 export {
   MAIN_DIST,
