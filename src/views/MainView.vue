@@ -701,33 +701,20 @@ const onDeleteItem = (id: number) => {
 const onCancelDelete = () => {
   confirmDeleteId.value = null
 }
+
 const onConfirmDelete = async (id: number) => {
-  // 1) 找到当前分类的列表（notes 或 reminders）
-  const list = dataMap.value[currentCategoryName.value]
-  // 2) 在这个列表中找到要删除的 item 的下标
-  const idx = list.findIndex(i => i.id === id)
-  // 3) 如果找到了（idx !== -1）
-  if (idx !== -1) {
-    // 4) 先取出它对应的 contentId
-    const contentId = list[idx].contentId
-     if (currentCategoryName.value === 'notes') {
-      await window.api.notesDelete(id)
-    }else if (currentCategoryName.value === 'reminders') {
-      await window.api.reminderDelete(id)
-      delete reminderStore.value[id] // 同步清理内存表单
-    }
-    // 5) 从列表里删除这个 item
-    list.splice(idx, 1)
-    // 6) 从 contentStore 里删除对应的内容
-    if (contentId !== undefined) {
-      delete contentStore.value[contentId]
-    }   
+  if (currentCategoryName.value === 'notes') {
+    await window.api.notesDelete(id)
+    await loadNotes()
+  } else {
+    await window.api.reminderDelete(id)
+    delete reminderStore.value[id]
+    await loadReminders()
   }
-    // 7) 关闭对应tab
-    const key = `${currentCategoryName.value}-${id}`
-    closeTab(key)
-    // 8) 退出“确认删除”状态
-    confirmDeleteId.value = null
+
+  // close tab and clean 
+  closeTab(`${currentCategoryName.value}-${id}`)
+  confirmDeleteId.value = null
 }
 //---------------------------------------item pinned-----------------------------------------------------------
 const onTogglePin = (item: UnitItem) => {
@@ -738,7 +725,6 @@ const onTogglePin = (item: UnitItem) => {
     scheduleSaveReminder(item.id)
   }
 }
-
 //------------------------------preview----------------------------------------------------------------------
 const getPreview = (contentId?: number) => {
   if (!contentId) return ''

@@ -149,7 +149,7 @@ function registerHotkey(accelerator: string) {
   globalShortcut.unregisterAll()
   const ok = globalShortcut.register(accelerator, () => {
     console.log('[main] hotkey triggered:', accelerator)
-    openQuickWindow(VITE_DEV_SERVER_URL, RENDERER_DIST, __dirname,saveQuickNote)
+    openQuickWindow(VITE_DEV_SERVER_URL, RENDERER_DIST, __dirname,() => saveQuickNote(win))
   })
   if (!ok) return false
   currentShortcut = accelerator

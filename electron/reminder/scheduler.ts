@@ -61,7 +61,7 @@ export function createReminderScheduler(notify: NotifyFn,onChanged?: () => void)
       void tick() //run once at first
       timer = setInterval(() => { //then 15 seconds run once
         void tick()
-      }, 15_000)
+      }, 5_000)
     },
     stop() {
       if (!timer) return

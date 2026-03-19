@@ -18310,27 +18310,21 @@ let CloseStatement$2 = class CloseStatement {
 };
 var close_statement$1 = CloseStatement$2;
 var field_flags = {};
-var hasRequiredField_flags;
-function requireField_flags() {
-  if (hasRequiredField_flags) return field_flags;
-  hasRequiredField_flags = 1;
-  field_flags.NOT_NULL = 1;
-  field_flags.PRI_KEY = 2;
-  field_flags.UNIQUE_KEY = 4;
-  field_flags.MULTIPLE_KEY = 8;
-  field_flags.BLOB = 16;
-  field_flags.UNSIGNED = 32;
-  field_flags.ZEROFILL = 64;
-  field_flags.BINARY = 128;
-  field_flags.ENUM = 256;
-  field_flags.AUTO_INCREMENT = 512;
-  field_flags.TIMESTAMP = 1024;
-  field_flags.SET = 2048;
-  field_flags.NO_DEFAULT_VALUE = 4096;
-  field_flags.ON_UPDATE_NOW = 8192;
-  field_flags.NUM = 32768;
-  return field_flags;
-}
+field_flags.NOT_NULL = 1;
+field_flags.PRI_KEY = 2;
+field_flags.UNIQUE_KEY = 4;
+field_flags.MULTIPLE_KEY = 8;
+field_flags.BLOB = 16;
+field_flags.UNSIGNED = 32;
+field_flags.ZEROFILL = 64;
+field_flags.BINARY = 128;
+field_flags.ENUM = 256;
+field_flags.AUTO_INCREMENT = 512;
+field_flags.TIMESTAMP = 1024;
+field_flags.SET = 2048;
+field_flags.NO_DEFAULT_VALUE = 4096;
+field_flags.ON_UPDATE_NOW = 8192;
+field_flags.NUM = 32768;
 const Packet$b = packet;
 const StringParser$2 = string;
 const CharsetToEncoding$7 = requireCharset_encodings();
@@ -18394,7 +18388,7 @@ class ColumnDefinition {
     for (const t in Types2) {
       typeNames2[Types2[t]] = t;
     }
-    const fiedFlags = requireField_flags();
+    const fiedFlags = field_flags;
     const flagNames2 = [];
     const inspectFlags = this.flags;
     for (const f in fiedFlags) {
@@ -21450,7 +21444,7 @@ let CloseStatement$1 = class CloseStatement2 extends Command$7 {
   }
 };
 var close_statement = CloseStatement$1;
-const FieldFlags$1 = requireField_flags();
+const FieldFlags$1 = field_flags;
 const Charsets$2 = requireCharsets();
 const Types$1 = requireTypes();
 const helpers$1 = helpers$4;
@@ -21639,7 +21633,7 @@ function getBinaryParser$2(fields2, options2, config2) {
   return parserCache.getParser("binary", fields2, options2, config2, compile);
 }
 var binary_parser = getBinaryParser$2;
-const FieldFlags = requireField_flags();
+const FieldFlags = field_flags;
 const Charsets$1 = requireCharsets();
 const Types = requireTypes();
 const helpers = helpers$4;
@@ -25163,7 +25157,7 @@ function createReminderScheduler(notify, onChanged) {
       void tick();
       timer = setInterval(() => {
         void tick();
-      }, 15e3);
+      }, 5e3);
     },
     stop() {
       if (!timer) return;
@@ -25708,7 +25702,7 @@ function updateQuickNote(note) {
 function clearQuickNote() {
   quickDraft = { title: "", content: "" };
 }
-async function saveQuickNote() {
+async function saveQuickNote(mainWindow) {
   var _a;
   const title = ((_a = quickDraft.title) == null ? void 0 : _a.trim()) ?? "";
   const content = quickDraft.content ?? "";
@@ -25723,6 +25717,7 @@ async function saveQuickNote() {
     updatedAt: now,
     pinned: 0
   });
+  mainWindow == null ? void 0 : mainWindow.webContents.send("notes:changed");
   clearQuickNote();
 }
 console.log("[main] main.ts loaded");
@@ -25828,7 +25823,7 @@ function registerHotkey(accelerator) {
   globalShortcut.unregisterAll();
   const ok = globalShortcut.register(accelerator, () => {
     console.log("[main] hotkey triggered:", accelerator);
-    openQuickWindow(VITE_DEV_SERVER_URL, RENDERER_DIST, __dirname$1, saveQuickNote);
+    openQuickWindow(VITE_DEV_SERVER_URL, RENDERER_DIST, __dirname$1, () => saveQuickNote(win));
   });
   if (!ok) return false;
   currentShortcut = accelerator;

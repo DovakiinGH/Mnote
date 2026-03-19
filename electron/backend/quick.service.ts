@@ -1,4 +1,5 @@
 import { saveNoteService } from '../backend/notes.service'
+import { BrowserWindow } from 'electron'
 
 export type QuickNote = {
   title: string
@@ -18,7 +19,7 @@ export function clearQuickNote() {
   quickDraft = { title: '', content: '' }
 }
 
-export async function saveQuickNote(): Promise<void> {
+export async function saveQuickNote(mainWindow: BrowserWindow | null): Promise<void> {
   const title = quickDraft.title?.trim() ?? ''
   const content = quickDraft.content ?? ''
 
@@ -35,6 +36,7 @@ export async function saveQuickNote(): Promise<void> {
     updatedAt: now,
     pinned: 0
   })
+  mainWindow?.webContents.send('notes:changed')
 
   clearQuickNote()
 }
