@@ -88,7 +88,11 @@
             v-for="item in currentItems"
             :key="item.id"
             class="sub-item"
-            :class="{ active: item.id === selectedSubId,'is-confirm': item.id === confirmDeleteId}"
+            :class="{ 
+              active: item.id === selectedSubId,
+              'is-confirm': item.id === confirmDeleteId,
+              'is-running': isReminderActive(item.id)
+              }"
             @click="onSubItemClick(item.id)"
             >
             <div class="item-content">
@@ -96,6 +100,9 @@
             </div>
             <div  v-if="activeIndex === '1'" class="item-preview">
             {{ getPreview(item.contentId) }}
+            </div>
+            <div v-if="activeIndex === '2'" class="item-preview">
+              {{ getReminderPreview(item.id) }}
             </div>
             <el-button
               v-if="item.id !== confirmDeleteId"
@@ -454,6 +461,9 @@ onMounted(() => {
   window.api.onNotesChanged(() => {
     loadNotes()
   })
+  window.api.onRemindersChanged(() => {
+    loadReminders()
+  })
 })
 
 
@@ -513,6 +523,11 @@ const currentReminderForm = computed<ReminderForm>(() => {
 }
   return reminderStore.value[id]
 })
+//use to make reminder sub list item change color
+const isReminderActive = (id: number): boolean => {
+  if (currentCategoryName.value !== 'reminders') return false
+  return reminderStore.value[id]?.enabled === true
+}
 //--------------------------------add new item------------------------------------------------------------
 
 const onNewItem = async () => {
@@ -728,6 +743,10 @@ const onTogglePin = (item: UnitItem) => {
 const getPreview = (contentId?: number) => {
   if (!contentId) return ''
   const text = contentStore.value[contentId] ?? ''
+  return text.replace(/\s+/g, ' ').trim().slice(0, 40)
+}
+const getReminderPreview = (id: number) => {
+  const text = reminderStore.value[id]?.text ?? ''
   return text.replace(/\s+/g, ' ').trim().slice(0, 40)
 }
 

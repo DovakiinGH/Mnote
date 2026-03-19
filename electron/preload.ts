@@ -47,5 +47,8 @@ contextBridge.exposeInMainWorld('api', {
   openMandatoryReminder: (text: string) => ipcRenderer.invoke('reminder:open-mandatory', text),
   submitMandatoryReminder: (payload: { text: string }) =>
   ipcRenderer.invoke('reminder:submit-mandatory', payload),
+  onRemindersChanged: (cb: () => void) => {
+  ipcRenderer.on('reminders:changed', () => cb())
+},
 })
 //cb for call back function

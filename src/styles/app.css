@@ -264,7 +264,7 @@
 
 
 /* =========================================================
-   Sub Item Content / Preview / Delete / Pin / Confirm
+   Sub Item Content / Preview / Delete / Pin / Confirm / ReminderActive
    ========================================================= */
 /* item content text */
 .item-content {
@@ -358,6 +358,30 @@
   background: #fff;
   color: #333;
   border: 1px solid #ddd;
+}
+
+/*-------------------------reminder active-------------*/
+.sub-item.is-running {
+  background-color: #409eff;
+  color: #fff;
+}
+
+.sub-item.is-running .item-content {
+  color: #fff;
+}
+
+.sub-item.is-running .item-preview {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.sub-item.is-running .item-del-icon,
+.sub-item.is-running .item-pin-icon {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.sub-item.is-running.active {
+  background-color: #7CBBF5;
+  border-color: #fff;
 }
 
 

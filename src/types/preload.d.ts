@@ -22,6 +22,7 @@ declare global {
         showReminder: (payload: { title: string; body: string }) => Promise<boolean>
         openMandatoryReminder: (text: string) => Promise<boolean>
         submitMandatoryReminder: (payload: { text: string }) => Promise<boolean>
+        onRemindersChanged: (cb: () => void) => void
 
        
     }

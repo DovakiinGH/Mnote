@@ -48,7 +48,9 @@ const scheduler = createReminderScheduler(async (payload) => {
     // 弹窗
     openReminderMandatoryWindow(payload.text)
   }
-})
+},
+  () => { win?.webContents.send('reminders:changed')}
+)
 
 // for windows system
 if (process.platform === 'win32') {

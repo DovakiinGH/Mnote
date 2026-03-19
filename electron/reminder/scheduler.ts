@@ -10,7 +10,7 @@ type NotifyPayload = {
 type NotifyFn = (payload: NotifyPayload) => Promise<void> | void
 
 //FACTORY FUNCTION
-export function createReminderScheduler(notify: NotifyFn) {
+export function createReminderScheduler(notify: NotifyFn,onChanged?: () => void) {
 //notify is the function that send the notification, window..... 
   let timer: ReturnType<typeof setInterval> | null = null
   let running = false
@@ -23,6 +23,8 @@ export function createReminderScheduler(notify: NotifyFn) {
     try {
       const now = Date.now()
       const rows = await getEnabledReminders()
+      let changed = false  
+
       //every reminder that enable(start)
       for (const row of rows) {
         // not time up
@@ -41,6 +43,10 @@ export function createReminderScheduler(notify: NotifyFn) {
         if (row.type === 'AFTER_MINUTES' || row.type === 'DATE_TIME') {
           await disableReminder(row.id, now)
         }
+        changed = true
+      }
+      if (changed && onChanged) {
+        onChanged()
       }
     } catch (err) {
       console.error('[scheduler.tick] failed:', err)
