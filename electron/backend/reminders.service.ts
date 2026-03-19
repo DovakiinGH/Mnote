@@ -2,7 +2,7 @@ import {
   getAllReminders,
   upsertReminder,
   deleteReminder,
-  markReminderTriggered,
+  markTriggered,
   type ReminderUpsertInput
 } from './reminders.repo'
 
@@ -42,7 +42,7 @@ export async function removeReminderService(id: number) {
 }
 
 export async function markReminderTriggeredService(id: number, ts = Date.now()) {
-  await markReminderTriggered(id, ts)
+  await markTriggered(id, ts)
   return true
 }
 

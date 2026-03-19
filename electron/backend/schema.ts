@@ -68,7 +68,5 @@ export async function initSchema() {
   await pool.execute(`
     ALTER TABLE reminders
     ADD COLUMN lastTriggeredAt BIGINT NULL
-  `).catch((e) => {
-    console.error('[schema] add lastTriggeredAt failed:', e)
-  })
+  `).catch(() => {})
 }

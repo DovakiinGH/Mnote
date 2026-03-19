@@ -3,6 +3,7 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { initSchema } from './backend/schema'
+import { createReminderScheduler } from './reminder/scheduler'
 import { openQuickWindow } from './quickWindow'
 import 'dotenv/config'
 import { listNotesService,saveNoteService,removeNoteService,createNoteService } from './backend/notes.service'
@@ -33,6 +34,21 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 let win: BrowserWindow | null = null
 let isQuitting = false
 let tray: Tray | null = null
+let currentShortcut = 'Alt+Space'
+
+const scheduler = createReminderScheduler(async (payload) => {
+  if (payload.mode === 'NOTIFICATION') {
+    // 系统通知
+    const n = new Notification({
+      title: payload.title,
+      body: payload.text
+    })
+    n.show()
+  } else if (payload.mode === 'POPUP_WINDOW'){
+    // 弹窗
+    openReminderMandatoryWindow(payload.text)
+  }
+})
 
 // for windows system
 if (process.platform === 'win32') {
@@ -127,8 +143,6 @@ function createTray() {
   })
 }
 //------------------------------------------short cut----------------------------------------------------------
-let currentShortcut = 'Alt+Space'
-
 function registerHotkey(accelerator: string) {
   globalShortcut.unregisterAll()
   const ok = globalShortcut.register(accelerator, () => {
@@ -157,11 +171,15 @@ function openReminderMandatoryWindow(initialText: string) {
   })
   popup.show()
   popup.focus()
-  if (VITE_DEV_SERVER_URL) {
-    popup.loadURL(`${VITE_DEV_SERVER_URL}#/reminder-mandatory?text=${encodeURIComponent(initialText)}`)
-  } else {
-    popup.loadFile(path.join(RENDERER_DIST, 'index.html'), { hash: '/reminder-mandatory' })
-  }
+if (VITE_DEV_SERVER_URL) {
+  popup.loadURL(
+    `${VITE_DEV_SERVER_URL}#/reminder-mandatory?text=${encodeURIComponent(initialText)}`
+  )
+} else {
+  popup.loadFile(path.join(RENDERER_DIST, 'index.html'), {
+    hash: `/reminder-mandatory?text=${encodeURIComponent(initialText)}`
+  })
+}
 
   let handled = false
   popup.on('close', (event) => {
@@ -231,6 +249,7 @@ async function bootstrap() {
     createWindow()
     registerHotkey(currentShortcut)
     createTray()
+    scheduler.start() //FOR REMINDERS
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -256,5 +275,6 @@ app.on('before-quit', () => {
   isQuitting = true
 })
 app.on('will-quit', () => {
+  scheduler.stop() //FOR REMINDERS
   globalShortcut.unregisterAll()
 })

@@ -1,4 +1,3 @@
-import type { ReminderForm } from '../types/mainView'
 
 export const REMINDER_TYPES = [
   { key: 'AFTER_MINUTES', label: 'minutes later' },

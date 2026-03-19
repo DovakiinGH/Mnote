@@ -174,7 +174,7 @@
             {{ activeContentItem?.updatedAt ? formatTime(activeContentItem.updatedAt) : '' }}
           </div>
         </div>
-        <!-- 只在 notes 时显示编辑区 -->
+        <!-- note----------------------------------------------------------------------------------------------------->
         <el-scrollbar v-if="activeTab?.type === 'notes'" class="editor-scroll">
           <el-input
             v-model="selectedContent"
@@ -480,7 +480,6 @@ const scheduleSaveReminder = (id: number) => {
 
 
 //--------------------------const-------------------------------------------------------------------------------------
-
 const dataMap = ref<{
   notes: UnitItem[]
   reminders: UnitItem[]
@@ -488,9 +487,6 @@ const dataMap = ref<{
   notes: [{ id: 1, name: 'no', contentId: 101 }],
   reminders: [{ id: 10, name: 'no', contentId: 101 }]
 }) //格式：ref<T>(initialValue)
-
-
-
 const contentStore = ref<Record<number, string>>({
   101: '',
 })

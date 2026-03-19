@@ -9,7 +9,7 @@
           ref="editorRef"
           class="reminder-text-editor"
           spellcheck="false"
-          data-placeholder="Edit reminder text..."
+          data-placeholder="Reminder text..."
         ></div>
 
         <div class="reminder-button">
@@ -31,10 +31,11 @@ onMounted(() => {
   text.value = String(route.query.text ?? '')
   if (editorRef.value) editorRef.value.innerText = text.value
 })
-
+//get text value
 const onSubmit = async () => {
   await window.api.submitMandatoryReminder({ text: text.value })
 }
+
 </script>
 
 <style scoped>

@@ -25002,9 +25002,164 @@ async function initSchema() {
   await pool.execute(`
     ALTER TABLE reminders
     ADD COLUMN lastTriggeredAt BIGINT NULL
-  `).catch((e) => {
-    console.error("[schema] add lastTriggeredAt failed:", e);
+  `).catch(() => {
   });
+}
+async function getAllReminders() {
+  const [rows] = await pool.query(`
+    SELECT *
+    FROM reminders
+    ORDER BY updatedAt DESC
+  `);
+  return rows;
+}
+async function upsertReminder(input) {
+  const now = Date.now();
+  await pool.execute(
+    `
+    INSERT INTO reminders
+      (id, title, text, enabled, mode, type, minutes, date, time, days, pinned, createAt, updatedAt, lastTriggeredAt)
+    VALUES
+      (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    ON DUPLICATE KEY UPDATE
+      title = VALUES(title),
+      text = VALUES(text),
+      enabled = VALUES(enabled),
+      mode = VALUES(mode),
+      type = VALUES(type),
+      minutes = VALUES(minutes),
+      date = VALUES(date),
+      time = VALUES(time),
+      days = VALUES(days),
+      pinned = VALUES(pinned),
+      updatedAt = VALUES(updatedAt),
+      lastTriggeredAt = COALESCE(VALUES(lastTriggeredAt), lastTriggeredAt)
+    `,
+    [
+      //for ? in VALUES
+      input.id,
+      input.title,
+      input.text,
+      input.enabled,
+      input.mode,
+      input.type,
+      input.minutes ?? null,
+      input.date ?? null,
+      input.time ?? null,
+      input.days ?? null,
+      input.pinned ?? 0,
+      input.createAt ?? now,
+      input.updatedAt ?? now,
+      input.lastTriggeredAt ?? null
+    ]
+  );
+  return true;
+}
+async function deleteReminder(id) {
+  await pool.execute(`DELETE FROM reminders WHERE id = ?`, [id]);
+  return true;
+}
+async function getEnabledReminders() {
+  const [rows] = await pool.query(`
+    SELECT *
+    FROM reminders
+    WHERE enabled = 1
+  `);
+  return rows;
+}
+async function markTriggered(id, ts) {
+  await pool.execute(
+    `UPDATE reminders SET lastTriggeredAt = ?, updatedAt = ? WHERE id = ?`,
+    [ts, ts, id]
+  );
+}
+async function disableReminder(id, ts) {
+  await pool.execute(
+    `UPDATE reminders SET enabled = 0, updatedAt = ? WHERE id = ?`,
+    [ts, id]
+  );
+}
+const DAY_MS = 24 * 60 * 60 * 1e3;
+function dateToYmd(v) {
+  if (!v) return null;
+  if (typeof v === "string") return v.slice(0, 10);
+  const y = v.getFullYear();
+  const m = String(v.getMonth() + 1).padStart(2, "0");
+  const d = String(v.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+function normalizeTime(v) {
+  if (!v) return "00:00:00";
+  if (v.length === 5) return `${v}:00`;
+  return v;
+}
+function toDateTimeTs(dateVal, timeVal) {
+  const ymd = dateToYmd(dateVal);
+  if (!ymd) return null;
+  const hms = normalizeTime(timeVal);
+  const ts = (/* @__PURE__ */ new Date(`${ymd}T${hms}`)).getTime();
+  return Number.isNaN(ts) ? null : ts;
+}
+function getDueAt(row) {
+  if (row.type === "AFTER_MINUTES") {
+    const m = row.minutes ?? 1;
+    return (row.updatedAt ?? row.createAt) + m * 60 * 1e3;
+  }
+  if (row.type === "DATE_TIME") {
+    return toDateTimeTs(row.date, row.time);
+  }
+  const d = row.days ?? 1;
+  const base = row.lastTriggeredAt ?? row.updatedAt ?? row.createAt;
+  return base + d * DAY_MS;
+}
+function isDue(row, now) {
+  const dueAt = getDueAt(row);
+  if (!dueAt) return false;
+  if (now < dueAt) return false;
+  if (row.lastTriggeredAt && row.lastTriggeredAt >= dueAt) return false;
+  return true;
+}
+function createReminderScheduler(notify) {
+  let timer = null;
+  let running = false;
+  const tick = async () => {
+    if (running) return;
+    running = true;
+    try {
+      const now = Date.now();
+      const rows = await getEnabledReminders();
+      for (const row of rows) {
+        if (!isDue(row, now)) continue;
+        await notify({
+          title: row.title || "M Note",
+          text: row.text || "",
+          mode: row.mode
+        });
+        await markTriggered(row.id, now);
+        if (row.type === "AFTER_MINUTES" || row.type === "DATE_TIME") {
+          await disableReminder(row.id, now);
+        }
+      }
+    } catch (err) {
+      console.error("[scheduler.tick] failed:", err);
+    } finally {
+      running = false;
+    }
+  };
+  return {
+    start() {
+      if (timer) return;
+      void tick();
+      timer = setInterval(() => {
+        void tick();
+      }, 15e3);
+    },
+    stop() {
+      if (!timer) return;
+      clearInterval(timer);
+      timer = null;
+    }
+  };
 }
 let quickWin = null;
 function openQuickWindow(VITE_DEV_SERVER_URL2, RENDERER_DIST2, __dirname, onBeforeClose) {
@@ -25474,63 +25629,6 @@ async function createNoteService() {
   await saveNoteService(note);
   return note;
 }
-async function getAllReminders() {
-  const [rows] = await pool.query(`
-    SELECT *
-    FROM reminders
-    ORDER BY updatedAt DESC
-  `);
-  return rows;
-}
-async function upsertReminder(input) {
-  const now = Date.now();
-  await pool.execute(
-    `
-    INSERT INTO reminders
-      (id, title, text, enabled, mode, type, minutes, date, time, days, pinned, createAt, updatedAt, lastTriggeredAt)
-    VALUES
-      (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-    ON DUPLICATE KEY UPDATE
-      title = VALUES(title),
-      text = VALUES(text),
-      enabled = VALUES(enabled),
-      mode = VALUES(mode),
-      type = VALUES(type),
-      minutes = VALUES(minutes),
-      date = VALUES(date),
-      time = VALUES(time),
-      days = VALUES(days),
-      pinned = VALUES(pinned),
-      updatedAt = VALUES(updatedAt),
-      lastTriggeredAt = COALESCE(VALUES(lastTriggeredAt), lastTriggeredAt)
-    `,
-    [
-      //for ? in VALUES
-      input.id,
-      input.title,
-      input.text,
-      input.enabled,
-      input.mode,
-      input.type,
-      input.minutes ?? null,
-      input.date ?? null,
-      input.time ?? null,
-      input.days ?? null,
-      input.pinned ?? 0,
-      input.createAt ?? now,
-      input.updatedAt ?? now,
-      input.lastTriggeredAt ?? null
-    ]
-  );
-  return true;
-}
-async function deleteReminder(id) {
-  await pool.execute(`DELETE FROM reminders WHERE id = ?`, [id]);
-  return true;
-}
-async function markReminderTriggered(id, ts = Date.now()) {
-  await pool.execute(`UPDATE reminders SET lastTriggeredAt = ? WHERE id = ?`, [ts, id]);
-}
 function normalizeReminderByType(f) {
   if (f.type === "AFTER_MINUTES") {
     return { minutes: f.minutes ?? 1, date: null, time: null, days: null };
@@ -25564,7 +25662,7 @@ async function removeReminderService(id) {
   return true;
 }
 async function markReminderTriggeredService(id, ts = Date.now()) {
-  await markReminderTriggered(id, ts);
+  await markTriggered(id, ts);
   return true;
 }
 async function createReminderService() {
@@ -25627,6 +25725,18 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path$1.join(process.env.APP_ROOT
 let win = null;
 let isQuitting = false;
 let tray = null;
+let currentShortcut = "Alt+Space";
+const scheduler = createReminderScheduler(async (payload) => {
+  if (payload.mode === "NOTIFICATION") {
+    const n = new Notification({
+      title: payload.title,
+      body: payload.text
+    });
+    n.show();
+  } else if (payload.mode === "POPUP_WINDOW") {
+    openReminderMandatoryWindow(payload.text);
+  }
+});
 if (process.platform === "win32") {
   app.setAppUserModelId("com.yourapp.mnote");
 }
@@ -25698,7 +25808,6 @@ function createTray() {
     }
   });
 }
-let currentShortcut = "Alt+Space";
 function registerHotkey(accelerator) {
   globalShortcut.unregisterAll();
   const ok = globalShortcut.register(accelerator, () => {
@@ -25727,9 +25836,13 @@ function openReminderMandatoryWindow(initialText) {
   popup.show();
   popup.focus();
   if (VITE_DEV_SERVER_URL) {
-    popup.loadURL(`${VITE_DEV_SERVER_URL}#/reminder-mandatory?text=${encodeURIComponent(initialText)}`);
+    popup.loadURL(
+      `${VITE_DEV_SERVER_URL}#/reminder-mandatory?text=${encodeURIComponent(initialText)}`
+    );
   } else {
-    popup.loadFile(path$1.join(RENDERER_DIST, "index.html"), { hash: "/reminder-mandatory" });
+    popup.loadFile(path$1.join(RENDERER_DIST, "index.html"), {
+      hash: `/reminder-mandatory?text=${encodeURIComponent(initialText)}`
+    });
   }
   let handled = false;
   popup.on("close", (event) => {
@@ -25785,6 +25898,7 @@ async function bootstrap() {
     createWindow();
     registerHotkey(currentShortcut);
     createTray();
+    scheduler.start();
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
@@ -25804,6 +25918,7 @@ app.on("before-quit", () => {
   isQuitting = true;
 });
 app.on("will-quit", () => {
+  scheduler.stop();
   globalShortcut.unregisterAll();
 });
 export {
