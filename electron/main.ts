@@ -157,8 +157,11 @@ function registerHotkey(accelerator: string) {
 }
 //------------------------------------pop windows------------------------------------------------
 function openReminderMandatoryWindow(initialText: string) {
+  const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize
   const hasParent = !!win && !win.isDestroyed()
   const popup = new BrowserWindow({
+    width: Math.round(screenW * 0.6),  
+    height: Math.round(screenH * 0.65), 
     ...(hasParent ? { parent: win!, modal: true } : {}), 
     center: true,
     resizable: false,

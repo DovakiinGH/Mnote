@@ -277,11 +277,11 @@
         />
       </template>
 
-      <el-scrollbar class="reminder-text-scroll lockable">
+       <el-scrollbar class="reminder-text-scroll lockable">
         <el-input
           v-model="currentReminderForm.text"
           type="textarea"
-          :autosize="{ minRows: 2 }"
+          :rows="6"
           maxlength="500"
           show-word-limit
           class="reminder-textarea"

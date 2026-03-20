@@ -1,4 +1,4 @@
-import { BrowserWindow, app, globalShortcut, ipcMain, Notification, Menu, nativeImage, Tray } from "electron";
+import { screen, BrowserWindow, app, globalShortcut, ipcMain, Notification, Menu, nativeImage, Tray } from "electron";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path$1 from "node:path";
@@ -25172,6 +25172,7 @@ function createReminderScheduler(notify, onChanged) {
 }
 let quickWin = null;
 function openQuickWindow(VITE_DEV_SERVER_URL2, RENDERER_DIST2, __dirname, onBeforeClose) {
+  const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
   if (quickWin && !quickWin.isDestroyed()) {
     quickWin.show();
     quickWin.focus();
@@ -25179,8 +25180,8 @@ function openQuickWindow(VITE_DEV_SERVER_URL2, RENDERER_DIST2, __dirname, onBefo
   }
   let allowClose = false;
   quickWin = new BrowserWindow({
-    width: 520,
-    height: 360,
+    width: Math.round(screenW * 0.45),
+    height: Math.round(screenH * 0.55),
     show: false,
     alwaysOnTop: true,
     autoHideMenuBar: true,
@@ -25834,8 +25835,11 @@ function registerHotkey(accelerator) {
   return true;
 }
 function openReminderMandatoryWindow(initialText) {
+  const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
   const hasParent = !!win && !win.isDestroyed();
   const popup = new BrowserWindow({
+    width: Math.round(screenW * 0.6),
+    height: Math.round(screenH * 0.65),
     ...hasParent ? { parent: win, modal: true } : {},
     center: true,
     resizable: false,
