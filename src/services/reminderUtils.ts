@@ -1,7 +1,7 @@
 
 export const REMINDER_TYPES = [
-  { key: 'AFTER_MINUTES', label: 'minutes later' },
-  { key: 'DATE_TIME', label: 'yy/mm/dd' },
-  { key: 'EVERY_DAYS', label: 'evey few days' }
+  { key: 'AFTER_MINUTES', labelKey: 'app.reminderButton.minutesLater' },
+  { key: 'DATE_TIME', labelKey: 'app.reminderButton.YMD' },
+  { key: 'EVERY_DAYS', labelKey: 'app.reminderButton.everyDays' }
 ] as const
 

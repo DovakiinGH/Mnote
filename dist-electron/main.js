@@ -25079,7 +25079,6 @@ async function disableReminder(id, ts) {
     [ts, id]
   );
 }
-const DAY_MS = 24 * 60 * 60 * 1e3;
 function dateToYmd(v) {
   if (!v) return null;
   if (typeof v === "string") return v.slice(0, 10);
@@ -25110,7 +25109,12 @@ function getDueAt(row) {
   }
   const d = row.days ?? 1;
   const base = row.lastTriggeredAt ?? row.updatedAt ?? row.createAt;
-  return base + d * DAY_MS;
+  const nextDate = new Date(base);
+  nextDate.setDate(nextDate.getDate() + d);
+  const ymd = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}-${String(nextDate.getDate()).padStart(2, "0")}`;
+  const hms = normalizeTime(row.time);
+  const ts = (/* @__PURE__ */ new Date(`${ymd}T${hms}`)).getTime();
+  return Number.isNaN(ts) ? null : ts;
 }
 function isDue(row, now) {
   const dueAt = getDueAt(row);

@@ -41,7 +41,8 @@
 
         <el-button
         class="gear-btn side-btn "
-        text>
+        text
+        @click="onToggleLang">
         <el-icon><Setting /></el-icon>
         </el-button>
 
@@ -78,7 +79,7 @@
                 <span class="new-icon">
                   <el-icon class="plus-icon"><Plus /></el-icon>
                 </span>              
-                <span class="new-text">New</span>
+                <span class="new-text">{{ t('app.button.new') }}</span>
               </el-button>      
 
         </div>
@@ -125,8 +126,8 @@
             </el-button>
             
             <div v-if="item.id === confirmDeleteId" class="item-confirm">
-              <el-button class="btn-confirm" @click.stop="onConfirmDelete(item.id)">confirm</el-button>
-              <el-button class="btn-cancel" @click.stop="onCancelDelete">exit</el-button>
+              <el-button class="btn-confirm" @click.stop="onConfirmDelete(item.id)">{{ t('app.button.confirm') }}</el-button>
+              <el-button class="btn-cancel" @click.stop="onCancelDelete">{{ t('app.button.exit') }}</el-button>
             </div>
           </div>
         </el-scrollbar>
@@ -199,8 +200,8 @@
       <!-- only this stays enabled -->
       <div class="reminder-status">
         <el-radio-group v-model="currentReminderForm.enabled">
-          <el-radio-button :label="true">start</el-radio-button>
-          <el-radio-button :label="false">close</el-radio-button>
+          <el-radio-button :label="true">{{ t('app.reminderButton.start') }}</el-radio-button>
+          <el-radio-button :label="false">{{ t('app.reminderButton.close') }}</el-radio-button>
         </el-radio-group>
       </div>
 
@@ -210,8 +211,8 @@
           placeholder="choose reminder mode"
           :disabled="isReminderLocked"
         >
-          <el-option label="notification" value="NOTIFICATION" />
-          <el-option label="pop up window" value="POPUP_WINDOW" />
+          <el-option :label="t('app.reminderButton.notification')" value="NOTIFICATION" />
+          <el-option :label="t('app.reminderButton.popUpWindow')" value="POPUP_WINDOW" />
         </el-select>
       </div>
 
@@ -221,7 +222,7 @@
         :disabled="isReminderLocked"
         class="lockable"
       >
-        <el-option v-for="t in REMINDER_TYPES" :key="t.key" :label="t.label" :value="t.key" />
+        <el-option v-for="rt in REMINDER_TYPES" :key="rt.key" :label="t(rt.labelKey)" :value="rt.key" />
       </el-select>
 
       <template v-if="currentReminderForm.type === 'AFTER_MINUTES'">
@@ -292,7 +293,7 @@
       </div>
     </div>
 
-    <div v-else class="empty-placeholder">add some thing</div>
+    <div v-else class="empty-placeholder">{{ t('app.emptySpace') }}</div>
     </el-main>
 
   </el-container>
@@ -766,33 +767,15 @@ const sortedReminders = computed(() => {
 })
 //---------------------------------language-----------------------------------------------------
 
-/**
- * Element Plus 组件本身也有语言包
- * 例如分页、对话框按钮的中文/英文
- */
-import zhCn from 'element-plus/es/locale/lang/zh-cn'
-import en from 'element-plus/es/locale/lang/en'
-
-/**
- * 切换语言：本质就是改 locale
- * vue-i18n 会自动刷新页面中的文字
- */
-const switchLang = (lang: 'zh-CN' | 'en-US') => {
-  locale.value = lang
-  localStorage.setItem('lang', lang) // 保存到本地，刷新后仍生效
+const onToggleLang = () => {
+  const next = locale.value === 'en-US' ? 'zh-CN' : 'en-US'
+  locale.value = next
+  localStorage.setItem('lang', next)
 }
-
-/**
- * 让 Element Plus 的组件语言跟随切换
- * computed 会根据 locale 自动重新计算
- */
-const epLocale = computed(() => {
-  return locale.value === 'zh-CN' ? zhCn : en
-})
-
-
-
-
+// const onLangChange = (lang: string) => {
+//   locale.value = lang
+//   localStorage.setItem('lang', lang)
+// }
 //-----------------------------watch-------------------------------------
 
 watch(
