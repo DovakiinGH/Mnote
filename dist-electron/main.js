@@ -24927,289 +24927,6 @@ var pool_cluster = PromisePoolNamespace;
   };
 })(promise);
 const mysql = /* @__PURE__ */ getDefaultExportFromCjs(promise);
-const pool = mysql.createPool({
-  host: "127.0.0.1",
-  port: 3306,
-  user: "root",
-  password: "20040701",
-  database: "mnote",
-  connectionLimit: 10,
-  dateStrings: true
-});
-async function initSchema() {
-  const bootstrapConn = await mysql.createConnection({
-    host: process.env.DB_HOST ?? "127.0.0.1",
-    port: Number(process.env.DB_PORT ?? 3306),
-    user: process.env.DB_USER ?? "root",
-    password: process.env.DB_PASSWORD ?? ""
-  });
-  await bootstrapConn.execute(`
-    CREATE DATABASE IF NOT EXISTS mnote
-    DEFAULT CHARACTER SET utf8mb4
-    DEFAULT COLLATE utf8mb4_unicode_ci
-  `);
-  await bootstrapConn.end();
-  await pool.execute(`
-    CREATE TABLE IF NOT EXISTS notes (
-      id BIGINT PRIMARY KEY,
-      title VARCHAR(50) NOT NULL,
-      content MEDIUMTEXT,
-      updatedAt BIGINT NULL,
-      createAt BIGINT NULL,
-      pinned TINYINT(1) NOT NULL DEFAULT 0
-    )
-  `);
-  await pool.execute(`
-    CREATE TABLE IF NOT EXISTS reminders (
-      id BIGINT PRIMARY KEY,
-      title VARCHAR(100) NOT NULL DEFAULT '',
-      text MEDIUMTEXT NOT NULL,
-      enabled TINYINT(1) NOT NULL DEFAULT 0,
-      mode VARCHAR(20) NOT NULL DEFAULT 'NOTIFICATION',
-      type VARCHAR(20) NOT NULL DEFAULT 'AFTER_MINUTES',
-
-      minutes INT NULL,     -- AFTER_MINUTES 使用
-      \`date\` DATE NULL,     -- DATE_TIME 使用
-      \`time\` TIME NULL,     -- DATE_TIME / EVERY_DAYS 可选
-      days INT NULL,        -- EVERY_DAYS 使用
-
-      pinned TINYINT(1) NOT NULL DEFAULT 0,
-      createAt BIGINT NOT NULL,
-      updatedAt BIGINT NOT NULL,
-      lastTriggeredAt BIGINT NULL
-    )
-  `);
-  await pool.execute(`CREATE INDEX idx_reminders_enabled ON reminders(enabled)`).catch(() => {
-  });
-  await pool.execute(`CREATE INDEX idx_reminders_updatedAt ON reminders(updatedAt)`).catch(() => {
-  });
-  await pool.execute(`ALTER TABLE notes ADD COLUMN pinned TINYINT(1) NOT NULL DEFAULT 0`).catch(() => {
-  });
-  await pool.execute(`ALTER TABLE reminders ADD COLUMN pinned TINYINT(1) NOT NULL DEFAULT 0`).catch(() => {
-  });
-  await pool.execute(`ALTER TABLE reminders ADD COLUMN minutes INT NULL`).catch(() => {
-  });
-  await pool.execute(`ALTER TABLE reminders ADD COLUMN \`date\` DATE NULL`).catch(() => {
-  });
-  await pool.execute(`ALTER TABLE reminders ADD COLUMN \`time\` TIME NULL`).catch(() => {
-  });
-  await pool.execute(`ALTER TABLE reminders ADD COLUMN days INT NULL`).catch(() => {
-  });
-  await pool.execute(`ALTER TABLE reminders MODIFY COLUMN \`date\` DATE NULL`).catch(() => {
-  });
-  await pool.execute(`ALTER TABLE reminders MODIFY COLUMN \`time\` TIME NULL`).catch(() => {
-  });
-  await pool.execute(`
-    ALTER TABLE reminders
-    ADD COLUMN lastTriggeredAt BIGINT NULL
-  `).catch(() => {
-  });
-}
-async function getAllReminders() {
-  const [rows] = await pool.query(`
-    SELECT *
-    FROM reminders
-    ORDER BY updatedAt DESC
-  `);
-  return rows;
-}
-async function upsertReminder(input) {
-  const now = Date.now();
-  await pool.execute(
-    `
-    INSERT INTO reminders
-      (id, title, text, enabled, mode, type, minutes, date, time, days, pinned, createAt, updatedAt, lastTriggeredAt)
-    VALUES
-      (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-    ON DUPLICATE KEY UPDATE
-      title = VALUES(title),
-      text = VALUES(text),
-      enabled = VALUES(enabled),
-      mode = VALUES(mode),
-      type = VALUES(type),
-      minutes = VALUES(minutes),
-      date = VALUES(date),
-      time = VALUES(time),
-      days = VALUES(days),
-      pinned = VALUES(pinned),
-      updatedAt = VALUES(updatedAt),
-      lastTriggeredAt = COALESCE(VALUES(lastTriggeredAt), lastTriggeredAt)
-    `,
-    [
-      //for ? in VALUES
-      input.id,
-      input.title,
-      input.text,
-      input.enabled,
-      input.mode,
-      input.type,
-      input.minutes ?? null,
-      input.date ?? null,
-      input.time ?? null,
-      input.days ?? null,
-      input.pinned ?? 0,
-      input.createAt ?? now,
-      input.updatedAt ?? now,
-      input.lastTriggeredAt ?? null
-    ]
-  );
-  return true;
-}
-async function deleteReminder(id) {
-  await pool.execute(`DELETE FROM reminders WHERE id = ?`, [id]);
-  return true;
-}
-async function getEnabledReminders() {
-  const [rows] = await pool.query(`
-    SELECT *
-    FROM reminders
-    WHERE enabled = 1
-  `);
-  return rows;
-}
-async function markTriggered(id, ts) {
-  await pool.execute(
-    `UPDATE reminders SET lastTriggeredAt = ?, updatedAt = ? WHERE id = ?`,
-    [ts, ts, id]
-  );
-}
-async function disableReminder(id, ts) {
-  await pool.execute(
-    `UPDATE reminders SET enabled = 0, updatedAt = ? WHERE id = ?`,
-    [ts, id]
-  );
-}
-function dateToYmd(v) {
-  if (!v) return null;
-  if (typeof v === "string") return v.slice(0, 10);
-  const y = v.getFullYear();
-  const m = String(v.getMonth() + 1).padStart(2, "0");
-  const d = String(v.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-function normalizeTime(v) {
-  if (!v) return "00:00:00";
-  if (v.length === 5) return `${v}:00`;
-  return v;
-}
-function toDateTimeTs(dateVal, timeVal) {
-  const ymd = dateToYmd(dateVal);
-  if (!ymd) return null;
-  const hms = normalizeTime(timeVal);
-  const ts = (/* @__PURE__ */ new Date(`${ymd}T${hms}`)).getTime();
-  return Number.isNaN(ts) ? null : ts;
-}
-function getDueAt(row) {
-  if (row.type === "AFTER_MINUTES") {
-    const m = row.minutes ?? 1;
-    return (row.updatedAt ?? row.createAt) + m * 60 * 1e3;
-  }
-  if (row.type === "DATE_TIME") {
-    return toDateTimeTs(row.date, row.time);
-  }
-  const d = row.days ?? 1;
-  const base = row.lastTriggeredAt ?? row.updatedAt ?? row.createAt;
-  const nextDate = new Date(base);
-  nextDate.setDate(nextDate.getDate() + d);
-  const ymd = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}-${String(nextDate.getDate()).padStart(2, "0")}`;
-  const hms = normalizeTime(row.time);
-  const ts = (/* @__PURE__ */ new Date(`${ymd}T${hms}`)).getTime();
-  return Number.isNaN(ts) ? null : ts;
-}
-function isDue(row, now) {
-  const dueAt = getDueAt(row);
-  if (!dueAt) return false;
-  if (now < dueAt) return false;
-  if (row.lastTriggeredAt && row.lastTriggeredAt >= dueAt) return false;
-  return true;
-}
-function createReminderScheduler(notify, onChanged) {
-  let timer = null;
-  let running = false;
-  const tick = async () => {
-    if (running) return;
-    running = true;
-    try {
-      const now = Date.now();
-      const rows = await getEnabledReminders();
-      let changed = false;
-      for (const row of rows) {
-        if (!isDue(row, now)) continue;
-        await notify({
-          title: row.title || "M Note",
-          text: row.text || "",
-          mode: row.mode
-        });
-        await markTriggered(row.id, now);
-        if (row.type === "AFTER_MINUTES" || row.type === "DATE_TIME") {
-          await disableReminder(row.id, now);
-        }
-        changed = true;
-      }
-      if (changed && onChanged) {
-        onChanged();
-      }
-    } catch (err) {
-      console.error("[scheduler.tick] failed:", err);
-    } finally {
-      running = false;
-    }
-  };
-  return {
-    start() {
-      if (timer) return;
-      void tick();
-      timer = setInterval(() => {
-        void tick();
-      }, 5e3);
-    },
-    stop() {
-      if (!timer) return;
-      clearInterval(timer);
-      timer = null;
-    }
-  };
-}
-let quickWin = null;
-function openQuickWindow(VITE_DEV_SERVER_URL2, RENDERER_DIST2, __dirname, onBeforeClose) {
-  const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
-  if (quickWin && !quickWin.isDestroyed()) {
-    quickWin.show();
-    quickWin.focus();
-    return;
-  }
-  let allowClose = false;
-  quickWin = new BrowserWindow({
-    width: Math.round(screenW * 0.45),
-    height: Math.round(screenH * 0.55),
-    show: false,
-    alwaysOnTop: true,
-    autoHideMenuBar: true,
-    webPreferences: {
-      preload: path$1.join(__dirname, "preload.mjs")
-    }
-  });
-  if (VITE_DEV_SERVER_URL2) {
-    quickWin.loadURL(`${VITE_DEV_SERVER_URL2}#/quick`);
-  } else {
-    quickWin.loadFile(path$1.join(RENDERER_DIST2, "index.html"), { hash: "/quick" });
-  }
-  quickWin.once("ready-to-show", () => {
-    quickWin == null ? void 0 : quickWin.show();
-    quickWin == null ? void 0 : quickWin.focus();
-  });
-  quickWin.on("close", (e) => {
-    if (allowClose) return;
-    e.preventDefault();
-    Promise.resolve(onBeforeClose == null ? void 0 : onBeforeClose()).finally(() => {
-      allowClose = true;
-      quickWin == null ? void 0 : quickWin.close();
-    });
-  });
-  quickWin.on("closed", () => {
-    quickWin = null;
-  });
-}
 var main = { exports: {} };
 const version$1 = "17.3.1";
 const require$$4 = {
@@ -25536,6 +25253,7 @@ main.exports.parse = DotenvModule.parse;
 main.exports.populate = DotenvModule.populate;
 main.exports = DotenvModule;
 var mainExports = main.exports;
+const dotenv = /* @__PURE__ */ getDefaultExportFromCjs(mainExports);
 const options = {};
 if (process.env.DOTENV_CONFIG_ENCODING != null) {
   options.encoding = process.env.DOTENV_CONFIG_ENCODING;
@@ -25579,6 +25297,287 @@ var cliOptions = function optionMatcher(args) {
     )
   );
 })();
+const pool = mysql.createPool({
+  host: process.env.DB_HOST || "localhost",
+  port: Number(process.env.DB_PORT) || 3306,
+  user: process.env.DB_USER || "root",
+  password: process.env.DB_PASSWORD || "",
+  database: process.env.DB_NAME || "mnote"
+});
+async function initSchema() {
+  const bootstrapConn = await mysql.createConnection({
+    host: process.env.DB_HOST ?? "127.0.0.1",
+    port: Number(process.env.DB_PORT ?? 3306),
+    user: process.env.DB_USER ?? "root",
+    password: process.env.DB_PASSWORD ?? ""
+  });
+  await bootstrapConn.execute(`
+    CREATE DATABASE IF NOT EXISTS mnote
+    DEFAULT CHARACTER SET utf8mb4
+    DEFAULT COLLATE utf8mb4_unicode_ci
+  `);
+  await bootstrapConn.end();
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS notes (
+      id BIGINT PRIMARY KEY,
+      title VARCHAR(50) NOT NULL,
+      content MEDIUMTEXT,
+      updatedAt BIGINT NULL,
+      createAt BIGINT NULL,
+      pinned TINYINT(1) NOT NULL DEFAULT 0
+    )
+  `);
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS reminders (
+      id BIGINT PRIMARY KEY,
+      title VARCHAR(100) NOT NULL DEFAULT '',
+      text MEDIUMTEXT NOT NULL,
+      enabled TINYINT(1) NOT NULL DEFAULT 0,
+      mode VARCHAR(20) NOT NULL DEFAULT 'NOTIFICATION',
+      type VARCHAR(20) NOT NULL DEFAULT 'AFTER_MINUTES',
+
+      minutes INT NULL,     -- AFTER_MINUTES 使用
+      \`date\` DATE NULL,     -- DATE_TIME 使用
+      \`time\` TIME NULL,     -- DATE_TIME / EVERY_DAYS 可选
+      days INT NULL,        -- EVERY_DAYS 使用
+
+      pinned TINYINT(1) NOT NULL DEFAULT 0,
+      createAt BIGINT NOT NULL,
+      updatedAt BIGINT NOT NULL,
+      lastTriggeredAt BIGINT NULL
+    )
+  `);
+  await pool.execute(`CREATE INDEX idx_reminders_enabled ON reminders(enabled)`).catch(() => {
+  });
+  await pool.execute(`CREATE INDEX idx_reminders_updatedAt ON reminders(updatedAt)`).catch(() => {
+  });
+  await pool.execute(`ALTER TABLE notes ADD COLUMN pinned TINYINT(1) NOT NULL DEFAULT 0`).catch(() => {
+  });
+  await pool.execute(`ALTER TABLE reminders ADD COLUMN pinned TINYINT(1) NOT NULL DEFAULT 0`).catch(() => {
+  });
+  await pool.execute(`ALTER TABLE reminders ADD COLUMN minutes INT NULL`).catch(() => {
+  });
+  await pool.execute(`ALTER TABLE reminders ADD COLUMN \`date\` DATE NULL`).catch(() => {
+  });
+  await pool.execute(`ALTER TABLE reminders ADD COLUMN \`time\` TIME NULL`).catch(() => {
+  });
+  await pool.execute(`ALTER TABLE reminders ADD COLUMN days INT NULL`).catch(() => {
+  });
+  await pool.execute(`ALTER TABLE reminders MODIFY COLUMN \`date\` DATE NULL`).catch(() => {
+  });
+  await pool.execute(`ALTER TABLE reminders MODIFY COLUMN \`time\` TIME NULL`).catch(() => {
+  });
+  await pool.execute(`
+    ALTER TABLE reminders
+    ADD COLUMN lastTriggeredAt BIGINT NULL
+  `).catch(() => {
+  });
+}
+async function getAllReminders() {
+  const [rows] = await pool.query(`
+    SELECT *
+    FROM reminders
+    ORDER BY updatedAt DESC
+  `);
+  return rows;
+}
+async function upsertReminder(input) {
+  const now = Date.now();
+  await pool.execute(
+    `
+    INSERT INTO reminders
+      (id, title, text, enabled, mode, type, minutes, date, time, days, pinned, createAt, updatedAt, lastTriggeredAt)
+    VALUES
+      (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    ON DUPLICATE KEY UPDATE
+      title = VALUES(title),
+      text = VALUES(text),
+      enabled = VALUES(enabled),
+      mode = VALUES(mode),
+      type = VALUES(type),
+      minutes = VALUES(minutes),
+      date = VALUES(date),
+      time = VALUES(time),
+      days = VALUES(days),
+      pinned = VALUES(pinned),
+      updatedAt = VALUES(updatedAt),
+      lastTriggeredAt = COALESCE(VALUES(lastTriggeredAt), lastTriggeredAt)
+    `,
+    [
+      //for ? in VALUES
+      input.id,
+      input.title,
+      input.text,
+      input.enabled,
+      input.mode,
+      input.type,
+      input.minutes ?? null,
+      input.date ?? null,
+      input.time ?? null,
+      input.days ?? null,
+      input.pinned ?? 0,
+      input.createAt ?? now,
+      input.updatedAt ?? now,
+      input.lastTriggeredAt ?? null
+    ]
+  );
+  return true;
+}
+async function deleteReminder(id) {
+  await pool.execute(`DELETE FROM reminders WHERE id = ?`, [id]);
+  return true;
+}
+async function getEnabledReminders() {
+  const [rows] = await pool.query(`
+    SELECT *
+    FROM reminders
+    WHERE enabled = 1
+  `);
+  return rows;
+}
+async function markTriggered(id, ts) {
+  await pool.execute(
+    `UPDATE reminders SET lastTriggeredAt = ?, updatedAt = ? WHERE id = ?`,
+    [ts, ts, id]
+  );
+}
+async function disableReminder(id, ts) {
+  await pool.execute(
+    `UPDATE reminders SET enabled = 0, updatedAt = ? WHERE id = ?`,
+    [ts, id]
+  );
+}
+function dateToYmd(v) {
+  if (!v) return null;
+  if (typeof v === "string") return v.slice(0, 10);
+  const y = v.getFullYear();
+  const m = String(v.getMonth() + 1).padStart(2, "0");
+  const d = String(v.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+function normalizeTime(v) {
+  if (!v) return "00:00:00";
+  if (v.length === 5) return `${v}:00`;
+  return v;
+}
+function toDateTimeTs(dateVal, timeVal) {
+  const ymd = dateToYmd(dateVal);
+  if (!ymd) return null;
+  const hms = normalizeTime(timeVal);
+  const ts = (/* @__PURE__ */ new Date(`${ymd}T${hms}`)).getTime();
+  return Number.isNaN(ts) ? null : ts;
+}
+function getDueAt(row) {
+  if (row.type === "AFTER_MINUTES") {
+    const m = row.minutes ?? 1;
+    return (row.updatedAt ?? row.createAt) + m * 60 * 1e3;
+  }
+  if (row.type === "DATE_TIME") {
+    return toDateTimeTs(row.date, row.time);
+  }
+  const d = row.days ?? 1;
+  const base = row.lastTriggeredAt ?? row.updatedAt ?? row.createAt;
+  const nextDate = new Date(base);
+  nextDate.setDate(nextDate.getDate() + d);
+  const ymd = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}-${String(nextDate.getDate()).padStart(2, "0")}`;
+  const hms = normalizeTime(row.time);
+  const ts = (/* @__PURE__ */ new Date(`${ymd}T${hms}`)).getTime();
+  return Number.isNaN(ts) ? null : ts;
+}
+function isDue(row, now) {
+  const dueAt = getDueAt(row);
+  if (!dueAt) return false;
+  if (now < dueAt) return false;
+  if (row.lastTriggeredAt && row.lastTriggeredAt >= dueAt) return false;
+  return true;
+}
+function createReminderScheduler(notify, onChanged) {
+  let timer = null;
+  let running = false;
+  const tick = async () => {
+    if (running) return;
+    running = true;
+    try {
+      const now = Date.now();
+      const rows = await getEnabledReminders();
+      let changed = false;
+      for (const row of rows) {
+        if (!isDue(row, now)) continue;
+        await notify({
+          title: row.title || "M Note",
+          text: row.text || "",
+          mode: row.mode
+        });
+        await markTriggered(row.id, now);
+        if (row.type === "AFTER_MINUTES" || row.type === "DATE_TIME") {
+          await disableReminder(row.id, now);
+        }
+        changed = true;
+      }
+      if (changed && onChanged) {
+        onChanged();
+      }
+    } catch (err) {
+      console.error("[scheduler.tick] failed:", err);
+    } finally {
+      running = false;
+    }
+  };
+  return {
+    start() {
+      if (timer) return;
+      void tick();
+      timer = setInterval(() => {
+        void tick();
+      }, 5e3);
+    },
+    stop() {
+      if (!timer) return;
+      clearInterval(timer);
+      timer = null;
+    }
+  };
+}
+let quickWin = null;
+function openQuickWindow(VITE_DEV_SERVER_URL2, RENDERER_DIST2, __dirname, onBeforeClose) {
+  const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
+  if (quickWin && !quickWin.isDestroyed()) {
+    quickWin.show();
+    quickWin.focus();
+    return;
+  }
+  let allowClose = false;
+  quickWin = new BrowserWindow({
+    width: Math.round(screenW * 0.45),
+    height: Math.round(screenH * 0.55),
+    show: false,
+    alwaysOnTop: true,
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: path$1.join(__dirname, "preload.mjs")
+    }
+  });
+  if (VITE_DEV_SERVER_URL2) {
+    quickWin.loadURL(`${VITE_DEV_SERVER_URL2}#/quick`);
+  } else {
+    quickWin.loadFile(path$1.join(RENDERER_DIST2, "index.html"), { hash: "/quick" });
+  }
+  quickWin.once("ready-to-show", () => {
+    quickWin == null ? void 0 : quickWin.show();
+    quickWin == null ? void 0 : quickWin.focus();
+  });
+  quickWin.on("close", (e) => {
+    if (allowClose) return;
+    e.preventDefault();
+    Promise.resolve(onBeforeClose == null ? void 0 : onBeforeClose()).finally(() => {
+      allowClose = true;
+      quickWin == null ? void 0 : quickWin.close();
+    });
+  });
+  quickWin.on("closed", () => {
+    quickWin = null;
+  });
+}
 async function upsertNote(note) {
   const { id, title, content, updatedAt, createAt, pinned } = note;
   await pool.execute(
@@ -25724,6 +25723,11 @@ async function saveQuickNote(mainWindow) {
   });
   mainWindow == null ? void 0 : mainWindow.webContents.send("notes:changed");
   clearQuickNote();
+}
+if (app.isPackaged) {
+  dotenv.config({ path: path$1.join(process.resourcesPath, ".env") });
+} else {
+  dotenv.config();
 }
 console.log("[main] main.ts loaded");
 createRequire(import.meta.url);

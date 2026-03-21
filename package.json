@@ -1,12 +1,13 @@
 {
-  "name": "fyp",
+  "name": "mnote",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
+  "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc && vite build && electron-builder",
-    "preview": "vite preview"
+    "build": "vue-tsc && vite build",
+    "pack": "npm run build && electron-builder --win"
   },
   "dependencies": {
     "dotenv": "^17.3.1",
@@ -26,5 +27,45 @@
     "vite-plugin-electron-renderer": "^0.14.5",
     "vue-tsc": "^2.0.26"
   },
-  "main": "dist-electron/main.js"
+  "build": {
+    "appId": "com.mnote.app",
+    "productName": "MNote",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/",
+        "to": ".",
+        "filter": ["**/*"]
+      },
+      {
+        "from": ".env",
+        "to": ".env"
+      }
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/mysql2/**"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "resources/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "MNote"
+    }
+  }
 }
