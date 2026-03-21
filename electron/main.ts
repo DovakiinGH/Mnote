@@ -6,7 +6,12 @@ import path from 'node:path'
 import { initSchema } from './backend/schema'
 import { createReminderScheduler } from './reminder/scheduler'
 import { openQuickWindow } from './quickWindow'
-import 'dotenv/config'
+import dotenv from 'dotenv'
+if (app.isPackaged) {
+  dotenv.config({ path: path.join(process.resourcesPath, '.env') })
+} else {
+  dotenv.config()
+}
 import { listNotesService,saveNoteService,removeNoteService,createNoteService } from './backend/notes.service'
 import { listRemindersService, saveReminderService, removeReminderService, markReminderTriggeredService,createReminderService} from './backend/reminders.service' // 你文件名按实际改
 import { updateQuickNote, saveQuickNote } from './backend/quick.service'
