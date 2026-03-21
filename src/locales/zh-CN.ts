@@ -18,6 +18,9 @@ export default {
       confirm:'删除',
       exit:'退出'
     },
+    note:{
+      placeHolder:'写点东西...',
+    },
     reminderButton:{
       start:'启用',
       close:'关闭',
@@ -27,7 +30,8 @@ export default {
       YMD:'年/月/日',
       everyDays:'几天一次',
       date:'选择日期',
-      time:'选择时间（可选）'
+      time:'选择时间（可选）',
+      text:'请输入提示文本（最多500字）'
     }
   }
 }

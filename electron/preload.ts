@@ -45,10 +45,13 @@ contextBridge.exposeInMainWorld('api', {
   showReminder: (payload: { title: string; body: string }) =>
     ipcRenderer.invoke('reminder:show', payload),
   openMandatoryReminder: (text: string) => ipcRenderer.invoke('reminder:open-mandatory', text),
-  submitMandatoryReminder: (payload: { text: string }) =>
-  ipcRenderer.invoke('reminder:submit-mandatory', payload),
+  // submitMandatoryReminder: (payload: { text: string }) =>
+  // ipcRenderer.invoke('reminder:submit-mandatory', payload),
+  submitMandatoryReminder: (payload: { text: string }, channel: string) =>
+  ipcRenderer.invoke(channel, payload),
   onRemindersChanged: (cb: () => void) => {
   ipcRenderer.on('reminders:changed', () => cb())
+
 },
 })
 //cb for call back function

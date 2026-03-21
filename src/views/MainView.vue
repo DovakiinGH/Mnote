@@ -190,7 +190,7 @@
             class="note-editor"
             :autosize="{ minRows: 10 }"
             spellcheck="false"
-            placeholder="Write some thing..."
+            :placeholder="t('app.note.placeHolder')"
           />
         </el-scrollbar>
 
@@ -240,6 +240,7 @@
           type="date"
           placeholder="Select date"
           :disabled="isReminderLocked"
+          :disabled-date="disablePastDate"
           class="lockable"
           placement="top-start"
           :teleported="true"
@@ -258,6 +259,8 @@
           :disabled="isReminderLocked"
           class="lockable"
           value-format="HH:mm:ss"
+          :disabled-hours="disabledHours"
+          :disabled-minutes="disabledMinutes"
         />
       </template>
 
@@ -285,7 +288,7 @@
           maxlength="500"
           show-word-limit
           class="reminder-textarea"
-          placeholder="Please input reminder text(Maximum 500 characters )"
+          :placeholder="t('app.reminderButton.text')"
           :disabled="isReminderLocked"
         />
       </el-scrollbar>
@@ -528,6 +531,28 @@ const currentReminderForm = computed<ReminderForm>(() => {
 const isReminderActive = (id: number): boolean => {
   if (currentCategoryName.value !== 'reminders') return false
   return reminderStore.value[id]?.enabled === true
+}
+const disablePastDate = (time: Date) => {
+  return time.getTime() < Date.now() - 8.64e7
+}
+const isToday = computed(() => {
+  if (!currentReminderForm.value.date) return false
+  const today = new Date().toISOString().slice(0, 10)  
+  return currentReminderForm.value.date === today
+})
+
+const disabledHours = () => {
+  if (!isToday.value) return []
+  const currentHour = new Date().getHours()
+  return Array.from({ length: currentHour }, (_, i) => i)
+}
+
+const disabledMinutes = (hour: number) => {
+  if (!isToday.value) return []
+  const now = new Date()
+  if (hour > now.getHours()) return []  
+  if (hour < now.getHours()) return Array.from({ length: 60 }, (_, i) => i)  
+  return Array.from({ length: now.getMinutes() }, (_, i) => i)
 }
 //--------------------------------add new item------------------------------------------------------------
 

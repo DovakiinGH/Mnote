@@ -18,6 +18,9 @@ export default {
       confirm:'confirm',
       exit:'exit'
     },
+    note:{
+      placeHolder:'Write some thing...',
+    },
     reminderButton:{
       start:'start',
       close:'close',
@@ -27,7 +30,8 @@ export default {
       YMD:'yy/mm/dd',
       everyDays:'every few days',
       date:'select date',
-      time:'select time(optional)'
+      time:'select time(optional)',
+      text:'Please input reminder text(Maximum 500 characters )'
     }
   }
 }

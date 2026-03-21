@@ -89,14 +89,16 @@ import { useRoute } from 'vue-router'
 
 const route = useRoute()
 const text = ref('')
+const channel = ref('')
 const editorRef = ref<HTMLElement | null>(null)
 
 onMounted(() => {
   text.value = String(route.query.text ?? '')
+  channel.value = String(route.query.channel ?? '')  
   if (editorRef.value) editorRef.value.innerText = text.value
 })
 
 const onSubmit = async () => {
-  await window.api.submitMandatoryReminder({ text: text.value })
+  await window.api.submitMandatoryReminder({ text: text.value }, channel.value)
 }
 </script>

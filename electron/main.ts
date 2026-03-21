@@ -1,6 +1,7 @@
 import { app, BrowserWindow,ipcMain,Menu,Tray,nativeImage,globalShortcut, Notification,screen  } from 'electron'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
+import { randomUUID } from 'crypto'
 import path from 'node:path'
 import { initSchema } from './backend/schema'
 import { createReminderScheduler } from './reminder/scheduler'
@@ -157,6 +158,8 @@ function registerHotkey(accelerator: string) {
 }
 //------------------------------------pop windows------------------------------------------------
 function openReminderMandatoryWindow(initialText: string) {
+  const channel = `reminder:submit-mandatory:${randomUUID()}`
+
   const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize
   const hasParent = !!win && !win.isDestroyed()
   const popup = new BrowserWindow({
@@ -176,25 +179,24 @@ function openReminderMandatoryWindow(initialText: string) {
   })
   popup.show()
   popup.focus()
-if (VITE_DEV_SERVER_URL) {
-  popup.loadURL(
-    `${VITE_DEV_SERVER_URL}#/reminder-mandatory?text=${encodeURIComponent(initialText)}`
-  )
-} else {
-  popup.loadFile(path.join(RENDERER_DIST, 'index.html'), {
-    hash: `/reminder-mandatory?text=${encodeURIComponent(initialText)}`
-  })
-}
-
+  if (VITE_DEV_SERVER_URL) {
+    popup.loadURL(
+      `${VITE_DEV_SERVER_URL}#/reminder-mandatory?text=${encodeURIComponent(initialText)}&channel=${channel}`
+    )
+  } else {
+    popup.loadFile(path.join(RENDERER_DIST, 'index.html'), {
+      hash: `/reminder-mandatory?text=${encodeURIComponent(initialText)}&channel=${channel}`
+    })
+  }
   let handled = false
   popup.on('close', (event) => {
     if (!handled) event.preventDefault()
   })
 
-  ipcMain.handleOnce('reminder:submit-mandatory', async (_event, payload: { text: string }) => {
-
+  ipcMain.handleOnce(channel, async (_event, payload: { text: string }) => {
     handled = true
     popup.close()
+    ipcMain.removeHandler(channel)
     return true
   })
 

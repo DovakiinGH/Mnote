@@ -50,7 +50,7 @@ export function getDueAt(row: ReminderRow): number | null {
 
   const ymd = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`
   //"3".padStart(2, '0')    // → "03"（长度不足2，前面补0）
-  //"12".padStart(2, '0')   // → "12"（已经是2位，不补）
+  //"12".padStart(2, '0')   // → "12"（已经是2位，不补）     ISO 格式
   const hms = normalizeTime(row.time)  
 
   const ts = new Date(`${ymd}T${hms}`).getTime()
