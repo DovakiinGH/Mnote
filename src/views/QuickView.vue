@@ -23,8 +23,6 @@
 
 <script lang="ts" setup>
 import { ref } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { computed, onMounted } from 'vue'
 import { watch } from 'vue'
 
 const selectedName = ref('')

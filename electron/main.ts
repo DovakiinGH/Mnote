@@ -1,22 +1,17 @@
 import { app, BrowserWindow,ipcMain,Menu,Tray,nativeImage,globalShortcut, Notification,screen  } from 'electron'
-import { createRequire } from 'node:module'
+// import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { randomUUID } from 'crypto'
 import path from 'node:path'
 import { initSchema } from './backend/schema'
 import { createReminderScheduler } from './reminder/scheduler'
 import { openQuickWindow } from './quickWindow'
-import dotenv from 'dotenv'
-if (app.isPackaged) {
-  dotenv.config({ path: path.join(process.resourcesPath, '.env') })
-} else {
-  dotenv.config()
-}
+
 import { listNotesService,saveNoteService,removeNoteService,createNoteService } from './backend/notes.service'
 import { listRemindersService, saveReminderService, removeReminderService, markReminderTriggeredService,createReminderService} from './backend/reminders.service' // 你文件名按实际改
 import { updateQuickNote, saveQuickNote } from './backend/quick.service'
 console.log('[main] main.ts loaded')
-const require = createRequire(import.meta.url)
+// const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // The built directory structure
@@ -198,7 +193,7 @@ function openReminderMandatoryWindow(initialText: string) {
     if (!handled) event.preventDefault()
   })
 
-  ipcMain.handleOnce(channel, async (_event, payload: { text: string }) => {
+  ipcMain.handleOnce(channel, async (_event, _payload: { text: string }) => {
     handled = true
     popup.close()
     ipcMain.removeHandler(channel)
@@ -211,6 +206,11 @@ function openReminderMandatoryWindow(initialText: string) {
 async function bootstrap() {
   try {
     await app.whenReady()
+
+    console.log('[env] DB_HOST:', process.env.DB_HOST)
+    console.log('[env] DB_USER:', process.env.DB_USER)
+    console.log('[env] DB_PASSWORD:', process.env.DB_PASSWORD ? '***有值***' : '***空***')
+    console.log('[env] DB_NAME:', process.env.DB_NAME)
 
     await initSchema()
     console.log('[main] schema init ok')

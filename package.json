@@ -10,7 +10,6 @@
     "pack": "npm run build && electron-builder --win"
   },
   "dependencies": {
-    "dotenv": "^17.3.1",
     "element-plus": "^2.13.1",
     "mysql2": "^3.16.1",
     "vue": "^3.4.21",
@@ -42,10 +41,6 @@
         "from": "resources/",
         "to": ".",
         "filter": ["**/*"]
-      },
-      {
-        "from": ".env",
-        "to": ".env"
       }
     ],
     "asar": true,

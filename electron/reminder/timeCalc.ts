@@ -1,6 +1,5 @@
 import type { ReminderRow } from "../backend/reminders.repo";
 
-const DAY_MS = 24 * 60 * 60 * 1000
 
 //date to "YYYY-MM-DD"
 function dateToYmd(v: string | Date | null): string | null {

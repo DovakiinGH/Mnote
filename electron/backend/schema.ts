@@ -1,16 +1,20 @@
 import mysql from 'mysql2/promise'
 import { pool } from './db'
+import { loadConfig } from './config'
 
 export async function initSchema() {
+  const config = loadConfig()
+
   const bootstrapConn = await mysql.createConnection({
-    host: process.env.DB_HOST ?? '127.0.0.1',
-    port: Number(process.env.DB_PORT ?? 3306),
-    user: process.env.DB_USER ?? 'root',
-    password: process.env.DB_PASSWORD ?? ''
+    host: config.DB_HOST,
+    port: config.DB_PORT,
+    user: config.DB_USER,
+    password: config.DB_PASSWORD
+    // 注意：这里故意不指定 database，因为要先创建它
   })
 
   await bootstrapConn.execute(`
-    CREATE DATABASE IF NOT EXISTS mnote
+    CREATE DATABASE IF NOT EXISTS \`${config.DB_NAME}\`
     DEFAULT CHARACTER SET utf8mb4
     DEFAULT COLLATE utf8mb4_unicode_ci
   `)

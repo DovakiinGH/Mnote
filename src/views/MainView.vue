@@ -314,7 +314,7 @@ import { useI18n } from 'vue-i18n'
 import { computed, onMounted } from 'vue'
 import { watch } from 'vue'
 
-import type { UnitItem, TabType, ReminderForm, ReminderTypeKey, ReminderMode } from '../types/mainView'
+import type { UnitItem, TabType, ReminderForm  } from '../types/mainView'
 import {REMINDER_TYPES} from '../services/reminderUtils'
 import { formatTime } from '../services/timeUtils'
 import { useWheelScroll } from '../composables/useWheelScroll'
@@ -809,7 +809,7 @@ watch(
     () => activeContentItem.value?.id,
     () => currentReminderForm.value
   ],
-  ([tabType, id, form], [prevTabType, prevId, prevForm]) => {
+  ([tabType, id, _form], [_prevTabType, prevId, _prevForm]) => {
     if (tabType !== 'reminders' || !id) return
 
    
