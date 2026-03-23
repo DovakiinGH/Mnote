@@ -65,6 +65,7 @@ if (process.platform === 'win32') {
 function createWindow() {
   win = new BrowserWindow({
     icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
+     title: 'MNote',
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
     },
@@ -212,7 +213,7 @@ async function bootstrap() {
     console.log('[env] DB_PASSWORD:', process.env.DB_PASSWORD ? '***有值***' : '***空***')
     console.log('[env] DB_NAME:', process.env.DB_NAME)
 
-    await initSchema()
+    initSchema()
     console.log('[main] schema init ok')
 
     //------------------ipc-------------------------------------------//

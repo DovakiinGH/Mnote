@@ -3,15 +3,15 @@ import {
   upsertNote,
   deleteNote,
   type Note
- 
 } from './notes.repo'
 
-export async function listNotesService() {
+export function listNotesService() {
   return findAllNotes()
 }
-export async function saveNoteService(input: Note) {
+
+export function saveNoteService(input: Note) {
   const now = Date.now()
-  await upsertNote({
+  upsertNote({
     ...input,
     title: (input.title ?? '').trim() || 'Untitled',
     content: input.content ?? '',
@@ -22,12 +22,12 @@ export async function saveNoteService(input: Note) {
   return true
 }
 
-export async function removeNoteService(id: number) {
-  await deleteNote(id)
+export function removeNoteService(id: number) {
+  deleteNote(id)
   return true
 }
 
-export async function createNoteService() {
+export function createNoteService() {
   const now = Date.now()
   const id = now
 
@@ -40,6 +40,6 @@ export async function createNoteService() {
     pinned: 0
   }
 
-  await saveNoteService(note)
+  saveNoteService(note)
   return note
 }

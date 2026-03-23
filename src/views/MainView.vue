@@ -183,17 +183,15 @@
           </div>
         </div>
         <!-- note----------------------------------------------------------------------------------------------------->
-        <el-scrollbar v-if="activeTab?.type === 'notes'" class="editor-scroll">
-          <el-input
-            v-model="selectedContent"
-            type="textarea"
-            class="note-editor"
-            :autosize="{ minRows: 10 }"
-            spellcheck="false"
-            :placeholder="t('app.note.placeHolder')"
-          />
-        </el-scrollbar>
+         
+            <MdEditor v-if="activeTab?.type === 'notes'"
+              v-model="selectedContent"
+              :placeholder="t('app.note.placeHolder')"
+              :language="locale"
+            />
+          
 
+    <!-- note----------------------------------------------------------------------------------------------------->
       <!-- reminders ------------------------------------------------------------------------------------- -->
       <div v-else>
     <div class="reminder-panel" :class="{ 'is-locked': isReminderLocked }">
@@ -313,11 +311,12 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { computed, onMounted } from 'vue'
 import { watch } from 'vue'
-
+import MdEditor from '../components/MdEditor.vue'
 import type { UnitItem, TabType, ReminderForm  } from '../types/mainView'
 import {REMINDER_TYPES} from '../services/reminderUtils'
 import { formatTime } from '../services/timeUtils'
 import { useWheelScroll } from '../composables/useWheelScroll'
+
 const { onTabWheel, onTitleWheel } = useWheelScroll()
 
 
@@ -339,6 +338,8 @@ const testClick=async ()=>{
 const testClickSecond=async ()=>{
   await window.api.openMandatoryReminder('Pay rent today')
 }
+
+
 //---------------------------------------------------data load and save------------------------------------------------------//
 const loadNotes = async () => {
   const rows = await window.api.notesGetAll()
@@ -694,11 +695,14 @@ const selectedContent = computed({
   },
   set(val: string) {
     const id = activeContentItem.value?.contentId
-     if (id) {
-      contentStore.value[id] = val
-      activeContentItem.value.updatedAt = Date.now()
-      if (activeTab.value?.type === 'notes') scheduleSave(id)
-    }
+    if (!id) return
+
+    // 内容没变，不更新时间，不触发保存
+    if (contentStore.value[id] === val) return
+
+    contentStore.value[id] = val
+    activeContentItem.value.updatedAt = Date.now()
+    if (activeTab.value?.type === 'notes') scheduleSave(id)
   }
 })
 // name
@@ -707,12 +711,13 @@ const selectedName = computed({
     return activeContentItem.value?.name ?? ''
   },
   set(val: string) {
-     if (activeContentItem.value) {
-      activeContentItem.value.name = val
-      activeContentItem.value.updatedAt = Date.now()
-      if (activeTab.value?.type === 'notes') scheduleSave(activeContentItem.value.id)
-      if (activeTab.value?.type === 'reminders') scheduleSaveReminder(activeContentItem.value.id)
-    }
+    if (!activeContentItem.value) return
+    if (activeContentItem.value.name === val) return  // ← 新增
+
+    activeContentItem.value.name = val
+    activeContentItem.value.updatedAt = Date.now()
+    if (activeTab.value?.type === 'notes') scheduleSave(activeContentItem.value.id)
+    if (activeTab.value?.type === 'reminders') scheduleSaveReminder(activeContentItem.value.id)
   }
 })
 

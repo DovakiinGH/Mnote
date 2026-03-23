@@ -15,14 +15,16 @@ export function normalizeReminderByType(f: ReminderUpsertInput) {
   }
   return { minutes: null, date: null, time: f.time ?? null, days: f.days ?? 1 }
 }
-export async function listRemindersService() {
+
+export function listRemindersService() {
   return getAllReminders()
 }
-export async function saveReminderService(input: ReminderUpsertInput) {
+
+export function saveReminderService(input: ReminderUpsertInput) {
   const now = Date.now()
   const normalized = normalizeReminderByType(input)
 
-  await upsertReminder({
+  upsertReminder({
     ...input,
     ...normalized,
     title: (input.title ?? '').trim() || 'Untitled',
@@ -31,22 +33,22 @@ export async function saveReminderService(input: ReminderUpsertInput) {
     pinned: input.pinned ?? 0,
     createAt: input.createAt ?? now,
     updatedAt: input.updatedAt ?? now
-    // lastTriggeredAt 不传时由 repo 的 COALESCE 保留旧值
   })
 
   return true
 }
-export async function removeReminderService(id: number) {
-  await deleteReminder(id)
+
+export function removeReminderService(id: number) {
+  deleteReminder(id)
   return true
 }
 
-export async function markReminderTriggeredService(id: number, ts = Date.now()) {
-  await markTriggered(id, ts)
+export function markReminderTriggeredService(id: number, ts = Date.now()) {
+  markTriggered(id, ts)
   return true
 }
 
-export async function createReminderService() {
+export function createReminderService() {
   const now = Date.now()
   const id = now
 
@@ -67,6 +69,6 @@ export async function createReminderService() {
     lastTriggeredAt: null
   }
 
-  await saveReminderService(reminder)
+  saveReminderService(reminder)
   return reminder
 }

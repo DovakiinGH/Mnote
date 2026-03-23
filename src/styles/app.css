@@ -449,10 +449,7 @@
   margin: 0 0 8px 0;
 }
 
-.editor-scroll {
-  flex: 1;
-  min-height: 0;
-}
+
 
 .quick-content{
   display: flex;
