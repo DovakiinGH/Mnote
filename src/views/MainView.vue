@@ -41,7 +41,8 @@
 
         <el-button
         class="gear-btn side-btn "
-        text>
+        text
+        @click="onToggleLang">
         <el-icon><Setting /></el-icon>
         </el-button>
 
@@ -78,7 +79,7 @@
                 <span class="new-icon">
                   <el-icon class="plus-icon"><Plus /></el-icon>
                 </span>              
-                <span class="new-text">New</span>
+                <span class="new-text">{{ t('app.button.new') }}</span>
               </el-button>      
 
         </div>
@@ -88,7 +89,11 @@
             v-for="item in currentItems"
             :key="item.id"
             class="sub-item"
-            :class="{ active: item.id === selectedSubId,'is-confirm': item.id === confirmDeleteId}"
+            :class="{ 
+              active: item.id === selectedSubId,
+              'is-confirm': item.id === confirmDeleteId,
+              'is-running': isReminderActive(item.id)
+              }"
             @click="onSubItemClick(item.id)"
             >
             <div class="item-content">
@@ -96,6 +101,9 @@
             </div>
             <div  v-if="activeIndex === '1'" class="item-preview">
             {{ getPreview(item.contentId) }}
+            </div>
+            <div v-if="activeIndex === '2'" class="item-preview">
+              {{ getReminderPreview(item.id) }}
             </div>
             <el-button
               v-if="item.id !== confirmDeleteId"
@@ -118,8 +126,8 @@
             </el-button>
             
             <div v-if="item.id === confirmDeleteId" class="item-confirm">
-              <el-button class="btn-confirm" @click.stop="onConfirmDelete(item.id)">confirm</el-button>
-              <el-button class="btn-cancel" @click.stop="onCancelDelete">exit</el-button>
+              <el-button class="btn-confirm" @click.stop="onConfirmDelete(item.id)">{{ t('app.button.confirm') }}</el-button>
+              <el-button class="btn-cancel" @click.stop="onCancelDelete">{{ t('app.button.exit') }}</el-button>
             </div>
           </div>
         </el-scrollbar>
@@ -174,7 +182,7 @@
             {{ activeContentItem?.updatedAt ? formatTime(activeContentItem.updatedAt) : '' }}
           </div>
         </div>
-        <!-- 只在 notes 时显示编辑区 -->
+        <!-- note----------------------------------------------------------------------------------------------------->
         <el-scrollbar v-if="activeTab?.type === 'notes'" class="editor-scroll">
           <el-input
             v-model="selectedContent"
@@ -182,7 +190,7 @@
             class="note-editor"
             :autosize="{ minRows: 10 }"
             spellcheck="false"
-            placeholder="Write some thing..."
+            :placeholder="t('app.note.placeHolder')"
           />
         </el-scrollbar>
 
@@ -192,8 +200,8 @@
       <!-- only this stays enabled -->
       <div class="reminder-status">
         <el-radio-group v-model="currentReminderForm.enabled">
-          <el-radio-button :label="true">start</el-radio-button>
-          <el-radio-button :label="false">close</el-radio-button>
+          <el-radio-button :label="true">{{ t('app.reminderButton.start') }}</el-radio-button>
+          <el-radio-button :label="false">{{ t('app.reminderButton.close') }}</el-radio-button>
         </el-radio-group>
       </div>
 
@@ -203,8 +211,8 @@
           placeholder="choose reminder mode"
           :disabled="isReminderLocked"
         >
-          <el-option label="notification" value="NOTIFICATION" />
-          <el-option label="pop up window" value="POPUP_WINDOW" />
+          <el-option :label="t('app.reminderButton.notification')" value="NOTIFICATION" />
+          <el-option :label="t('app.reminderButton.popUpWindow')" value="POPUP_WINDOW" />
         </el-select>
       </div>
 
@@ -214,7 +222,7 @@
         :disabled="isReminderLocked"
         class="lockable"
       >
-        <el-option v-for="t in REMINDER_TYPES" :key="t.key" :label="t.label" :value="t.key" />
+        <el-option v-for="rt in REMINDER_TYPES" :key="rt.key" :label="t(rt.labelKey)" :value="rt.key" />
       </el-select>
 
       <template v-if="currentReminderForm.type === 'AFTER_MINUTES'">
@@ -232,6 +240,7 @@
           type="date"
           placeholder="Select date"
           :disabled="isReminderLocked"
+          :disabled-date="disablePastDate"
           class="lockable"
           placement="top-start"
           :teleported="true"
@@ -250,6 +259,8 @@
           :disabled="isReminderLocked"
           class="lockable"
           value-format="HH:mm:ss"
+          :disabled-hours="disabledHours"
+          :disabled-minutes="disabledMinutes"
         />
       </template>
 
@@ -269,15 +280,15 @@
         />
       </template>
 
-      <el-scrollbar class="reminder-text-scroll lockable">
+       <el-scrollbar class="reminder-text-scroll lockable">
         <el-input
           v-model="currentReminderForm.text"
           type="textarea"
-          :autosize="{ minRows: 2 }"
+          :rows="6"
           maxlength="500"
           show-word-limit
           class="reminder-textarea"
-          placeholder="Please input reminder text(Maximum 500 characters )"
+          :placeholder="t('app.reminderButton.text')"
           :disabled="isReminderLocked"
         />
       </el-scrollbar>
@@ -285,7 +296,7 @@
       </div>
     </div>
 
-    <div v-else class="empty-placeholder">add some thing</div>
+    <div v-else class="empty-placeholder">{{ t('app.emptySpace') }}</div>
     </el-main>
 
   </el-container>
@@ -303,8 +314,8 @@ import { useI18n } from 'vue-i18n'
 import { computed, onMounted } from 'vue'
 import { watch } from 'vue'
 
-import type { UnitItem, TabType, ReminderForm, ReminderTypeKey, ReminderMode } from '../types/mainView'
-import { REMINDER_TYPES, normalizeReminderByType } from '../services/reminderUtils'
+import type { UnitItem, TabType, ReminderForm  } from '../types/mainView'
+import {REMINDER_TYPES} from '../services/reminderUtils'
 import { formatTime } from '../services/timeUtils'
 import { useWheelScroll } from '../composables/useWheelScroll'
 const { onTabWheel, onTitleWheel } = useWheelScroll()
@@ -332,7 +343,6 @@ const testClickSecond=async ()=>{
 const loadNotes = async () => {
   const rows = await window.api.notesGetAll()
 
-  // 映射到你的 dataMap / contentStore
   dataMap.value.notes = rows.map(r => ({
     id: r.id,
     name: r.title,
@@ -387,13 +397,13 @@ const saveNote = async (id: number) => {
     pinned: note.pinned ? 1 : 0
   })
 }
+
 const saveReminder = async (id: number) => {
   const item = dataMap.value.reminders.find(r => r.id === id)
   if (!item) return
   const f = reminderStore.value[id]
   if (!f) return
 
-  const normalized = normalizeReminderByType(f)
   await window.api.reminderUpsert({
     id,
     title: item.name ?? '',
@@ -401,15 +411,16 @@ const saveReminder = async (id: number) => {
     enabled: f.enabled ? 1 : 0,
     mode: f.mode,
     type: f.type,
-    minutes: normalized.minutes,
-    date: normalized.date,
-    time: normalized.time,
-    days: normalized.days,
+    minutes: f.minutes ?? null,
+    date: f.date ?? null,
+    time: f.time ?? null,
+    days: f.days ?? null,
     createAt: item.createAt ?? Date.now(),
-    updatedAt: item.updatedAt ?? Date.now(), 
+    updatedAt: item.updatedAt ?? Date.now(),
     pinned: item.pinned ? 1 : 0
   })
 }
+
 const saveAllNotes = async () => {
   const list = dataMap.value.notes
   for (const n of list) {
@@ -454,6 +465,9 @@ onMounted(() => {
   window.api.onNotesChanged(() => {
     loadNotes()
   })
+  window.api.onRemindersChanged(() => {
+    loadReminders()
+  })
 })
 
 
@@ -480,17 +494,13 @@ const scheduleSaveReminder = (id: number) => {
 
 
 //--------------------------const-------------------------------------------------------------------------------------
-
 const dataMap = ref<{
   notes: UnitItem[]
   reminders: UnitItem[]
 }>({
-  notes: [{ id: 1, name: 'sasasasa', contentId: 101 }],
-  reminders: [{ id: 10, name: 'b', contentId: 101 }]
+  notes: [{ id: 1, name: 'no', contentId: 101 }],
+  reminders: [{ id: 10, name: 'no', contentId: 101 }]
 }) //格式：ref<T>(initialValue)
-
-
-
 const contentStore = ref<Record<number, string>>({
   101: '',
 })
@@ -517,63 +527,47 @@ const currentReminderForm = computed<ReminderForm>(() => {
 }
   return reminderStore.value[id]
 })
-//--------------------------------add new item------------------------------------------------------------
-const onNewItem = async() => {
-  const list = dataMap.value[currentCategoryName.value]
-  const now = Date.now()
-
-  const newId = Date.now()
-  const newContentId = newId
-
-  const newItem = {
-    id: newId,
-    name: 'new',
-    contentId: newContentId,
-    createAt: now,
-    updatedAt: now,
-    pinned: false
-  }
-  // 添加到当前列表
-  list.unshift(newItem)
-  // 初始化内容
-  contentStore.value[newContentId] = ''
-  // 自动选中新建项
-  selectedSubId.value = newId
-  if (currentCategoryName.value === 'notes') {
-    await window.api.notesUpsert({
-      id: newId,
-      title: newItem.name,
-      content: '',
-      updatedAt: now,
-      createAt: now,
-      pinned: 0
-    })
-  }
-  if (currentCategoryName.value === 'reminders') {
-  reminderStore.value[newId] = {
-    type: 'AFTER_MINUTES',
-    mode: 'NOTIFICATION',
-    text: '',
-    minutes: 5,
-    enabled: false
-  }
-
-  await window.api.reminderUpsert({
-    id: newId,
-    title: newItem.name,
-    text: '',
-    enabled: 0,
-    mode: 'NOTIFICATION',
-    type: 'AFTER_MINUTES',
-    minutes: 5,
-    date: null,
-    time: null,
-    days: null,
-    createAt: now,
-    updatedAt: now,
-    pinned: 0
-  })
+//use to make reminder sub list item change color
+const isReminderActive = (id: number): boolean => {
+  if (currentCategoryName.value !== 'reminders') return false
+  return reminderStore.value[id]?.enabled === true
 }
+const disablePastDate = (time: Date) => {
+  return time.getTime() < Date.now() - 8.64e7
+}
+const isToday = computed(() => {
+  if (!currentReminderForm.value.date) return false
+  const today = new Date().toISOString().slice(0, 10)  
+  return currentReminderForm.value.date === today
+})
+
+const disabledHours = () => {
+  if (!isToday.value) return []
+  const currentHour = new Date().getHours()
+  return Array.from({ length: currentHour }, (_, i) => i)
+}
+
+const disabledMinutes = (hour: number) => {
+  if (!isToday.value) return []
+  const now = new Date()
+  if (hour > now.getHours()) return []  
+  if (hour < now.getHours()) return Array.from({ length: 60 }, (_, i) => i)  
+  return Array.from({ length: now.getMinutes() }, (_, i) => i)
+}
+//--------------------------------add new item------------------------------------------------------------
+
+const onNewItem = async () => {
+  if (currentCategoryName.value === 'notes') {
+    const n = await window.api.notesCreate()
+    await loadNotes()
+    selectedSubId.value = Number(n.id)
+    onSubItemClick(Number(n.id))
+    return
+  }
+  const r = await window.api.reminderCreate()
+  await loadReminders()
+  selectedSubId.value = Number(r.id)
+  onSubItemClick(Number(r.id))
 }
 
 const getTabTitle = (tab: Tab) => {
@@ -626,8 +620,6 @@ const activeTabKey = ref<string | null>(null)
 
 const makeTabKey = (type: TabType, id: number) => `${type}-${id}`
 //造边栏id
-
-
 const onSubItemClick = (id: number) => {
   selectedSubId.value = id
   //用type+id 创建 tab的key
@@ -735,33 +727,20 @@ const onDeleteItem = (id: number) => {
 const onCancelDelete = () => {
   confirmDeleteId.value = null
 }
+
 const onConfirmDelete = async (id: number) => {
-  // 1) 找到当前分类的列表（notes 或 reminders）
-  const list = dataMap.value[currentCategoryName.value]
-  // 2) 在这个列表中找到要删除的 item 的下标
-  const idx = list.findIndex(i => i.id === id)
-  // 3) 如果找到了（idx !== -1）
-  if (idx !== -1) {
-    // 4) 先取出它对应的 contentId
-    const contentId = list[idx].contentId
-     if (currentCategoryName.value === 'notes') {
-      await window.api.notesDelete(id)
-    }else if (currentCategoryName.value === 'reminders') {
-      await window.api.reminderDelete(id)
-      delete reminderStore.value[id] // 同步清理内存表单
-    }
-    // 5) 从列表里删除这个 item
-    list.splice(idx, 1)
-    // 6) 从 contentStore 里删除对应的内容
-    if (contentId !== undefined) {
-      delete contentStore.value[contentId]
-    }   
+  if (currentCategoryName.value === 'notes') {
+    await window.api.notesDelete(id)
+    await loadNotes()
+  } else {
+    await window.api.reminderDelete(id)
+    delete reminderStore.value[id]
+    await loadReminders()
   }
-    // 7) 关闭对应tab
-    const key = `${currentCategoryName.value}-${id}`
-    closeTab(key)
-    // 8) 退出“确认删除”状态
-    confirmDeleteId.value = null
+
+  // close tab and clean 
+  closeTab(`${currentCategoryName.value}-${id}`)
+  confirmDeleteId.value = null
 }
 //---------------------------------------item pinned-----------------------------------------------------------
 const onTogglePin = (item: UnitItem) => {
@@ -772,11 +751,14 @@ const onTogglePin = (item: UnitItem) => {
     scheduleSaveReminder(item.id)
   }
 }
-
 //------------------------------preview----------------------------------------------------------------------
 const getPreview = (contentId?: number) => {
   if (!contentId) return ''
   const text = contentStore.value[contentId] ?? ''
+  return text.replace(/\s+/g, ' ').trim().slice(0, 40)
+}
+const getReminderPreview = (id: number) => {
+  const text = reminderStore.value[id]?.text ?? ''
   return text.replace(/\s+/g, ' ').trim().slice(0, 40)
 }
 
@@ -810,33 +792,15 @@ const sortedReminders = computed(() => {
 })
 //---------------------------------language-----------------------------------------------------
 
-/**
- * Element Plus 组件本身也有语言包
- * 例如分页、对话框按钮的中文/英文
- */
-import zhCn from 'element-plus/es/locale/lang/zh-cn'
-import en from 'element-plus/es/locale/lang/en'
-
-/**
- * 切换语言：本质就是改 locale
- * vue-i18n 会自动刷新页面中的文字
- */
-const switchLang = (lang: 'zh-CN' | 'en-US') => {
-  locale.value = lang
-  localStorage.setItem('lang', lang) // 保存到本地，刷新后仍生效
+const onToggleLang = () => {
+  const next = locale.value === 'en-US' ? 'zh-CN' : 'en-US'
+  locale.value = next
+  localStorage.setItem('lang', next)
 }
-
-/**
- * 让 Element Plus 的组件语言跟随切换
- * computed 会根据 locale 自动重新计算
- */
-const epLocale = computed(() => {
-  return locale.value === 'zh-CN' ? zhCn : en
-})
-
-
-
-
+// const onLangChange = (lang: string) => {
+//   locale.value = lang
+//   localStorage.setItem('lang', lang)
+// }
 //-----------------------------watch-------------------------------------
 
 watch(
@@ -845,7 +809,7 @@ watch(
     () => activeContentItem.value?.id,
     () => currentReminderForm.value
   ],
-  ([tabType, id, form], [prevTabType, prevId, prevForm]) => {
+  ([tabType, id, _form], [_prevTabType, prevId, _prevForm]) => {
     if (tabType !== 'reminders' || !id) return
 
    

@@ -31,7 +31,14 @@ export async function upsertNote(note: Note) {
   )
   return true
 }
-
+export async function findAllNotes(): Promise<Note[]> {
+  const [rows] = await pool.query(`
+    SELECT id, title, content, createAt, updatedAt, pinned
+    FROM notes
+    ORDER BY pinned DESC, updatedAt DESC
+  `)
+  return rows as Note[]
+}
 export async function deleteNote(id: number) {
   await pool.execute('DELETE FROM notes WHERE id = ?', [id])
   return true

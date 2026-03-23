@@ -27,9 +27,11 @@ contextBridge.exposeInMainWorld('api', {
   notesUpsert: (note: { id: number; title: string; content: string; updatedAt: number }) =>
     ipcRenderer.invoke('notes:upsert', note),
   notesDelete: (id: number) => ipcRenderer.invoke('notes:delete', id),
+  notesCreate: () => ipcRenderer.invoke('notes:create'),
   reminderGetAll:()=> ipcRenderer.invoke('reminders:getAll'),
   reminderUpsert:(payload:any)=>ipcRenderer.invoke('reminders:upsert',payload),
   reminderDelete: (id: number) => ipcRenderer.invoke('reminders:delete', id),
+  reminderCreate: () => ipcRenderer.invoke('reminder:create'),
 
   onSaveBeforeClose: (cb: () => void) => ipcRenderer.on('app:save-before-close', cb),
   notifySaveDone: () => ipcRenderer.send('app:save-done'),
@@ -43,7 +45,13 @@ contextBridge.exposeInMainWorld('api', {
   showReminder: (payload: { title: string; body: string }) =>
     ipcRenderer.invoke('reminder:show', payload),
   openMandatoryReminder: (text: string) => ipcRenderer.invoke('reminder:open-mandatory', text),
-  submitMandatoryReminder: (payload: { text: string }) =>
-  ipcRenderer.invoke('reminder:submit-mandatory', payload),
+  // submitMandatoryReminder: (payload: { text: string }) =>
+  // ipcRenderer.invoke('reminder:submit-mandatory', payload),
+  submitMandatoryReminder: (payload: { text: string }, channel: string) =>
+  ipcRenderer.invoke(channel, payload),
+  onRemindersChanged: (cb: () => void) => {
+  ipcRenderer.on('reminders:changed', () => cb())
+
+},
 })
 //cb for call back function

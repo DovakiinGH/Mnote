@@ -14,9 +14,10 @@ import router from './router'
 
 const app = createApp(App)
 
+const savedLang = localStorage.getItem('lang') || 'en-US'
 const i18n = createI18n({
   legacy: false,
-  locale: 'zh-CN',
+  locale: savedLang,
   messages: {
     'zh-CN': zhCN,
     'en-US': enUS

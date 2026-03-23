@@ -1,4 +1,4 @@
-import { BrowserWindow } from 'electron'
+import { BrowserWindow,screen } from 'electron'
 import path from 'node:path'
 
 let quickWin: BrowserWindow | null = null
@@ -10,6 +10,8 @@ export function openQuickWindow(
   onBeforeClose?: () => Promise<void> | void
   //a function called onBeforeClose, can 同步 or 异步(return void or Promise<void>)
 ) {
+  const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize
+
   if (quickWin && !quickWin.isDestroyed()) {
     quickWin.show()
     quickWin.focus()
@@ -18,8 +20,8 @@ export function openQuickWindow(
   let allowClose = false
 
   quickWin = new BrowserWindow({
-    width: 520,
-    height: 360,
+    width: Math.round(screenW * 0.45),  
+    height: Math.round(screenH * 0.55),
     show: false,
     alwaysOnTop: true,
     autoHideMenuBar: true,

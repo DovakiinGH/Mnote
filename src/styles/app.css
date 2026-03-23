@@ -264,7 +264,7 @@
 
 
 /* =========================================================
-   Sub Item Content / Preview / Delete / Pin / Confirm
+   Sub Item Content / Preview / Delete / Pin / Confirm / ReminderActive
    ========================================================= */
 /* item content text */
 .item-content {
@@ -358,6 +358,30 @@
   background: #fff;
   color: #333;
   border: 1px solid #ddd;
+}
+
+/*-------------------------reminder active-------------*/
+.sub-item.is-running {
+  background-color: #409eff;
+  color: #fff;
+}
+
+.sub-item.is-running .item-content {
+  color: #fff;
+}
+
+.sub-item.is-running .item-preview {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.sub-item.is-running .item-del-icon,
+.sub-item.is-running .item-pin-icon {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.sub-item.is-running.active {
+  background-color: #7CBBF5;
+  border-color: #fff;
 }
 
 
@@ -604,14 +628,12 @@
   gap: 10px;
 }
 
-.reminder-textarea .el-textarea__inner {
+/* .reminder-textarea .el-textarea__inner {
   overflow-y: auto;
   resize: none;
 }
 
-.reminder-text-scroll {
-  max-height: 40vh;  /* 控制可滚动高度 */
-}
+
 
 .reminder-textarea,
 .reminder-textarea .el-textarea,
@@ -620,22 +642,36 @@
 }
 
 .reminder-textarea .el-textarea__inner {
-  overflow: hidden;  /* 关闭原生滚动条 */
   resize: none;
-}
+} */
 
-/* 外层滚动容器有边框 */
+/* 外层滚动容器：有边框、固定高度 */
 .reminder-text-scroll {
-  max-height: 160px;
+  height: 160px;                /* 固定高度，不随内容变 */
   border: 1px solid #dcdfe6;
   border-radius: 6px;
-  padding: 6px;             /* 留出内边距 */
   background: #fff;
 }
+.reminder-textarea,
+.reminder-textarea .el-textarea,
+.reminder-textarea .el-textarea__inner {
+  height: auto;
+  min-height: 100%;
+}
 
-/* textarea 本身无边框 */
 .reminder-textarea .el-textarea__inner {
   border: none !important;
   box-shadow: none !important;
   background: transparent;
+  resize: none;
+  overflow: visible !important;   /* 关键：让内容溢出给 el-scrollbar 管 */
+}
+
+.reminder-textarea .el-textarea__inner::-webkit-scrollbar {
+  display: none;
+}
+
+.reminder-textarea .el-textarea__inner {
+  scrollbar-width: none;           /* Firefox */
+  -ms-overflow-style: none;        /* IE/Edge */
 }
