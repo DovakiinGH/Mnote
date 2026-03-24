@@ -55,6 +55,7 @@
   margin-right: 16px;
   margin-left: 16px;
   font-size: clamp(2px, 2vw, 25px);
+   z-index: 100;
 }
 
 /* 菜单去掉默认边框 */
@@ -88,7 +89,9 @@
   font-size: clamp(5px, 2vw, 17px);
 }
 
-
+.title-wheel-box{
+  z-index: 50;
+}
 /* =========================================================
    Side Menu
    ========================================================= */
@@ -449,8 +452,6 @@
   margin: 0 0 8px 0;
 }
 
-
-
 .quick-content{
   display: flex;
   flex-direction: column;
@@ -533,6 +534,7 @@
   border-bottom: none;
   flex-wrap: nowrap;
   white-space: nowrap;
+   z-index: 90;
 }
 
 .tab {
@@ -671,4 +673,17 @@
 .reminder-textarea .el-textarea__inner {
   scrollbar-width: none;           /* Firefox */
   -ms-overflow-style: none;        /* IE/Edge */
+}
+
+.milkdown-slash-menu {
+
+  z-index: 200 !important;
+     position: fixed!important;
+     overflow-y: auto !important;
+  
+}
+.milkdown em {
+  font-style: italic;
+  display: inline-block;
+  transform: skewX(-10deg);
 }

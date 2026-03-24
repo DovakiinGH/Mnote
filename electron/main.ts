@@ -70,8 +70,9 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.mjs'),
     },
   })
-
-  
+//   if (!app.isPackaged) {
+//   win.webContents.openDevTools()
+// }
   win.on('close', (e) => {
     if (!isQuitting) {
       e.preventDefault()
@@ -258,8 +259,22 @@ async function bootstrap() {
     //---------------------------------------------------------------//
 
     Menu.setApplicationMenu(null)
+    const gotTheLock = app.requestSingleInstanceLock()
 
-    createWindow()
+    if (!gotTheLock) {
+      app.quit()
+    } else {
+      app.on('second-instance', () => {
+        if (win) {
+          if (win.isMinimized()) win.restore()
+          if (!win.isVisible()) win.show()
+          win.focus()
+        }
+      })
+      app.whenReady().then(createWindow)
+    }
+
+    
     registerHotkey(currentShortcut)
     createTray()
     scheduler.start() //FOR REMINDERS

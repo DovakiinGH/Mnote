@@ -186,8 +186,6 @@
          
             <MdEditor v-if="activeTab?.type === 'notes'"
               v-model="selectedContent"
-              :placeholder="t('app.note.placeHolder')"
-              :language="locale"
             />
           
 
@@ -757,14 +755,63 @@ const onTogglePin = (item: UnitItem) => {
   }
 }
 //------------------------------preview----------------------------------------------------------------------
+const stripMarkdown = (text: string): string => {
+  return text
+    // 数学公式块 $$...$$
+    .replace(/\$\$[\s\S]*?\$\$/g, '')
+    // 行内数学公式 $...$
+    .replace(/\$([^$]+)\$/g, '$1')
+    // 标题 # ## ###
+    .replace(/^#{1,6}\s+/gm, '')
+    // 图片 ![alt](url)
+    .replace(/!\[.*?\]\(.*?\)/g, '')
+    // 链接 [text](url) → text
+    .replace(/\[([^\]]*)\]\(.*?\)/g, '$1')
+    // 加粗+斜体 ***text*** / ___text___
+    .replace(/\*{3}(.+?)\*{3}/g, '$1')
+    .replace(/_{3}(.+?)_{3}/g, '$1')
+    // 加粗 **text** / __text__
+    .replace(/\*{2}(.+?)\*{2}/g, '$1')
+    .replace(/_{2}(.+?)_{2}/g, '$1')
+    // 斜体 *text* / _text_
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/_(.+?)_/g, '$1')
+    // 删除线 ~~text~~
+    .replace(/~~(.+?)~~/g, '$1')
+    // 行内代码 `code`
+    .replace(/`([^`]+)`/g, '$1')
+    // 代码块 ```...```
+    .replace(/```[\s\S]*?```/g, '')
+    // 引用 >
+    .replace(/^>\s+/gm, '')
+    // 无序列表 - * +
+    .replace(/^[\s]*[-*+]\s+/gm, '')
+    // 有序列表 1. 2.
+    .replace(/^[\s]*\d+\.\s+/gm, '')
+    // 任务列表 - [ ] / - [x]
+    .replace(/^[\s]*-\s*\[[ x]\]\s+/gm, '')
+    // 分割线 --- *** ___
+    .replace(/^[-*_]{3,}\s*$/gm, '')
+    // 表格分隔行 | --- | --- |
+    .replace(/^\|?[\s-:|]+\|[\s-:|]*$/gm, '')
+    // 表格竖线
+    .replace(/\|/g, ' ')
+    // HTML 标签
+    .replace(/<[^>]+>/g, '')
+    // 多余空白
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 const getPreview = (contentId?: number) => {
   if (!contentId) return ''
   const text = contentStore.value[contentId] ?? ''
-  return text.replace(/\s+/g, ' ').trim().slice(0, 40)
+  return stripMarkdown(text).slice(0, 40)
 }
+
 const getReminderPreview = (id: number) => {
   const text = reminderStore.value[id]?.text ?? ''
-  return text.replace(/\s+/g, ' ').trim().slice(0, 40)
+  return stripMarkdown(text).slice(0, 40)
 }
 
 //----------------------------------sort of items------------------------------------------------
