@@ -1,7 +1,7 @@
 {
   "name": "mnote",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -56,6 +56,7 @@
     "asarUnpack": [
       "node_modules/better-sqlite3/**"
     ],
+    "icon": "resources/icon.ico",
     "win": {
       "target": [
         {

@@ -1,5 +1,7 @@
 import { BrowserWindow,screen } from 'electron'
 import path from 'node:path'
+import { getResourcePath } from './path'
+
 
 let quickWin: BrowserWindow | null = null
 
@@ -27,7 +29,8 @@ export function openQuickWindow(
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs')
-    }
+    },
+     icon: getResourcePath('icon.ico'),
   })
 
   if (VITE_DEV_SERVER_URL) {

@@ -1,16 +1,16 @@
-import { app as s, screen as w, BrowserWindow as g, globalShortcut as D, ipcMain as a, Notification as b, Menu as _, nativeImage as k, Tray as C } from "electron";
-import { fileURLToPath as $ } from "node:url";
-import { randomUUID as j } from "crypto";
+import { app as a, screen as b, BrowserWindow as g, globalShortcut as D, ipcMain as s, Notification as _, Menu as U, nativeImage as C, Tray as $ } from "electron";
+import { fileURLToPath as j } from "node:url";
+import { randomUUID as Y } from "crypto";
 import l from "node:path";
-import Y from "better-sqlite3";
-import I from "node:fs";
-function H() {
-  const e = s.isPackaged ? s.getPath("userData") : process.cwd();
-  return I.existsSync(e) || I.mkdirSync(e, { recursive: !0 }), l.join(e, "mnote.db");
+import H from "better-sqlite3";
+import w from "node:fs";
+function X() {
+  const e = a.isPackaged ? a.getPath("userData") : process.cwd();
+  return w.existsSync(e) || w.mkdirSync(e, { recursive: !0 }), l.join(e, "mnote.db");
 }
-const U = H();
-console.log("[db] SQLite path:", U);
-const u = new Y(U);
+const x = X();
+console.log("[db] SQLite path:", x);
+const u = new H(x);
 u.pragma("journal_mode = WAL");
 function B() {
   u.exec(`
@@ -43,12 +43,12 @@ function B() {
     )
   `), u.exec("CREATE INDEX IF NOT EXISTS idx_reminders_enabled ON reminders(enabled)"), u.exec("CREATE INDEX IF NOT EXISTS idx_reminders_updatedAt ON reminders(updatedAt)"), console.log("[schema] SQLite tables ready");
 }
-function X() {
+function G() {
   return u.prepare(`
     SELECT * FROM reminders ORDER BY updatedAt DESC
   `).all();
 }
-function G(e) {
+function V(e) {
   const n = Date.now();
   return u.prepare(`
     INSERT INTO reminders
@@ -85,69 +85,69 @@ function G(e) {
     e.lastTriggeredAt ?? null
   ), !0;
 }
-function V(e) {
+function W(e) {
   return u.prepare("DELETE FROM reminders WHERE id = ?").run(e), !0;
 }
-function W() {
+function z() {
   return u.prepare(`
     SELECT * FROM reminders WHERE enabled = 1
   `).all();
 }
-function x(e, n) {
+function M(e, n) {
   u.prepare(
     "UPDATE reminders SET lastTriggeredAt = ?, updatedAt = ? WHERE id = ?"
   ).run(n, n, e);
 }
-function z(e, n) {
+function Q(e, n) {
   u.prepare(
     "UPDATE reminders SET enabled = 0, updatedAt = ? WHERE id = ?"
   ).run(n, e);
 }
-function Q(e) {
+function q(e) {
   if (!e) return null;
   if (typeof e == "string") return e.slice(0, 10);
   const n = e.getFullYear(), t = String(e.getMonth() + 1).padStart(2, "0"), i = String(e.getDate()).padStart(2, "0");
   return `${n}-${t}-${i}`;
 }
-function v(e) {
+function P(e) {
   return e ? e.length === 5 ? `${e}:00` : e : "00:00:00";
 }
-function q(e, n) {
-  const t = Q(e);
+function K(e, n) {
+  const t = q(e);
   if (!t) return null;
-  const i = v(n), c = (/* @__PURE__ */ new Date(`${t}T${i}`)).getTime();
+  const i = P(n), c = (/* @__PURE__ */ new Date(`${t}T${i}`)).getTime();
   return Number.isNaN(c) ? null : c;
 }
-function K(e) {
+function J(e) {
   if (e.type === "AFTER_MINUTES") {
     const T = e.minutes ?? 1;
     return (e.updatedAt ?? e.createAt) + T * 60 * 1e3;
   }
   if (e.type === "DATE_TIME")
-    return q(e.date, e.time);
+    return K(e.date, e.time);
   const n = e.days ?? 1, t = e.lastTriggeredAt ?? e.updatedAt ?? e.createAt, i = new Date(t);
   i.setDate(i.getDate() + n);
-  const c = `${i.getFullYear()}-${String(i.getMonth() + 1).padStart(2, "0")}-${String(i.getDate()).padStart(2, "0")}`, o = v(e.time), m = (/* @__PURE__ */ new Date(`${c}T${o}`)).getTime();
+  const c = `${i.getFullYear()}-${String(i.getMonth() + 1).padStart(2, "0")}-${String(i.getDate()).padStart(2, "0")}`, o = P(e.time), m = (/* @__PURE__ */ new Date(`${c}T${o}`)).getTime();
   return Number.isNaN(m) ? null : m;
 }
-function J(e, n) {
-  const t = K(e);
+function Z(e, n) {
+  const t = J(e);
   return !(!t || n < t || e.lastTriggeredAt && e.lastTriggeredAt >= t);
 }
-function Z(e, n) {
+function ee(e, n) {
   let t = null, i = !1;
   const c = async () => {
     if (!i) {
       i = !0;
       try {
-        const o = Date.now(), m = await W();
+        const o = Date.now(), m = await z();
         let T = !1;
         for (const E of m)
-          J(E, o) && (await e({
+          Z(E, o) && (await e({
             title: E.title || "M Note",
             text: E.text || "",
             mode: E.mode
-          }), await x(E.id, o), (E.type === "AFTER_MINUTES" || E.type === "DATE_TIME") && await z(E.id, o), T = !0);
+          }), await M(E.id, o), (E.type === "AFTER_MINUTES" || E.type === "DATE_TIME") && await Q(E.id, o), T = !0);
         T && n && n();
       } catch (o) {
         console.error("[scheduler.tick] failed:", o);
@@ -167,9 +167,10 @@ function Z(e, n) {
     }
   };
 }
+const te = a.isPackaged, S = (e) => te ? l.join(process.resourcesPath, e) : l.join(process.cwd(), "resources", e);
 let d = null;
-function ee(e, n, t, i) {
-  const { width: c, height: o } = w.getPrimaryDisplay().workAreaSize;
+function ne(e, n, t, i) {
+  const { width: c, height: o } = b.getPrimaryDisplay().workAreaSize;
   if (d && !d.isDestroyed()) {
     d.show(), d.focus();
     return;
@@ -183,7 +184,8 @@ function ee(e, n, t, i) {
     autoHideMenuBar: !0,
     webPreferences: {
       preload: l.join(t, "preload.mjs")
-    }
+    },
+    icon: S("icon.ico")
   }), e ? d.loadURL(`${e}#/quick`) : d.loadFile(l.join(n, "index.html"), { hash: "/quick" }), d.once("ready-to-show", () => {
     d == null || d.show(), d == null || d.focus();
   }), d.on("close", (T) => {
@@ -194,7 +196,7 @@ function ee(e, n, t, i) {
     d = null;
   });
 }
-function te(e) {
+function re(e) {
   const { id: n, title: t, content: i, updatedAt: c, createAt: o, pinned: m } = e;
   return u.prepare(`
     INSERT INTO notes (id, title, content, updatedAt, createAt, pinned)
@@ -207,20 +209,20 @@ function te(e) {
       pinned = excluded.pinned
   `).run(n, t, i, c ?? null, o ?? null, m ? 1 : 0), !0;
 }
-function ne() {
+function ie() {
   return u.prepare(
     "SELECT id, title, content, createAt, updatedAt, pinned FROM notes ORDER BY pinned DESC, updatedAt DESC"
   ).all();
 }
-function re(e) {
+function oe(e) {
   return u.prepare("DELETE FROM notes WHERE id = ?").run(e), !0;
 }
-function ie() {
-  return ne();
+function de() {
+  return ie();
 }
-function S(e) {
+function I(e) {
   const n = Date.now();
-  return te({
+  return re({
     ...e,
     title: (e.title ?? "").trim() || "Untitled",
     content: e.content ?? "",
@@ -229,10 +231,10 @@ function S(e) {
     pinned: e.pinned ?? 0
   }), !0;
 }
-function oe(e) {
-  return re(e), !0;
+function se(e) {
+  return oe(e), !0;
 }
-function de() {
+function ae() {
   const e = Date.now(), t = {
     id: e,
     title: "new",
@@ -241,17 +243,17 @@ function de() {
     updatedAt: e,
     pinned: 0
   };
-  return S(t), t;
+  return I(t), t;
 }
-function ae(e) {
+function le(e) {
   return e.type === "AFTER_MINUTES" ? { minutes: e.minutes ?? 1, date: null, time: null, days: null } : e.type === "DATE_TIME" ? { minutes: null, date: e.date ?? null, time: e.time ?? null, days: null } : { minutes: null, date: null, time: e.time ?? null, days: e.days ?? 1 };
 }
-function se() {
-  return X();
+function ce() {
+  return G();
 }
-function M(e) {
-  const n = Date.now(), t = ae(e);
-  return G({
+function v(e) {
+  const n = Date.now(), t = le(e);
+  return V({
     ...e,
     ...t,
     title: (e.title ?? "").trim() || "Untitled",
@@ -262,13 +264,13 @@ function M(e) {
     updatedAt: e.updatedAt ?? n
   }), !0;
 }
-function le(e) {
-  return V(e), !0;
+function ue(e) {
+  return W(e), !0;
 }
-function ce(e, n = Date.now()) {
-  return x(e, n), !0;
+function me(e, n = Date.now()) {
+  return M(e, n), !0;
 }
-function ue() {
+function Te() {
   const e = Date.now(), t = {
     id: e,
     title: "new",
@@ -285,53 +287,53 @@ function ue() {
     pinned: 0,
     lastTriggeredAt: null
   };
-  return M(t), t;
+  return v(t), t;
 }
 let h = { title: "", content: "" };
-function me(e) {
+function Ee(e) {
   h = {
     title: (e == null ? void 0 : e.title) ?? "",
     content: (e == null ? void 0 : e.content) ?? ""
   };
 }
-function Te() {
+function pe() {
   h = { title: "", content: "" };
 }
-async function Ee(e) {
+async function fe(e) {
   var o;
   const n = ((o = h.title) == null ? void 0 : o.trim()) ?? "", t = h.content ?? "";
   if (!n && !t) return;
   const i = Date.now();
-  await S({
+  await I({
     id: i,
     title: n || "Untitled",
     content: t,
     createAt: i,
     updatedAt: i,
     pinned: 0
-  }), e == null || e.webContents.send("notes:changed"), Te();
+  }), e == null || e.webContents.send("notes:changed"), pe();
 }
 console.log("[main] main.ts loaded");
-const N = l.dirname($(import.meta.url));
+const N = l.dirname(j(import.meta.url));
 process.env.APP_ROOT = l.join(N, "..");
-const p = process.env.VITE_DEV_SERVER_URL, Ie = l.join(process.env.APP_ROOT, "dist-electron"), R = l.join(process.env.APP_ROOT, "dist");
+const p = process.env.VITE_DEV_SERVER_URL, Oe = l.join(process.env.APP_ROOT, "dist-electron"), R = l.join(process.env.APP_ROOT, "dist");
 process.env.VITE_PUBLIC = p ? l.join(process.env.APP_ROOT, "public") : R;
 let r = null, f = !1, A = null, y = "Alt+Space";
-const P = Z(
+const F = ee(
   async (e) => {
-    e.mode === "NOTIFICATION" ? new b({
+    e.mode === "NOTIFICATION" ? new _({
       title: e.title,
       body: e.text
-    }).show() : e.mode === "POPUP_WINDOW" && F(e.text);
+    }).show() : e.mode === "POPUP_WINDOW" && k(e.text);
   },
   () => {
     r == null || r.webContents.send("reminders:changed");
   }
 );
-process.platform === "win32" && s.setAppUserModelId("com.yourapp.mnote");
-function L() {
+process.platform === "win32" && a.setAppUserModelId("com.yourapp.mnote");
+function O() {
   r = new g({
-    icon: l.join(process.env.VITE_PUBLIC, "electron-vite.svg"),
+    icon: S("icon.ico"),
     title: "MNote",
     webPreferences: {
       preload: l.join(N, "preload.mjs")
@@ -342,18 +344,18 @@ function L() {
     r == null || r.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
   }), p ? r.loadURL(`${p}#/`) : r.loadFile(l.join(R, "index.html"), { hash: "/" });
 }
-function pe(e) {
-  return s.isPackaged ? l.join(process.resourcesPath, e) : l.join(process.cwd(), "resources", e);
+function Ae(e) {
+  return a.isPackaged ? l.join(process.resourcesPath, e) : l.join(process.cwd(), "resources", e);
 }
-function fe() {
+function he() {
   r == null || r.webContents.send("app:save-before-close"), setTimeout(() => {
-    f || (f = !0, s.quit());
+    f || (f = !0, a.quit());
   }, 1e4);
 }
-function Ae() {
-  const e = pe("tray.ico"), n = k.createFromPath(e);
-  A = new C(n), A.setToolTip("MNote");
-  const t = _.buildFromTemplate([
+function ge() {
+  const e = Ae("tray.ico"), n = C.createFromPath(e);
+  A = new $(n), A.setToolTip("MNote");
+  const t = U.buildFromTemplate([
     {
       label: "Main Window",
       click: () => {
@@ -363,7 +365,7 @@ function Ae() {
     {
       label: "Exit",
       click: () => {
-        fe();
+        he();
       }
     }
   ]);
@@ -371,13 +373,13 @@ function Ae() {
     r && (r.isVisible() ? r.hide() : (r.show(), r.focus()));
   });
 }
-function O(e) {
+function L(e) {
   return D.unregisterAll(), D.register(e, () => {
-    console.log("[main] hotkey triggered:", e), ee(p, R, N, () => Ee(r));
+    console.log("[main] hotkey triggered:", e), ne(p, R, N, () => fe(r));
   }) ? (y = e, !0) : !1;
 }
-function F(e) {
-  const n = `reminder:submit-mandatory:${j()}`, { width: t, height: i } = w.getPrimaryDisplay().workAreaSize, c = !!r && !r.isDestroyed(), o = new g({
+function k(e) {
+  const n = `reminder:submit-mandatory:${Y()}`, { width: t, height: i } = b.getPrimaryDisplay().workAreaSize, c = !!r && !r.isDestroyed(), o = new g({
     width: Math.round(t * 0.6),
     height: Math.round(i * 0.65),
     ...c ? { parent: r, modal: !0 } : {},
@@ -390,7 +392,8 @@ function F(e) {
     autoHideMenuBar: !0,
     webPreferences: {
       preload: l.join(N, "preload.mjs")
-    }
+    },
+    icon: S("icon.ico")
   });
   o.show(), o.focus(), p ? o.loadURL(
     `${p}#/reminder-mandatory?text=${encodeURIComponent(e)}&channel=${n}`
@@ -400,41 +403,41 @@ function F(e) {
   let m = !1;
   o.on("close", (T) => {
     m || T.preventDefault();
-  }), a.handleOnce(n, async (T, E) => (m = !0, o.close(), a.removeHandler(n), !0));
+  }), s.handleOnce(n, async (T, E) => (m = !0, o.close(), s.removeHandler(n), !0));
 }
-async function he() {
+async function Ne() {
   try {
-    await s.whenReady(), console.log("[env] DB_HOST:", process.env.DB_HOST), console.log("[env] DB_USER:", process.env.DB_USER), console.log("[env] DB_PASSWORD:", process.env.DB_PASSWORD ? "***有值***" : "***空***"), console.log("[env] DB_NAME:", process.env.DB_NAME), B(), console.log("[main] schema init ok"), a.on("app:save-done", () => {
+    await a.whenReady(), console.log("[env] DB_HOST:", process.env.DB_HOST), console.log("[env] DB_USER:", process.env.DB_USER), console.log("[env] DB_PASSWORD:", process.env.DB_PASSWORD ? "***有值***" : "***空***"), console.log("[env] DB_NAME:", process.env.DB_NAME), B(), console.log("[main] schema init ok"), s.on("app:save-done", () => {
       f = !0, r == null || r.close();
-    }), a.handle("shortcut:update", (n, t) => O(t)), a.handle("shortcut:get", () => y), a.on("quick:note:update", (n, t) => {
-      me(t);
-    }), a.handle("reminder:show", (n, t) => (new b({
+    }), s.handle("shortcut:update", (n, t) => L(t)), s.handle("shortcut:get", () => y), s.on("quick:note:update", (n, t) => {
+      Ee(t);
+    }), s.handle("reminder:show", (n, t) => (new _({
       title: t.title || "Reminder",
       body: t.body || ""
-    }).show(), !0)), a.handle("reminder:open-mandatory", (n, t) => (F(t || ""), !0)), a.handle("notes:getAll", async () => ie()), a.handle("notes:upsert", async (n, t) => S(t)), a.handle("notes:delete", async (n, t) => oe(t)), a.handle("notes:create", async () => de()), a.handle("reminders:getAll", async () => se()), a.handle("reminders:upsert", async (n, t) => M(t)), a.handle("reminders:delete", async (n, t) => le(t)), a.handle("reminder:create", async () => ue()), a.handle(
+    }).show(), !0)), s.handle("reminder:open-mandatory", (n, t) => (k(t || ""), !0)), s.handle("notes:getAll", async () => de()), s.handle("notes:upsert", async (n, t) => I(t)), s.handle("notes:delete", async (n, t) => se(t)), s.handle("notes:create", async () => ae()), s.handle("reminders:getAll", async () => ce()), s.handle("reminders:upsert", async (n, t) => v(t)), s.handle("reminders:delete", async (n, t) => ue(t)), s.handle("reminder:create", async () => Te()), s.handle(
       "reminders:markTriggered",
-      async (n, t, i) => ce(t, i)
-    ), _.setApplicationMenu(null), s.requestSingleInstanceLock() ? (s.on("second-instance", () => {
+      async (n, t, i) => me(t, i)
+    ), U.setApplicationMenu(null), a.requestSingleInstanceLock() ? (a.on("second-instance", () => {
       r && (r.isMinimized() && r.restore(), r.isVisible() || r.show(), r.focus());
-    }), s.whenReady().then(L)) : s.quit(), O(y), Ae(), P.start(), s.on("activate", () => {
-      g.getAllWindows().length === 0 && L();
+    }), a.whenReady().then(O)) : a.quit(), L(y), ge(), F.start(), a.on("activate", () => {
+      g.getAllWindows().length === 0 && O();
     });
   } catch (e) {
-    console.error("[main] bootstrap failed:", e), s.quit();
+    console.error("[main] bootstrap failed:", e), a.quit();
   }
 }
-he();
-s.on("window-all-closed", () => {
-  process.platform !== "darwin" && (s.quit(), r = null);
+Ne();
+a.on("window-all-closed", () => {
+  process.platform !== "darwin" && (a.quit(), r = null);
 });
-s.on("before-quit", () => {
+a.on("before-quit", () => {
   f = !0;
 });
-s.on("will-quit", () => {
-  P.stop(), D.unregisterAll();
+a.on("will-quit", () => {
+  F.stop(), D.unregisterAll();
 });
 export {
-  Ie as MAIN_DIST,
+  Oe as MAIN_DIST,
   R as RENDERER_DIST,
   p as VITE_DEV_SERVER_URL
 };
