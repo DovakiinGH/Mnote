@@ -55,6 +55,7 @@
   margin-right: 16px;
   margin-left: 16px;
   font-size: clamp(2px, 2vw, 25px);
+   z-index: 100;
 }
 
 /* 菜单去掉默认边框 */
@@ -88,7 +89,9 @@
   font-size: clamp(5px, 2vw, 17px);
 }
 
-
+.title-wheel-box{
+  z-index: 50;
+}
 /* =========================================================
    Side Menu
    ========================================================= */
@@ -242,18 +245,15 @@
 }
 
 
-.sub-item {
-  cursor: pointer;
-  position: relative;
-}
 
 .sub-item.active {
   border: 1px solid #6aa8f7;
   box-shadow: 0 0 0 2px rgba(106,168,247,0.2);
 }
 
-
 .sub-item {
+    cursor: pointer;
+  position: relative;
   background: #fff;
   border-radius: 6px;
   padding: 8px;
@@ -341,9 +341,17 @@
   position: absolute;
   inset: 0;
   display: flex;
-  gap: 8px;
+  gap: clamp(4px, 1vw, 8px);
+  padding: clamp(2px, 0.5vw, 6px);
   justify-content: center;
   align-items: center;
+}
+.item-confirm .el-button {
+  font-size: clamp(10px, 1.2vw, 14px) !important;
+  padding: clamp(2px, 0.5vw, 6px) clamp(6px, 1.5vw, 16px) !important;
+  min-height: unset !important;
+  height: clamp(22px, 3vw, 32px) !important;
+  border-radius: clamp(3px, 0.5vw, 6px) !important;
 }
 
 /* confirm button */
@@ -351,6 +359,10 @@
   background: #e34b4b;
   color: #fff;
   border: none;
+}
+.btn-confirm:hover {
+  background: #f90000 !important;
+  color: #fde2e2;
 }
 
 /* cancel button */
@@ -449,11 +461,6 @@
   margin: 0 0 8px 0;
 }
 
-.editor-scroll {
-  flex: 1;
-  min-height: 0;
-}
-
 .quick-content{
   display: flex;
   flex-direction: column;
@@ -536,6 +543,7 @@
   border-bottom: none;
   flex-wrap: nowrap;
   white-space: nowrap;
+   z-index: 90;
 }
 
 .tab {
@@ -674,4 +682,18 @@
 .reminder-textarea .el-textarea__inner {
   scrollbar-width: none;           /* Firefox */
   -ms-overflow-style: none;        /* IE/Edge */
+}
+
+/* -------------------------milkdown---------------------------- */
+.milkdown-slash-menu {
+
+  z-index: 200 !important;
+     position: fixed!important;
+     overflow-y: auto !important;
+  
+}
+.milkdown em {
+  font-style: italic;
+  display: inline-block;
+  transform: skewX(-10deg);
 }

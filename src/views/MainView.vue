@@ -96,6 +96,8 @@
               }"
             @click="onSubItemClick(item.id)"
             >
+            <!-- sub list items --------------------------->
+             <!--text -->
             <div class="item-content">
               {{ item.name }}
             </div>
@@ -105,6 +107,7 @@
             <div v-if="activeIndex === '2'" class="item-preview">
               {{ getReminderPreview(item.id) }}
             </div>
+            <!-- buttons -->
             <el-button
               v-if="item.id !== confirmDeleteId"
               class="item-del-btn"
@@ -131,6 +134,7 @@
             </div>
           </div>
         </el-scrollbar>
+        <!-- bottom of list -->
         <div class="sub-end">
           <el-button
               class="side-btn side-close"
@@ -183,17 +187,13 @@
           </div>
         </div>
         <!-- note----------------------------------------------------------------------------------------------------->
-        <el-scrollbar v-if="activeTab?.type === 'notes'" class="editor-scroll">
-          <el-input
-            v-model="selectedContent"
-            type="textarea"
-            class="note-editor"
-            :autosize="{ minRows: 10 }"
-            spellcheck="false"
-            :placeholder="t('app.note.placeHolder')"
-          />
-        </el-scrollbar>
+         
+            <MdEditor v-if="activeTab?.type === 'notes'"
+              v-model="selectedContent"
+            />
+          
 
+    <!-- note----------------------------------------------------------------------------------------------------->
       <!-- reminders ------------------------------------------------------------------------------------- -->
       <div v-else>
     <div class="reminder-panel" :class="{ 'is-locked': isReminderLocked }">
@@ -313,11 +313,12 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { computed, onMounted } from 'vue'
 import { watch } from 'vue'
-
+import MdEditor from '../components/MdEditor.vue'
 import type { UnitItem, TabType, ReminderForm  } from '../types/mainView'
 import {REMINDER_TYPES} from '../services/reminderUtils'
 import { formatTime } from '../services/timeUtils'
 import { useWheelScroll } from '../composables/useWheelScroll'
+
 const { onTabWheel, onTitleWheel } = useWheelScroll()
 
 
@@ -339,6 +340,8 @@ const testClick=async ()=>{
 const testClickSecond=async ()=>{
   await window.api.openMandatoryReminder('Pay rent today')
 }
+
+
 //---------------------------------------------------data load and save------------------------------------------------------//
 const loadNotes = async () => {
   const rows = await window.api.notesGetAll()
@@ -694,11 +697,14 @@ const selectedContent = computed({
   },
   set(val: string) {
     const id = activeContentItem.value?.contentId
-     if (id) {
-      contentStore.value[id] = val
-      activeContentItem.value.updatedAt = Date.now()
-      if (activeTab.value?.type === 'notes') scheduleSave(id)
-    }
+    if (!id) return
+
+    // 内容没变，不更新时间，不触发保存
+    if (contentStore.value[id] === val) return
+
+    contentStore.value[id] = val
+    activeContentItem.value.updatedAt = Date.now()
+    if (activeTab.value?.type === 'notes') scheduleSave(id)
   }
 })
 // name
@@ -707,12 +713,13 @@ const selectedName = computed({
     return activeContentItem.value?.name ?? ''
   },
   set(val: string) {
-     if (activeContentItem.value) {
-      activeContentItem.value.name = val
-      activeContentItem.value.updatedAt = Date.now()
-      if (activeTab.value?.type === 'notes') scheduleSave(activeContentItem.value.id)
-      if (activeTab.value?.type === 'reminders') scheduleSaveReminder(activeContentItem.value.id)
-    }
+    if (!activeContentItem.value) return
+    if (activeContentItem.value.name === val) return  // ← 新增
+
+    activeContentItem.value.name = val
+    activeContentItem.value.updatedAt = Date.now()
+    if (activeTab.value?.type === 'notes') scheduleSave(activeContentItem.value.id)
+    if (activeTab.value?.type === 'reminders') scheduleSaveReminder(activeContentItem.value.id)
   }
 })
 
@@ -752,14 +759,63 @@ const onTogglePin = (item: UnitItem) => {
   }
 }
 //------------------------------preview----------------------------------------------------------------------
+const stripMarkdown = (text: string): string => {
+  return text
+    // 数学公式块 $$...$$
+    .replace(/\$\$[\s\S]*?\$\$/g, '')
+    // 行内数学公式 $...$
+    .replace(/\$([^$]+)\$/g, '$1')
+    // 标题 # ## ###
+    .replace(/^#{1,6}\s+/gm, '')
+    // 图片 ![alt](url)
+    .replace(/!\[.*?\]\(.*?\)/g, '')
+    // 链接 [text](url) → text
+    .replace(/\[([^\]]*)\]\(.*?\)/g, '$1')
+    // 加粗+斜体 ***text*** / ___text___
+    .replace(/\*{3}(.+?)\*{3}/g, '$1')
+    .replace(/_{3}(.+?)_{3}/g, '$1')
+    // 加粗 **text** / __text__
+    .replace(/\*{2}(.+?)\*{2}/g, '$1')
+    .replace(/_{2}(.+?)_{2}/g, '$1')
+    // 斜体 *text* / _text_
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/_(.+?)_/g, '$1')
+    // 删除线 ~~text~~
+    .replace(/~~(.+?)~~/g, '$1')
+    // 行内代码 `code`
+    .replace(/`([^`]+)`/g, '$1')
+    // 代码块 ```...```
+    .replace(/```[\s\S]*?```/g, '')
+    // 引用 >
+    .replace(/^>\s+/gm, '')
+    // 无序列表 - * +
+    .replace(/^[\s]*[-*+]\s+/gm, '')
+    // 有序列表 1. 2.
+    .replace(/^[\s]*\d+\.\s+/gm, '')
+    // 任务列表 - [ ] / - [x]
+    .replace(/^[\s]*-\s*\[[ x]\]\s+/gm, '')
+    // 分割线 --- *** ___
+    .replace(/^[-*_]{3,}\s*$/gm, '')
+    // 表格分隔行 | --- | --- |
+    .replace(/^\|?[\s-:|]+\|[\s-:|]*$/gm, '')
+    // 表格竖线
+    .replace(/\|/g, ' ')
+    // HTML 标签
+    .replace(/<[^>]+>/g, '')
+    // 多余空白
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 const getPreview = (contentId?: number) => {
   if (!contentId) return ''
   const text = contentStore.value[contentId] ?? ''
-  return text.replace(/\s+/g, ' ').trim().slice(0, 40)
+  return stripMarkdown(text).slice(0, 40)
 }
+
 const getReminderPreview = (id: number) => {
   const text = reminderStore.value[id]?.text ?? ''
-  return text.replace(/\s+/g, ' ').trim().slice(0, 40)
+  return stripMarkdown(text).slice(0, 40)
 }
 
 //----------------------------------sort of items------------------------------------------------
@@ -791,16 +847,11 @@ const sortedReminders = computed(() => {
   })
 })
 //---------------------------------language-----------------------------------------------------
-
 const onToggleLang = () => {
   const next = locale.value === 'en-US' ? 'zh-CN' : 'en-US'
   locale.value = next
   localStorage.setItem('lang', next)
 }
-// const onLangChange = (lang: string) => {
-//   locale.value = lang
-//   localStorage.setItem('lang', lang)
-// }
 //-----------------------------watch-------------------------------------
 
 watch(

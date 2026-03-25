@@ -1,4 +1,4 @@
-import { pool } from './db'
+import db from './db'
 
 export type Note = {
   id: number
@@ -9,37 +9,34 @@ export type Note = {
   pinned?: number | boolean
 }
 
-export async function getAllNotes() {
-  const [rows] = await pool.execute(
-    'SELECT id, title, content, updatedAt, createAt, pinned FROM notes ORDER BY pinned DESC, updatedAt DESC;'
-  )
-  return rows
+export function getAllNotes(): Note[] {
+  return db.prepare(
+    'SELECT id, title, content, updatedAt, createAt, pinned FROM notes ORDER BY pinned DESC, updatedAt DESC'
+  ).all() as Note[]
 }
 
-export async function upsertNote(note: Note) {
-  const { id, title, content, updatedAt,createAt,pinned } = note
-  await pool.execute(
-    `INSERT INTO notes (id, title, content, updatedAt, createAt, pinned)
+export function upsertNote(note: Note) {
+  const { id, title, content, updatedAt, createAt, pinned } = note
+  db.prepare(`
+    INSERT INTO notes (id, title, content, updatedAt, createAt, pinned)
     VALUES (?, ?, ?, ?, ?, ?)
-    ON DUPLICATE KEY UPDATE
-    title=VALUES(title),
-    content=VALUES(content),
-    updatedAt=VALUES(updatedAt),
-    createAt=VALUES(createAt),
-    pinned=VALUES(pinned)`,
-    [id, title, content, updatedAt ?? null, createAt ?? null, pinned ? 1 : 0]
-  )
+    ON CONFLICT(id) DO UPDATE SET
+      title = excluded.title,
+      content = excluded.content,
+      updatedAt = excluded.updatedAt,
+      createAt = excluded.createAt,
+      pinned = excluded.pinned
+  `).run(id, title, content, updatedAt ?? null, createAt ?? null, pinned ? 1 : 0)
   return true
 }
-export async function findAllNotes(): Promise<Note[]> {
-  const [rows] = await pool.query(`
-    SELECT id, title, content, createAt, updatedAt, pinned
-    FROM notes
-    ORDER BY pinned DESC, updatedAt DESC
-  `)
-  return rows as Note[]
+
+export function findAllNotes(): Note[] {
+  return db.prepare(
+    'SELECT id, title, content, createAt, updatedAt, pinned FROM notes ORDER BY pinned DESC, updatedAt DESC'
+  ).all() as Note[]
 }
-export async function deleteNote(id: number) {
-  await pool.execute('DELETE FROM notes WHERE id = ?', [id])
+
+export function deleteNote(id: number) {
+  db.prepare('DELETE FROM notes WHERE id = ?').run(id)
   return true
 }

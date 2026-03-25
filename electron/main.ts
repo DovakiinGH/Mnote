@@ -10,6 +10,7 @@ import { openQuickWindow } from './quickWindow'
 import { listNotesService,saveNoteService,removeNoteService,createNoteService } from './backend/notes.service'
 import { listRemindersService, saveReminderService, removeReminderService, markReminderTriggeredService,createReminderService} from './backend/reminders.service' // 你文件名按实际改
 import { updateQuickNote, saveQuickNote } from './backend/quick.service'
+import { getResourcePath } from './path'
 console.log('[main] main.ts loaded')
 // const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -64,13 +65,15 @@ if (process.platform === 'win32') {
 
 function createWindow() {
   win = new BrowserWindow({
-    icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
+     icon: getResourcePath('icon.ico'),
+     title: 'MNote',
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
     },
   })
-
-  
+//   if (!app.isPackaged) {
+//   win.webContents.openDevTools()
+// }
   win.on('close', (e) => {
     if (!isQuitting) {
       e.preventDefault()
@@ -95,10 +98,8 @@ function createWindow() {
 //-------------------------------------tray----------------------------------------------------------------------------
 function resolveResourcePath(fileName: string) {
   if (app.isPackaged) {
-    // 打包后：资源在 process.resourcesPath
     return path.join(process.resourcesPath, fileName)
   }
-  // 开发时：项目根目录/resources
   return path.join(process.cwd(), 'resources', fileName)
 }
 function requestQuitWithSave() {
@@ -175,7 +176,8 @@ function openReminderMandatoryWindow(initialText: string) {
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs')
-    }
+    },
+     icon: getResourcePath('icon.ico'),
   })
   popup.show()
   popup.focus()
@@ -212,7 +214,7 @@ async function bootstrap() {
     console.log('[env] DB_PASSWORD:', process.env.DB_PASSWORD ? '***有值***' : '***空***')
     console.log('[env] DB_NAME:', process.env.DB_NAME)
 
-    await initSchema()
+    initSchema()
     console.log('[main] schema init ok')
 
     //------------------ipc-------------------------------------------//
@@ -255,10 +257,24 @@ async function bootstrap() {
     )
 
     //---------------------------------------------------------------//
-
+    //SingletInstance
     Menu.setApplicationMenu(null)
+    const gotTheLock = app.requestSingleInstanceLock()
 
-    createWindow()
+    if (!gotTheLock) {
+      app.quit()
+    } else {
+      app.on('second-instance', () => {
+        if (win) {
+          if (win.isMinimized()) win.restore()
+          if (!win.isVisible()) win.show()
+          win.focus()
+        }
+      })
+      app.whenReady().then(createWindow)
+    }
+
+    
     registerHotkey(currentShortcut)
     createTray()
     scheduler.start() //FOR REMINDERS

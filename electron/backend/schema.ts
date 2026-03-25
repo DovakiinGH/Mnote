@@ -1,76 +1,43 @@
-import mysql from 'mysql2/promise'
-import { pool } from './db'
-import { loadConfig } from './config'
+import db from './db'
 
-export async function initSchema() {
-  const config = loadConfig()
-
-  const bootstrapConn = await mysql.createConnection({
-    host: config.DB_HOST,
-    port: config.DB_PORT,
-    user: config.DB_USER,
-    password: config.DB_PASSWORD
-    // 注意：这里故意不指定 database，因为要先创建它
-  })
-
-  await bootstrapConn.execute(`
-    CREATE DATABASE IF NOT EXISTS \`${config.DB_NAME}\`
-    DEFAULT CHARACTER SET utf8mb4
-    DEFAULT COLLATE utf8mb4_unicode_ci
-  `)
-
-  await bootstrapConn.end()
-
-  // notes
-  await pool.execute(`
+export function initSchema() {
+  // notes 表
+  db.exec(`
     CREATE TABLE IF NOT EXISTS notes (
-      id BIGINT PRIMARY KEY,
-      title VARCHAR(50) NOT NULL,
-      content MEDIUMTEXT,
-      updatedAt BIGINT NULL,
-      createAt BIGINT NULL,
-      pinned TINYINT(1) NOT NULL DEFAULT 0
+      id INTEGER PRIMARY KEY,
+      title TEXT NOT NULL DEFAULT '',
+      content TEXT DEFAULT '',
+      updatedAt INTEGER,
+      createAt INTEGER,
+      pinned INTEGER NOT NULL DEFAULT 0
     )
   `)
 
-  // reminders
-  await pool.execute(`
+  // reminders 表
+  db.exec(`
     CREATE TABLE IF NOT EXISTS reminders (
-      id BIGINT PRIMARY KEY,
-      title VARCHAR(100) NOT NULL DEFAULT '',
-      text MEDIUMTEXT NOT NULL,
-      enabled TINYINT(1) NOT NULL DEFAULT 0,
-      mode VARCHAR(20) NOT NULL DEFAULT 'NOTIFICATION',
-      type VARCHAR(20) NOT NULL DEFAULT 'AFTER_MINUTES',
+      id INTEGER PRIMARY KEY,
+      title TEXT NOT NULL DEFAULT '',
+      text TEXT NOT NULL DEFAULT '',
+      enabled INTEGER NOT NULL DEFAULT 0,
+      mode TEXT NOT NULL DEFAULT 'NOTIFICATION',
+      type TEXT NOT NULL DEFAULT 'AFTER_MINUTES',
 
-      minutes INT NULL,     -- AFTER_MINUTES 使用
-      \`date\` DATE NULL,     -- DATE_TIME 使用
-      \`time\` TIME NULL,     -- DATE_TIME / EVERY_DAYS 可选
-      days INT NULL,        -- EVERY_DAYS 使用
+      minutes INTEGER,          -- AFTER_MINUTES 使用
+      date TEXT,                -- DATE_TIME 使用（存 "YYYY-MM-DD"）
+      time TEXT,                -- DATE_TIME / EVERY_DAYS 可选（存 "HH:mm:ss"）
+      days INTEGER,             -- EVERY_DAYS 使用
 
-      pinned TINYINT(1) NOT NULL DEFAULT 0,
-      createAt BIGINT NOT NULL,
-      updatedAt BIGINT NOT NULL,
-      lastTriggeredAt BIGINT NULL
+      pinned INTEGER NOT NULL DEFAULT 0,
+      createAt INTEGER NOT NULL,
+      updatedAt INTEGER NOT NULL,
+      lastTriggeredAt INTEGER
     )
   `)
 
-  // 索引
-  await pool.execute(`CREATE INDEX idx_reminders_enabled ON reminders(enabled)`).catch(() => {})
-  await pool.execute(`CREATE INDEX idx_reminders_updatedAt ON reminders(updatedAt)`).catch(() => {})
+  // 索引（IF NOT EXISTS 不会重复创建，不需要 catch）
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_reminders_enabled ON reminders(enabled)`)
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_reminders_updatedAt ON reminders(updatedAt)`)
 
-  // 兼容旧库补列（存在会报错，catch 吃掉即可）
-  await pool.execute(`ALTER TABLE notes ADD COLUMN pinned TINYINT(1) NOT NULL DEFAULT 0`).catch(() => {})
-
-  await pool.execute(`ALTER TABLE reminders ADD COLUMN pinned TINYINT(1) NOT NULL DEFAULT 0`).catch(() => {})
-  await pool.execute(`ALTER TABLE reminders ADD COLUMN minutes INT NULL`).catch(() => {})
-  await pool.execute(`ALTER TABLE reminders ADD COLUMN \`date\` DATE NULL`).catch(() => {})
-  await pool.execute(`ALTER TABLE reminders ADD COLUMN \`time\` TIME NULL`).catch(() => {})
-  await pool.execute(`ALTER TABLE reminders ADD COLUMN days INT NULL`).catch(() => {})
-  await pool.execute(`ALTER TABLE reminders MODIFY COLUMN \`date\` DATE NULL`).catch(() => {})
-  await pool.execute(`ALTER TABLE reminders MODIFY COLUMN \`time\` TIME NULL`).catch(() => {})
-  await pool.execute(`
-    ALTER TABLE reminders
-    ADD COLUMN lastTriggeredAt BIGINT NULL
-  `).catch(() => {})
+  console.log('[schema] SQLite tables ready')
 }
