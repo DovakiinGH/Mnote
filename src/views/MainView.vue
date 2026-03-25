@@ -96,6 +96,8 @@
               }"
             @click="onSubItemClick(item.id)"
             >
+            <!-- sub list items --------------------------->
+             <!--text -->
             <div class="item-content">
               {{ item.name }}
             </div>
@@ -105,6 +107,7 @@
             <div v-if="activeIndex === '2'" class="item-preview">
               {{ getReminderPreview(item.id) }}
             </div>
+            <!-- buttons -->
             <el-button
               v-if="item.id !== confirmDeleteId"
               class="item-del-btn"
@@ -131,6 +134,7 @@
             </div>
           </div>
         </el-scrollbar>
+        <!-- bottom of list -->
         <div class="sub-end">
           <el-button
               class="side-btn side-close"
@@ -843,16 +847,11 @@ const sortedReminders = computed(() => {
   })
 })
 //---------------------------------language-----------------------------------------------------
-
 const onToggleLang = () => {
   const next = locale.value === 'en-US' ? 'zh-CN' : 'en-US'
   locale.value = next
   localStorage.setItem('lang', next)
 }
-// const onLangChange = (lang: string) => {
-//   locale.value = lang
-//   localStorage.setItem('lang', lang)
-// }
 //-----------------------------watch-------------------------------------
 
 watch(

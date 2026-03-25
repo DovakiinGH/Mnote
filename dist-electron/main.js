@@ -1,19 +1,22 @@
-import { app as a, screen as b, BrowserWindow as g, globalShortcut as D, ipcMain as s, Notification as _, Menu as U, nativeImage as C, Tray as $ } from "electron";
-import { fileURLToPath as j } from "node:url";
-import { randomUUID as Y } from "crypto";
-import l from "node:path";
-import H from "better-sqlite3";
-import w from "node:fs";
-function X() {
-  const e = a.isPackaged ? a.getPath("userData") : process.cwd();
-  return w.existsSync(e) || w.mkdirSync(e, { recursive: !0 }), l.join(e, "mnote.db");
+import { app, screen, BrowserWindow, globalShortcut, ipcMain, Notification, Menu, nativeImage, Tray } from "electron";
+import { fileURLToPath } from "node:url";
+import { randomUUID } from "crypto";
+import path from "node:path";
+import Database from "better-sqlite3";
+import fs from "node:fs";
+function getDbPath() {
+  const dir = app.isPackaged ? app.getPath("userData") : process.cwd();
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  return path.join(dir, "mnote.db");
 }
-const x = X();
-console.log("[db] SQLite path:", x);
-const u = new H(x);
-u.pragma("journal_mode = WAL");
-function B() {
-  u.exec(`
+const dbPath = getDbPath();
+console.log("[db] SQLite path:", dbPath);
+const db = new Database(dbPath);
+db.pragma("journal_mode = WAL");
+function initSchema() {
+  db.exec(`
     CREATE TABLE IF NOT EXISTS notes (
       id INTEGER PRIMARY KEY,
       title TEXT NOT NULL DEFAULT '',
@@ -22,7 +25,8 @@ function B() {
       createAt INTEGER,
       pinned INTEGER NOT NULL DEFAULT 0
     )
-  `), u.exec(`
+  `);
+  db.exec(`
     CREATE TABLE IF NOT EXISTS reminders (
       id INTEGER PRIMARY KEY,
       title TEXT NOT NULL DEFAULT '',
@@ -41,16 +45,19 @@ function B() {
       updatedAt INTEGER NOT NULL,
       lastTriggeredAt INTEGER
     )
-  `), u.exec("CREATE INDEX IF NOT EXISTS idx_reminders_enabled ON reminders(enabled)"), u.exec("CREATE INDEX IF NOT EXISTS idx_reminders_updatedAt ON reminders(updatedAt)"), console.log("[schema] SQLite tables ready");
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_reminders_enabled ON reminders(enabled)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_reminders_updatedAt ON reminders(updatedAt)`);
+  console.log("[schema] SQLite tables ready");
 }
-function G() {
-  return u.prepare(`
+function getAllReminders() {
+  return db.prepare(`
     SELECT * FROM reminders ORDER BY updatedAt DESC
   `).all();
 }
-function V(e) {
-  const n = Date.now();
-  return u.prepare(`
+function upsertReminder(input) {
+  const now = Date.now();
+  db.prepare(`
     INSERT INTO reminders
       (id, title, text, enabled, mode, type, minutes, date, time, days, pinned, createAt, updatedAt, lastTriggeredAt)
     VALUES
@@ -69,136 +76,184 @@ function V(e) {
       updatedAt = excluded.updatedAt,
       lastTriggeredAt = COALESCE(excluded.lastTriggeredAt, lastTriggeredAt)
   `).run(
-    e.id,
-    e.title,
-    e.text,
-    e.enabled,
-    e.mode,
-    e.type,
-    e.minutes ?? null,
-    e.date ?? null,
-    e.time ?? null,
-    e.days ?? null,
-    e.pinned ?? 0,
-    e.createAt ?? n,
-    e.updatedAt ?? n,
-    e.lastTriggeredAt ?? null
-  ), !0;
+    input.id,
+    input.title,
+    input.text,
+    input.enabled,
+    input.mode,
+    input.type,
+    input.minutes ?? null,
+    input.date ?? null,
+    input.time ?? null,
+    input.days ?? null,
+    input.pinned ?? 0,
+    input.createAt ?? now,
+    input.updatedAt ?? now,
+    input.lastTriggeredAt ?? null
+  );
+  return true;
 }
-function W(e) {
-  return u.prepare("DELETE FROM reminders WHERE id = ?").run(e), !0;
+function deleteReminder(id) {
+  db.prepare("DELETE FROM reminders WHERE id = ?").run(id);
+  return true;
 }
-function z() {
-  return u.prepare(`
+function getEnabledReminders() {
+  return db.prepare(`
     SELECT * FROM reminders WHERE enabled = 1
   `).all();
 }
-function M(e, n) {
-  u.prepare(
+function markTriggered(id, ts) {
+  db.prepare(
     "UPDATE reminders SET lastTriggeredAt = ?, updatedAt = ? WHERE id = ?"
-  ).run(n, n, e);
+  ).run(ts, ts, id);
 }
-function Q(e, n) {
-  u.prepare(
+function disableReminder(id, ts) {
+  db.prepare(
     "UPDATE reminders SET enabled = 0, updatedAt = ? WHERE id = ?"
-  ).run(n, e);
+  ).run(ts, id);
 }
-function q(e) {
-  if (!e) return null;
-  if (typeof e == "string") return e.slice(0, 10);
-  const n = e.getFullYear(), t = String(e.getMonth() + 1).padStart(2, "0"), i = String(e.getDate()).padStart(2, "0");
-  return `${n}-${t}-${i}`;
+function dateToYmd(v) {
+  if (!v) return null;
+  if (typeof v === "string") return v.slice(0, 10);
+  const y = v.getFullYear();
+  const m = String(v.getMonth() + 1).padStart(2, "0");
+  const d = String(v.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
-function P(e) {
-  return e ? e.length === 5 ? `${e}:00` : e : "00:00:00";
+function normalizeTime(v) {
+  if (!v) return "00:00:00";
+  if (v.length === 5) return `${v}:00`;
+  return v;
 }
-function K(e, n) {
-  const t = q(e);
-  if (!t) return null;
-  const i = P(n), c = (/* @__PURE__ */ new Date(`${t}T${i}`)).getTime();
-  return Number.isNaN(c) ? null : c;
+function toDateTimeTs(dateVal, timeVal) {
+  const ymd = dateToYmd(dateVal);
+  if (!ymd) return null;
+  const hms = normalizeTime(timeVal);
+  const ts = (/* @__PURE__ */ new Date(`${ymd}T${hms}`)).getTime();
+  return Number.isNaN(ts) ? null : ts;
 }
-function J(e) {
-  if (e.type === "AFTER_MINUTES") {
-    const T = e.minutes ?? 1;
-    return (e.updatedAt ?? e.createAt) + T * 60 * 1e3;
+function getDueAt(row) {
+  if (row.type === "AFTER_MINUTES") {
+    const m = row.minutes ?? 1;
+    return (row.updatedAt ?? row.createAt) + m * 60 * 1e3;
   }
-  if (e.type === "DATE_TIME")
-    return K(e.date, e.time);
-  const n = e.days ?? 1, t = e.lastTriggeredAt ?? e.updatedAt ?? e.createAt, i = new Date(t);
-  i.setDate(i.getDate() + n);
-  const c = `${i.getFullYear()}-${String(i.getMonth() + 1).padStart(2, "0")}-${String(i.getDate()).padStart(2, "0")}`, o = P(e.time), m = (/* @__PURE__ */ new Date(`${c}T${o}`)).getTime();
-  return Number.isNaN(m) ? null : m;
+  if (row.type === "DATE_TIME") {
+    return toDateTimeTs(row.date, row.time);
+  }
+  const d = row.days ?? 1;
+  const base = row.lastTriggeredAt ?? row.updatedAt ?? row.createAt;
+  const nextDate = new Date(base);
+  nextDate.setDate(nextDate.getDate() + d);
+  const ymd = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}-${String(nextDate.getDate()).padStart(2, "0")}`;
+  const hms = normalizeTime(row.time);
+  const ts = (/* @__PURE__ */ new Date(`${ymd}T${hms}`)).getTime();
+  return Number.isNaN(ts) ? null : ts;
 }
-function Z(e, n) {
-  const t = J(e);
-  return !(!t || n < t || e.lastTriggeredAt && e.lastTriggeredAt >= t);
+function isDue(row, now) {
+  const dueAt = getDueAt(row);
+  if (!dueAt) return false;
+  if (now < dueAt) return false;
+  if (row.lastTriggeredAt && row.lastTriggeredAt >= dueAt) return false;
+  return true;
 }
-function ee(e, n) {
-  let t = null, i = !1;
-  const c = async () => {
-    if (!i) {
-      i = !0;
-      try {
-        const o = Date.now(), m = await z();
-        let T = !1;
-        for (const E of m)
-          Z(E, o) && (await e({
-            title: E.title || "M Note",
-            text: E.text || "",
-            mode: E.mode
-          }), await M(E.id, o), (E.type === "AFTER_MINUTES" || E.type === "DATE_TIME") && await Q(E.id, o), T = !0);
-        T && n && n();
-      } catch (o) {
-        console.error("[scheduler.tick] failed:", o);
-      } finally {
-        i = !1;
+function createReminderScheduler(notify, onChanged) {
+  let timer = null;
+  let running = false;
+  const tick = async () => {
+    if (running) return;
+    running = true;
+    try {
+      const now = Date.now();
+      const rows = await getEnabledReminders();
+      let changed = false;
+      for (const row of rows) {
+        if (!isDue(row, now)) continue;
+        await notify({
+          title: row.title || "M Note",
+          text: row.text || "",
+          mode: row.mode
+        });
+        await markTriggered(row.id, now);
+        if (row.type === "AFTER_MINUTES" || row.type === "DATE_TIME") {
+          await disableReminder(row.id, now);
+        }
+        changed = true;
       }
+      if (changed && onChanged) {
+        onChanged();
+      }
+    } catch (err) {
+      console.error("[scheduler.tick] failed:", err);
+    } finally {
+      running = false;
     }
   };
   return {
     start() {
-      t || (c(), t = setInterval(() => {
-        c();
-      }, 5e3));
+      if (timer) return;
+      void tick();
+      timer = setInterval(() => {
+        void tick();
+      }, 5e3);
     },
     stop() {
-      t && (clearInterval(t), t = null);
+      if (!timer) return;
+      clearInterval(timer);
+      timer = null;
     }
   };
 }
-const te = a.isPackaged, S = (e) => te ? l.join(process.resourcesPath, e) : l.join(process.cwd(), "resources", e);
-let d = null;
-function ne(e, n, t, i) {
-  const { width: c, height: o } = b.getPrimaryDisplay().workAreaSize;
-  if (d && !d.isDestroyed()) {
-    d.show(), d.focus();
+const isProd = app.isPackaged;
+const getResourcePath = (fileName) => {
+  if (isProd) {
+    return path.join(process.resourcesPath, fileName);
+  }
+  return path.join(process.cwd(), "resources", fileName);
+};
+let quickWin = null;
+function openQuickWindow(VITE_DEV_SERVER_URL2, RENDERER_DIST2, __dirname, onBeforeClose) {
+  const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
+  if (quickWin && !quickWin.isDestroyed()) {
+    quickWin.show();
+    quickWin.focus();
     return;
   }
-  let m = !1;
-  d = new g({
-    width: Math.round(c * 0.45),
-    height: Math.round(o * 0.55),
-    show: !1,
-    alwaysOnTop: !0,
-    autoHideMenuBar: !0,
+  let allowClose = false;
+  quickWin = new BrowserWindow({
+    width: Math.round(screenW * 0.45),
+    height: Math.round(screenH * 0.55),
+    show: false,
+    alwaysOnTop: true,
+    autoHideMenuBar: true,
     webPreferences: {
-      preload: l.join(t, "preload.mjs")
+      preload: path.join(__dirname, "preload.mjs")
     },
-    icon: S("icon.ico")
-  }), e ? d.loadURL(`${e}#/quick`) : d.loadFile(l.join(n, "index.html"), { hash: "/quick" }), d.once("ready-to-show", () => {
-    d == null || d.show(), d == null || d.focus();
-  }), d.on("close", (T) => {
-    m || (T.preventDefault(), Promise.resolve(i == null ? void 0 : i()).finally(() => {
-      m = !0, d == null || d.close();
-    }));
-  }), d.on("closed", () => {
-    d = null;
+    icon: getResourcePath("icon.ico")
+  });
+  if (VITE_DEV_SERVER_URL2) {
+    quickWin.loadURL(`${VITE_DEV_SERVER_URL2}#/quick`);
+  } else {
+    quickWin.loadFile(path.join(RENDERER_DIST2, "index.html"), { hash: "/quick" });
+  }
+  quickWin.once("ready-to-show", () => {
+    quickWin == null ? void 0 : quickWin.show();
+    quickWin == null ? void 0 : quickWin.focus();
+  });
+  quickWin.on("close", (e) => {
+    if (allowClose) return;
+    e.preventDefault();
+    Promise.resolve(onBeforeClose == null ? void 0 : onBeforeClose()).finally(() => {
+      allowClose = true;
+      quickWin == null ? void 0 : quickWin.close();
+    });
+  });
+  quickWin.on("closed", () => {
+    quickWin = null;
   });
 }
-function re(e) {
-  const { id: n, title: t, content: i, updatedAt: c, createAt: o, pinned: m } = e;
-  return u.prepare(`
+function upsertNote(note) {
+  const { id, title, content, updatedAt, createAt, pinned } = note;
+  db.prepare(`
     INSERT INTO notes (id, title, content, updatedAt, createAt, pinned)
     VALUES (?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
@@ -207,72 +262,91 @@ function re(e) {
       updatedAt = excluded.updatedAt,
       createAt = excluded.createAt,
       pinned = excluded.pinned
-  `).run(n, t, i, c ?? null, o ?? null, m ? 1 : 0), !0;
+  `).run(id, title, content, updatedAt ?? null, createAt ?? null, pinned ? 1 : 0);
+  return true;
 }
-function ie() {
-  return u.prepare(
+function findAllNotes() {
+  return db.prepare(
     "SELECT id, title, content, createAt, updatedAt, pinned FROM notes ORDER BY pinned DESC, updatedAt DESC"
   ).all();
 }
-function oe(e) {
-  return u.prepare("DELETE FROM notes WHERE id = ?").run(e), !0;
+function deleteNote(id) {
+  db.prepare("DELETE FROM notes WHERE id = ?").run(id);
+  return true;
 }
-function de() {
-  return ie();
+function listNotesService() {
+  return findAllNotes();
 }
-function I(e) {
-  const n = Date.now();
-  return re({
-    ...e,
-    title: (e.title ?? "").trim() || "Untitled",
-    content: e.content ?? "",
-    createAt: e.createAt ?? n,
-    updatedAt: e.updatedAt ?? n,
-    pinned: e.pinned ?? 0
-  }), !0;
+function saveNoteService(input) {
+  const now = Date.now();
+  upsertNote({
+    ...input,
+    title: (input.title ?? "").trim() || "Untitled",
+    content: input.content ?? "",
+    createAt: input.createAt ?? now,
+    updatedAt: input.updatedAt ?? now,
+    pinned: input.pinned ?? 0
+  });
+  return true;
 }
-function se(e) {
-  return oe(e), !0;
+function removeNoteService(id) {
+  deleteNote(id);
+  return true;
 }
-function ae() {
-  const e = Date.now(), t = {
-    id: e,
+function createNoteService() {
+  const now = Date.now();
+  const id = now;
+  const note = {
+    id,
     title: "new",
     content: "",
-    createAt: e,
-    updatedAt: e,
+    createAt: now,
+    updatedAt: now,
     pinned: 0
   };
-  return I(t), t;
+  saveNoteService(note);
+  return note;
 }
-function le(e) {
-  return e.type === "AFTER_MINUTES" ? { minutes: e.minutes ?? 1, date: null, time: null, days: null } : e.type === "DATE_TIME" ? { minutes: null, date: e.date ?? null, time: e.time ?? null, days: null } : { minutes: null, date: null, time: e.time ?? null, days: e.days ?? 1 };
+function normalizeReminderByType(f) {
+  if (f.type === "AFTER_MINUTES") {
+    return { minutes: f.minutes ?? 1, date: null, time: null, days: null };
+  }
+  if (f.type === "DATE_TIME") {
+    return { minutes: null, date: f.date ?? null, time: f.time ?? null, days: null };
+  }
+  return { minutes: null, date: null, time: f.time ?? null, days: f.days ?? 1 };
 }
-function ce() {
-  return G();
+function listRemindersService() {
+  return getAllReminders();
 }
-function v(e) {
-  const n = Date.now(), t = le(e);
-  return V({
-    ...e,
-    ...t,
-    title: (e.title ?? "").trim() || "Untitled",
-    text: e.text ?? "",
-    enabled: e.enabled ? 1 : 0,
-    pinned: e.pinned ?? 0,
-    createAt: e.createAt ?? n,
-    updatedAt: e.updatedAt ?? n
-  }), !0;
+function saveReminderService(input) {
+  const now = Date.now();
+  const normalized = normalizeReminderByType(input);
+  upsertReminder({
+    ...input,
+    ...normalized,
+    title: (input.title ?? "").trim() || "Untitled",
+    text: input.text ?? "",
+    enabled: input.enabled ? 1 : 0,
+    pinned: input.pinned ?? 0,
+    createAt: input.createAt ?? now,
+    updatedAt: input.updatedAt ?? now
+  });
+  return true;
 }
-function ue(e) {
-  return W(e), !0;
+function removeReminderService(id) {
+  deleteReminder(id);
+  return true;
 }
-function me(e, n = Date.now()) {
-  return M(e, n), !0;
+function markReminderTriggeredService(id, ts = Date.now()) {
+  markTriggered(id, ts);
+  return true;
 }
-function Te() {
-  const e = Date.now(), t = {
-    id: e,
+function createReminderService() {
+  const now = Date.now();
+  const id = now;
+  const reminder = {
+    id,
     title: "new",
     text: "",
     enabled: 0,
@@ -282,162 +356,278 @@ function Te() {
     date: null,
     time: null,
     days: null,
-    createAt: e,
-    updatedAt: e,
+    createAt: now,
+    updatedAt: now,
     pinned: 0,
     lastTriggeredAt: null
   };
-  return v(t), t;
+  saveReminderService(reminder);
+  return reminder;
 }
-let h = { title: "", content: "" };
-function Ee(e) {
-  h = {
-    title: (e == null ? void 0 : e.title) ?? "",
-    content: (e == null ? void 0 : e.content) ?? ""
+let quickDraft = { title: "", content: "" };
+function updateQuickNote(note) {
+  quickDraft = {
+    title: (note == null ? void 0 : note.title) ?? "",
+    content: (note == null ? void 0 : note.content) ?? ""
   };
 }
-function pe() {
-  h = { title: "", content: "" };
+function clearQuickNote() {
+  quickDraft = { title: "", content: "" };
 }
-async function fe(e) {
-  var o;
-  const n = ((o = h.title) == null ? void 0 : o.trim()) ?? "", t = h.content ?? "";
-  if (!n && !t) return;
-  const i = Date.now();
-  await I({
-    id: i,
-    title: n || "Untitled",
-    content: t,
-    createAt: i,
-    updatedAt: i,
+async function saveQuickNote(mainWindow) {
+  var _a;
+  const title = ((_a = quickDraft.title) == null ? void 0 : _a.trim()) ?? "";
+  const content = quickDraft.content ?? "";
+  if (!title && !content) return;
+  const now = Date.now();
+  const id = now;
+  await saveNoteService({
+    id,
+    title: title || "Untitled",
+    content,
+    createAt: now,
+    updatedAt: now,
     pinned: 0
-  }), e == null || e.webContents.send("notes:changed"), pe();
+  });
+  mainWindow == null ? void 0 : mainWindow.webContents.send("notes:changed");
+  clearQuickNote();
 }
 console.log("[main] main.ts loaded");
-const N = l.dirname(j(import.meta.url));
-process.env.APP_ROOT = l.join(N, "..");
-const p = process.env.VITE_DEV_SERVER_URL, Oe = l.join(process.env.APP_ROOT, "dist-electron"), R = l.join(process.env.APP_ROOT, "dist");
-process.env.VITE_PUBLIC = p ? l.join(process.env.APP_ROOT, "public") : R;
-let r = null, f = !1, A = null, y = "Alt+Space";
-const F = ee(
-  async (e) => {
-    e.mode === "NOTIFICATION" ? new _({
-      title: e.title,
-      body: e.text
-    }).show() : e.mode === "POPUP_WINDOW" && k(e.text);
+const __dirname$1 = path.dirname(fileURLToPath(import.meta.url));
+process.env.APP_ROOT = path.join(__dirname$1, "..");
+const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
+const MAIN_DIST = path.join(process.env.APP_ROOT, "dist-electron");
+const RENDERER_DIST = path.join(process.env.APP_ROOT, "dist");
+process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, "public") : RENDERER_DIST;
+let win = null;
+let isQuitting = false;
+let tray = null;
+let currentShortcut = "Alt+Space";
+const scheduler = createReminderScheduler(
+  async (payload) => {
+    if (payload.mode === "NOTIFICATION") {
+      const n = new Notification({
+        title: payload.title,
+        body: payload.text
+      });
+      n.show();
+    } else if (payload.mode === "POPUP_WINDOW") {
+      openReminderMandatoryWindow(payload.text);
+    }
   },
   () => {
-    r == null || r.webContents.send("reminders:changed");
+    win == null ? void 0 : win.webContents.send("reminders:changed");
   }
 );
-process.platform === "win32" && a.setAppUserModelId("com.yourapp.mnote");
-function O() {
-  r = new g({
-    icon: S("icon.ico"),
+if (process.platform === "win32") {
+  app.setAppUserModelId("com.yourapp.mnote");
+}
+function createWindow() {
+  win = new BrowserWindow({
+    icon: getResourcePath("icon.ico"),
     title: "MNote",
     webPreferences: {
-      preload: l.join(N, "preload.mjs")
+      preload: path.join(__dirname$1, "preload.mjs")
     }
-  }), r.on("close", (e) => {
-    f || (e.preventDefault(), r == null || r.hide());
-  }), r.webContents.on("did-finish-load", () => {
-    r == null || r.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
-  }), p ? r.loadURL(`${p}#/`) : r.loadFile(l.join(R, "index.html"), { hash: "/" });
+  });
+  win.on("close", (e) => {
+    if (!isQuitting) {
+      e.preventDefault();
+      win == null ? void 0 : win.hide();
+    }
+  });
+  win.webContents.on("did-finish-load", () => {
+    win == null ? void 0 : win.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
+  });
+  if (VITE_DEV_SERVER_URL) {
+    win.loadURL(`${VITE_DEV_SERVER_URL}#/`);
+  } else {
+    win.loadFile(path.join(RENDERER_DIST, "index.html"), { hash: "/" });
+  }
 }
-function Ae(e) {
-  return a.isPackaged ? l.join(process.resourcesPath, e) : l.join(process.cwd(), "resources", e);
+function resolveResourcePath(fileName) {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, fileName);
+  }
+  return path.join(process.cwd(), "resources", fileName);
 }
-function he() {
-  r == null || r.webContents.send("app:save-before-close"), setTimeout(() => {
-    f || (f = !0, a.quit());
+function requestQuitWithSave() {
+  win == null ? void 0 : win.webContents.send("app:save-before-close");
+  setTimeout(() => {
+    if (!isQuitting) {
+      isQuitting = true;
+      app.quit();
+    }
   }, 1e4);
 }
-function ge() {
-  const e = Ae("tray.ico"), n = C.createFromPath(e);
-  A = new $(n), A.setToolTip("MNote");
-  const t = U.buildFromTemplate([
+function createTray() {
+  const trayIconPath = resolveResourcePath("tray.ico");
+  const trayIcon = nativeImage.createFromPath(trayIconPath);
+  tray = new Tray(trayIcon);
+  tray.setToolTip("MNote");
+  const contextMenu = Menu.buildFromTemplate([
     {
       label: "Main Window",
       click: () => {
-        r && (r.show(), r.focus());
+        if (!win) return;
+        win.show();
+        win.focus();
       }
     },
     {
       label: "Exit",
       click: () => {
-        he();
+        requestQuitWithSave();
       }
     }
   ]);
-  A.setContextMenu(t), A.on("click", () => {
-    r && (r.isVisible() ? r.hide() : (r.show(), r.focus()));
+  tray.setContextMenu(contextMenu);
+  tray.on("click", () => {
+    if (!win) return;
+    if (win.isVisible()) win.hide();
+    else {
+      win.show();
+      win.focus();
+    }
   });
 }
-function L(e) {
-  return D.unregisterAll(), D.register(e, () => {
-    console.log("[main] hotkey triggered:", e), ne(p, R, N, () => fe(r));
-  }) ? (y = e, !0) : !1;
+function registerHotkey(accelerator) {
+  globalShortcut.unregisterAll();
+  const ok = globalShortcut.register(accelerator, () => {
+    console.log("[main] hotkey triggered:", accelerator);
+    openQuickWindow(VITE_DEV_SERVER_URL, RENDERER_DIST, __dirname$1, () => saveQuickNote(win));
+  });
+  if (!ok) return false;
+  currentShortcut = accelerator;
+  return true;
 }
-function k(e) {
-  const n = `reminder:submit-mandatory:${Y()}`, { width: t, height: i } = b.getPrimaryDisplay().workAreaSize, c = !!r && !r.isDestroyed(), o = new g({
-    width: Math.round(t * 0.6),
-    height: Math.round(i * 0.65),
-    ...c ? { parent: r, modal: !0 } : {},
-    center: !0,
-    resizable: !1,
-    minimizable: !1,
-    maximizable: !1,
-    alwaysOnTop: !0,
-    skipTaskbar: !1,
-    autoHideMenuBar: !0,
+function openReminderMandatoryWindow(initialText) {
+  const channel = `reminder:submit-mandatory:${randomUUID()}`;
+  const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
+  const hasParent = !!win && !win.isDestroyed();
+  const popup = new BrowserWindow({
+    width: Math.round(screenW * 0.6),
+    height: Math.round(screenH * 0.65),
+    ...hasParent ? { parent: win, modal: true } : {},
+    center: true,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    alwaysOnTop: true,
+    skipTaskbar: false,
+    autoHideMenuBar: true,
     webPreferences: {
-      preload: l.join(N, "preload.mjs")
+      preload: path.join(__dirname$1, "preload.mjs")
     },
-    icon: S("icon.ico")
+    icon: getResourcePath("icon.ico")
   });
-  o.show(), o.focus(), p ? o.loadURL(
-    `${p}#/reminder-mandatory?text=${encodeURIComponent(e)}&channel=${n}`
-  ) : o.loadFile(l.join(R, "index.html"), {
-    hash: `/reminder-mandatory?text=${encodeURIComponent(e)}&channel=${n}`
-  });
-  let m = !1;
-  o.on("close", (T) => {
-    m || T.preventDefault();
-  }), s.handleOnce(n, async (T, E) => (m = !0, o.close(), s.removeHandler(n), !0));
-}
-async function Ne() {
-  try {
-    await a.whenReady(), console.log("[env] DB_HOST:", process.env.DB_HOST), console.log("[env] DB_USER:", process.env.DB_USER), console.log("[env] DB_PASSWORD:", process.env.DB_PASSWORD ? "***有值***" : "***空***"), console.log("[env] DB_NAME:", process.env.DB_NAME), B(), console.log("[main] schema init ok"), s.on("app:save-done", () => {
-      f = !0, r == null || r.close();
-    }), s.handle("shortcut:update", (n, t) => L(t)), s.handle("shortcut:get", () => y), s.on("quick:note:update", (n, t) => {
-      Ee(t);
-    }), s.handle("reminder:show", (n, t) => (new _({
-      title: t.title || "Reminder",
-      body: t.body || ""
-    }).show(), !0)), s.handle("reminder:open-mandatory", (n, t) => (k(t || ""), !0)), s.handle("notes:getAll", async () => de()), s.handle("notes:upsert", async (n, t) => I(t)), s.handle("notes:delete", async (n, t) => se(t)), s.handle("notes:create", async () => ae()), s.handle("reminders:getAll", async () => ce()), s.handle("reminders:upsert", async (n, t) => v(t)), s.handle("reminders:delete", async (n, t) => ue(t)), s.handle("reminder:create", async () => Te()), s.handle(
-      "reminders:markTriggered",
-      async (n, t, i) => me(t, i)
-    ), U.setApplicationMenu(null), a.requestSingleInstanceLock() ? (a.on("second-instance", () => {
-      r && (r.isMinimized() && r.restore(), r.isVisible() || r.show(), r.focus());
-    }), a.whenReady().then(O)) : a.quit(), L(y), ge(), F.start(), a.on("activate", () => {
-      g.getAllWindows().length === 0 && O();
+  popup.show();
+  popup.focus();
+  if (VITE_DEV_SERVER_URL) {
+    popup.loadURL(
+      `${VITE_DEV_SERVER_URL}#/reminder-mandatory?text=${encodeURIComponent(initialText)}&channel=${channel}`
+    );
+  } else {
+    popup.loadFile(path.join(RENDERER_DIST, "index.html"), {
+      hash: `/reminder-mandatory?text=${encodeURIComponent(initialText)}&channel=${channel}`
     });
-  } catch (e) {
-    console.error("[main] bootstrap failed:", e), a.quit();
+  }
+  let handled = false;
+  popup.on("close", (event) => {
+    if (!handled) event.preventDefault();
+  });
+  ipcMain.handleOnce(channel, async (_event, _payload) => {
+    handled = true;
+    popup.close();
+    ipcMain.removeHandler(channel);
+    return true;
+  });
+}
+async function bootstrap() {
+  try {
+    await app.whenReady();
+    console.log("[env] DB_HOST:", process.env.DB_HOST);
+    console.log("[env] DB_USER:", process.env.DB_USER);
+    console.log("[env] DB_PASSWORD:", process.env.DB_PASSWORD ? "***有值***" : "***空***");
+    console.log("[env] DB_NAME:", process.env.DB_NAME);
+    initSchema();
+    console.log("[main] schema init ok");
+    ipcMain.on("app:save-done", () => {
+      isQuitting = true;
+      win == null ? void 0 : win.close();
+    });
+    ipcMain.handle("shortcut:update", (_event, accelerator) => {
+      return registerHotkey(accelerator);
+    });
+    ipcMain.handle("shortcut:get", () => currentShortcut);
+    ipcMain.on("quick:note:update", (_event, note) => {
+      updateQuickNote(note);
+    });
+    ipcMain.handle("reminder:show", (_event, payload) => {
+      const n = new Notification({
+        title: payload.title || "Reminder",
+        body: payload.body || ""
+      });
+      n.show();
+      return true;
+    });
+    ipcMain.handle("reminder:open-mandatory", (_e, text) => {
+      openReminderMandatoryWindow(text || "");
+      return true;
+    });
+    ipcMain.handle("notes:getAll", async () => listNotesService());
+    ipcMain.handle("notes:upsert", async (_e, payload) => saveNoteService(payload));
+    ipcMain.handle("notes:delete", async (_e, id) => removeNoteService(id));
+    ipcMain.handle("notes:create", async () => createNoteService());
+    ipcMain.handle("reminders:getAll", async () => listRemindersService());
+    ipcMain.handle("reminders:upsert", async (_e, payload) => saveReminderService(payload));
+    ipcMain.handle("reminders:delete", async (_e, id) => removeReminderService(id));
+    ipcMain.handle("reminder:create", async () => createReminderService());
+    ipcMain.handle(
+      "reminders:markTriggered",
+      async (_e, id, ts) => markReminderTriggeredService(id, ts)
+    );
+    Menu.setApplicationMenu(null);
+    const gotTheLock = app.requestSingleInstanceLock();
+    if (!gotTheLock) {
+      app.quit();
+    } else {
+      app.on("second-instance", () => {
+        if (win) {
+          if (win.isMinimized()) win.restore();
+          if (!win.isVisible()) win.show();
+          win.focus();
+        }
+      });
+      app.whenReady().then(createWindow);
+    }
+    registerHotkey(currentShortcut);
+    createTray();
+    scheduler.start();
+    app.on("activate", () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
+  } catch (err) {
+    console.error("[main] bootstrap failed:", err);
+    app.quit();
   }
 }
-Ne();
-a.on("window-all-closed", () => {
-  process.platform !== "darwin" && (a.quit(), r = null);
+bootstrap();
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") {
+    app.quit();
+    win = null;
+  }
 });
-a.on("before-quit", () => {
-  f = !0;
+app.on("before-quit", () => {
+  isQuitting = true;
 });
-a.on("will-quit", () => {
-  F.stop(), D.unregisterAll();
+app.on("will-quit", () => {
+  scheduler.stop();
+  globalShortcut.unregisterAll();
 });
 export {
-  Oe as MAIN_DIST,
-  R as RENDERER_DIST,
-  p as VITE_DEV_SERVER_URL
+  MAIN_DIST,
+  RENDERER_DIST,
+  VITE_DEV_SERVER_URL
 };

@@ -245,18 +245,15 @@
 }
 
 
-.sub-item {
-  cursor: pointer;
-  position: relative;
-}
 
 .sub-item.active {
   border: 1px solid #6aa8f7;
   box-shadow: 0 0 0 2px rgba(106,168,247,0.2);
 }
 
-
 .sub-item {
+    cursor: pointer;
+  position: relative;
   background: #fff;
   border-radius: 6px;
   padding: 8px;
@@ -344,9 +341,17 @@
   position: absolute;
   inset: 0;
   display: flex;
-  gap: 8px;
+  gap: clamp(4px, 1vw, 8px);
+  padding: clamp(2px, 0.5vw, 6px);
   justify-content: center;
   align-items: center;
+}
+.item-confirm .el-button {
+  font-size: clamp(10px, 1.2vw, 14px) !important;
+  padding: clamp(2px, 0.5vw, 6px) clamp(6px, 1.5vw, 16px) !important;
+  min-height: unset !important;
+  height: clamp(22px, 3vw, 32px) !important;
+  border-radius: clamp(3px, 0.5vw, 6px) !important;
 }
 
 /* confirm button */
@@ -354,6 +359,10 @@
   background: #e34b4b;
   color: #fff;
   border: none;
+}
+.btn-confirm:hover {
+  background: #f90000 !important;
+  color: #fde2e2;
 }
 
 /* cancel button */

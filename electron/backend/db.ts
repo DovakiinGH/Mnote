@@ -23,7 +23,6 @@ console.log('[db] SQLite path:', dbPath)
 
 const db = new Database(dbPath)
 
-// 开启 WAL 模式，提升并发性能
 db.pragma('journal_mode = WAL')
 
 export default db
