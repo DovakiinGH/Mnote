@@ -1,4 +1,4 @@
-import { app, screen, BrowserWindow, globalShortcut, ipcMain, Notification, Menu, nativeImage, Tray } from "electron";
+import { app, screen, BrowserWindow, ipcMain, globalShortcut, Notification, Menu, nativeImage, Tray } from "electron";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "crypto";
 import path from "node:path";
@@ -308,13 +308,34 @@ function createNoteService() {
   return note;
 }
 function normalizeReminderByType(f) {
+  if (f.mode === "POMODORO") {
+    return {
+      type: "AFTER_MINUTES",
+      minutes: Math.min(Math.max(f.minutes ?? 25, 1), 1440),
+      date: null,
+      time: null,
+      days: null
+    };
+  }
   if (f.type === "AFTER_MINUTES") {
-    return { minutes: f.minutes ?? 1, date: null, time: null, days: null };
+    return {
+      type: f.type,
+      minutes: Math.min(Math.max(f.minutes ?? 1, 1), 1440),
+      date: null,
+      time: null,
+      days: null
+    };
   }
   if (f.type === "DATE_TIME") {
-    return { minutes: null, date: f.date ?? null, time: f.time ?? null, days: null };
+    return { type: f.type, minutes: null, date: f.date ?? null, time: f.time ?? null, days: null };
   }
-  return { minutes: null, date: null, time: f.time ?? null, days: f.days ?? 1 };
+  return {
+    type: f.type,
+    minutes: null,
+    date: null,
+    time: f.time ?? null,
+    days: Math.min(Math.max(f.days ?? 1, 1), 365)
+  };
 }
 function listRemindersService() {
   return getAllReminders();
@@ -391,6 +412,73 @@ async function saveQuickNote(mainWindow) {
   });
   mainWindow == null ? void 0 : mainWindow.webContents.send("notes:changed");
   clearQuickNote();
+}
+let pomodoroWin = null;
+let currentReminderId = null;
+const __dirname$2 = path.dirname(fileURLToPath(import.meta.url));
+let onCloseCallback = null;
+function setOnPomodoroClose(cb) {
+  onCloseCallback = cb;
+}
+function openPomodoroWindow(data) {
+  if (pomodoroWin && !pomodoroWin.isDestroyed()) {
+    if (currentReminderId !== null && onCloseCallback) {
+      onCloseCallback(currentReminderId);
+    }
+    pomodoroWin.destroy();
+    pomodoroWin = null;
+  }
+  currentReminderId = data.id;
+  const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
+  pomodoroWin = new BrowserWindow({
+    width: Math.round(screenW * 0.15),
+    height: Math.round(screenH * 0.25),
+    resizable: false,
+    alwaysOnTop: true,
+    frame: false,
+    icon: getResourcePath("icon.ico"),
+    webPreferences: {
+      preload: path.join(__dirname$2, "preload.mjs")
+    }
+  });
+  if (process.env.VITE_DEV_SERVER_URL) {
+    pomodoroWin.loadURL(`${process.env.VITE_DEV_SERVER_URL}#/pomodoro`);
+  } else {
+    pomodoroWin.loadFile(path.join(__dirname$2, "../dist/index.html"), {
+      hash: "/pomodoro"
+    });
+  }
+  pomodoroWin.webContents.on("did-finish-load", () => {
+    pomodoroWin == null ? void 0 : pomodoroWin.webContents.send("pomodoro-init", {
+      title: data.title,
+      text: data.text,
+      minutes: data.minutes
+    });
+  });
+  pomodoroWin.on("closed", () => {
+    if (currentReminderId !== null && onCloseCallback) {
+      onCloseCallback(currentReminderId);
+    }
+    pomodoroWin = null;
+    currentReminderId = null;
+  });
+}
+function closePomodoroWindow() {
+  if (pomodoroWin && !pomodoroWin.isDestroyed()) {
+    const win2 = pomodoroWin;
+    pomodoroWin = null;
+    currentReminderId = null;
+    win2.destroy();
+  }
+}
+function setupPomodoroIpc() {
+  ipcMain.handle("pomodoro-finished", () => {
+    if (currentReminderId !== null && onCloseCallback) {
+      onCloseCallback(currentReminderId);
+    }
+    closePomodoroWindow();
+    return true;
+  });
 }
 console.log("[main] main.ts loaded");
 const __dirname$1 = path.dirname(fileURLToPath(import.meta.url));
@@ -587,6 +675,18 @@ async function bootstrap() {
       "reminders:markTriggered",
       async (_e, id, ts) => markReminderTriggeredService(id, ts)
     );
+    setupPomodoroIpc();
+    ipcMain.handle("pomodoro-start", (_event, data) => {
+      openPomodoroWindow(data);
+      return true;
+    });
+    ipcMain.handle("pomodoro-stop", () => {
+      closePomodoroWindow();
+      return true;
+    });
+    setOnPomodoroClose((id) => {
+      win == null ? void 0 : win.webContents.send("pomodoro-closed", id);
+    });
     Menu.setApplicationMenu(null);
     const gotTheLock = app.requestSingleInstanceLock();
     if (!gotTheLock) {

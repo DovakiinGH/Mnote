@@ -45,13 +45,22 @@ contextBridge.exposeInMainWorld('api', {
   showReminder: (payload: { title: string; body: string }) =>
     ipcRenderer.invoke('reminder:show', payload),
   openMandatoryReminder: (text: string) => ipcRenderer.invoke('reminder:open-mandatory', text),
-  // submitMandatoryReminder: (payload: { text: string }) =>
-  // ipcRenderer.invoke('reminder:submit-mandatory', payload),
+ 
   submitMandatoryReminder: (payload: { text: string }, channel: string) =>
   ipcRenderer.invoke(channel, payload),
   onRemindersChanged: (cb: () => void) => {
-  ipcRenderer.on('reminders:changed', () => cb())
+  ipcRenderer.on('reminders:changed', () => cb())},//cb for call back function
+  
+  pomodoroStart: (data: { id: number; title: string; text: string; minutes: number }) =>
+    ipcRenderer.invoke('pomodoro-start', data),
+  pomodoroStop: () =>
+    ipcRenderer.invoke('pomodoro-stop'),
+  pomodoroFinished: () =>
+    ipcRenderer.invoke('pomodoro-finished'),
+  onPomodoroInit: (cb: (data: { title: string; text: string; minutes: number }) => void) =>
+    ipcRenderer.on('pomodoro-init', (_event, data) => cb(data)),
+  onPomodoroClosed: (cb: (id: number) => void) =>
+    ipcRenderer.on('pomodoro-closed', (_event, id) => cb(id)),
+  })
 
-},
-})
-//cb for call back function
+

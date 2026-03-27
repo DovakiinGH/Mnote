@@ -28,7 +28,7 @@ export async function saveQuickNote(mainWindow: BrowserWindow | null): Promise<v
   const now = Date.now()
   const id = now
 
-  await saveNoteService({
+  saveNoteService({
     id,
     title: title || 'Untitled',
     content,

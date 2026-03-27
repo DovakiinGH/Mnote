@@ -26,6 +26,7 @@ export default {
       close:'关闭',
       notification:'提示框',
       popUpWindow:'弹窗提示',
+      pomodoro: "番茄钟",
       minutesLater:'几分钟后',
       YMD:'年/月/日',
       everyDays:'几天一次',

@@ -26,6 +26,7 @@ export default {
       close:'close',
       notification:'notification',
       popUpWindow:'pop up window',
+      pomodoro: "pomodoro timer",
       minutesLater:'minutes later',
       YMD:'yy/mm/dd',
       everyDays:'every few days',

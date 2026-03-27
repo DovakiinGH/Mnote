@@ -24,6 +24,12 @@ declare global {
         submitMandatoryReminder: (payload: { text: string }, channel: string) => Promise<boolean>,
         onRemindersChanged: (cb: () => void) => void
 
+        pomodoroStart: (data: {id: number; title: string; text: string; minutes: number}) => Promise<boolean>
+        pomodoroStop: () => Promise<boolean>
+        pomodoroFinished: () => Promise<boolean>
+        onPomodoroInit: (cb: (data: {title: string;text: string;minutes: number}) => void) => void
+        onPomodoroClosed: (cb: (id: number) => void) => void
+
        
     }
   }

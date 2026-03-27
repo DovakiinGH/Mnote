@@ -11,6 +11,14 @@ import { listNotesService,saveNoteService,removeNoteService,createNoteService } 
 import { listRemindersService, saveReminderService, removeReminderService, markReminderTriggeredService,createReminderService} from './backend/reminders.service' // 你文件名按实际改
 import { updateQuickNote, saveQuickNote } from './backend/quick.service'
 import { getResourcePath } from './path'
+import {
+  openPomodoroWindow,
+  closePomodoroWindow,
+  getCurrentPomodoroId,
+  setOnPomodoroClose,
+  setupPomodoroIpc
+} from './reminder/pomodoro'
+
 console.log('[main] main.ts loaded')
 // const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -60,7 +68,7 @@ if (process.platform === 'win32') {
 }
 
 //win
-//---------------------------------------life cycle----------------------------------------------------------------------//
+//--------------------------------------createWindow----------------------------------------------------------------------//
 
 
 function createWindow() {
@@ -157,7 +165,7 @@ function registerHotkey(accelerator: string) {
   currentShortcut = accelerator
   return true
 }
-//------------------------------------pop windows------------------------------------------------
+//------------------------------------reminders mandatory pop windows------------------------------------------------
 function openReminderMandatoryWindow(initialText: string) {
   const channel = `reminder:submit-mandatory:${randomUUID()}`
 
@@ -190,11 +198,14 @@ function openReminderMandatoryWindow(initialText: string) {
       hash: `/reminder-mandatory?text=${encodeURIComponent(initialText)}&channel=${channel}`
     })
   }
+
+  // Prevent closing the window without submitting
   let handled = false
   popup.on('close', (event) => {
     if (!handled) event.preventDefault()
   })
-
+  // Handle for the random channel for just one time use when submit button is clicked in the mandatory reminder window,
+  // then close the popup and remove the handler to avoid memory leak
   ipcMain.handleOnce(channel, async (_event, _payload: { text: string }) => {
     handled = true
     popup.close()
@@ -255,6 +266,31 @@ async function bootstrap() {
     ipcMain.handle('reminders:markTriggered', async (_e, id: number, ts?: number) =>
       markReminderTriggeredService(id, ts)
     )
+    // ---- pomodoro ---- //
+
+    //a set up 'pomodoro-finished' from pomodoro.ts, 
+    // which will be called when pomodoro window sends 'pomodoro-finished' after countdown ends
+    setupPomodoroIpc()
+
+    ipcMain.handle('pomodoro-start', (_event, data: {
+      id: number
+      title: string
+      text: string
+      minutes: number
+    }) => {
+      openPomodoroWindow(data)
+      return true
+    })
+
+    ipcMain.handle('pomodoro-stop', () => {
+      closePomodoroWindow()
+      return true
+    })
+
+    // set a callback to notify renderer when pomodoro window is closed by user or finished
+    setOnPomodoroClose((id: number) => {
+      win?.webContents.send('pomodoro-closed', id)
+    })
 
     //---------------------------------------------------------------//
     //SingletInstance
