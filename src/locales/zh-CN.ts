@@ -33,6 +33,9 @@ export default {
       date:'选择日期',
       time:'选择时间（可选）',
       text:'请输入提示文本（最多500字）'
-    }
+    },
+    pomodoro:{
+      end:' 已经结束。',
+  }
   }
 }

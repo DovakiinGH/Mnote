@@ -33,6 +33,9 @@ export default {
       date:'select date',
       time:'select time(optional)',
       text:'Please input reminder text(Maximum 500 characters )'
-    }
+    },
+    pomodoro:{
+      end:' is finished.',
   }
+}
 }

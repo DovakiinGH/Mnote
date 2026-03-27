@@ -447,6 +447,15 @@ const saveAllReminders = async () => {
     await saveReminder(r.id)
   }
 }
+const closePomodoroBeforeClose = async () => {
+  for (const [idStr, form] of Object.entries(reminderStore.value)) {
+    if (form.mode === 'POMODORO' && form.enabled) {
+      await window.api.pomodoroStop()
+      form.enabled = false
+      await saveReminder(Number(idStr))
+    }
+  }
+}
 window.api.onSaveBeforeClose(async () => {
   try {
     if (saveTimer) {
@@ -457,9 +466,10 @@ window.api.onSaveBeforeClose(async () => {
       window.clearTimeout(reminderSaveTimer)
       reminderSaveTimer = null
     }
-
+    
     await saveAllNotes()
     await saveAllReminders()
+    await closePomodoroBeforeClose()
   } catch (e) {
     console.error('[onSaveBeforeClose] failed:', e)
   } finally {

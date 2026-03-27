@@ -2,7 +2,7 @@
   <div class="pomodoro-window">
     <!-- 自定义标题栏 -->
     <div class="pomodoro-header">
-      <span class="pomodoro-drag">Pomodoro</span>
+      <span class="pomodoro-drag"></span>
       <button class="pomodoro-close" @click="onClose">×</button>
     </div>
 
@@ -68,12 +68,12 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(to right,#45a5fa,#3794EA,#317EC7);
   color: #fff;
   user-select: none;
+    overflow: hidden;
 }
 
-/* 自定义标题栏 */
 .pomodoro-header {
   display: flex;
   justify-content: space-between;
@@ -113,16 +113,22 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  overflow-y: auto; 
+  overflow-x: auto; 
+  scrollbar-width: none;  
+}
+.pomodoro-body::-webkit-scrollbar {
+  display: none;  
 }
 
 .pomodoro-title {
-  font-size: 18px;
+  font-size: clamp(14px, 5vw, 24px);   /* 最小14px，最大24px，根据视口宽度5vw缩放 */
   font-weight: bold;
   margin-bottom: 16px;
 }
 
 .pomodoro-timer {
-  font-size: 72px;
+  font-size: clamp(36px, 15vw, 72px);  /* 最小36px，最大72px，15vw使其在宽屏上显著 */
   font-weight: bold;
   font-family: monospace;
   letter-spacing: 4px;
@@ -130,11 +136,17 @@ onBeforeUnmount(() => {
 }
 
 .pomodoro-text {
-  font-size: 14px;
-  opacity: 0.8;
+  font-size: clamp(12px, 3vw, 16px);   /* 最小12px，最大16px，随视口宽度缓慢变化 */
   text-align: center;
   padding: 0 20px;
   max-width: 250px;
   word-wrap: break-word;
+}
+</style>
+<style>
+html, body {
+  overflow: hidden !important;
+  margin: 0;
+  padding: 0;
 }
 </style>
