@@ -17,17 +17,14 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 
+
 const title = ref('')
 const text = ref('')
-const totalSeconds = ref(0)
 const remainingSeconds = ref(0)
 let timer: ReturnType<typeof setInterval> | null = null
 
-const displayTime = computed(() => {
-  const m = Math.floor(remainingSeconds.value / 60)
-  const s = remainingSeconds.value % 60
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-})
+  import { formatDuration } from '../services/timeUtils'
+const displayTime = computed(() => formatDuration(remainingSeconds.value))
 
 const startCountdown = () => {
   if (timer) clearInterval(timer)
@@ -46,13 +43,19 @@ const onClose = () => {
 }
 
 onMounted(() => {
-  window.api.onPomodoroInit((data: { title: string; text: string; minutes: number }) => {
-    title.value = data.title
-    text.value = data.text
-    totalSeconds.value = data.minutes * 60
-    remainingSeconds.value = totalSeconds.value
-    startCountdown()
-  })
+  const hash = window.location.hash
+  const search = hash.split('?')[1]
+  if (search) {
+    const params = new URLSearchParams(search)
+    const raw = params.get('data')
+    if (raw) {
+      const data = JSON.parse(decodeURIComponent(raw))
+      title.value = data.title
+      text.value = data.text
+      remainingSeconds.value = data.minutes * 60
+      startCountdown()
+    }
+  }
 })
 
 onBeforeUnmount(() => {

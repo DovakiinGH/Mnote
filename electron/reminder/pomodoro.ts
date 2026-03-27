@@ -1,16 +1,22 @@
-import { BrowserWindow, ipcMain,screen } from 'electron'
+import { BrowserWindow, ipcMain, screen } from 'electron'
 import path from 'node:path'
-import { getResourcePath } from '../path'
 import { fileURLToPath } from 'node:url'
-let pomodoroWin: BrowserWindow | null = null
-let currentReminderId: number | null = null
+import { getResourcePath } from '../path'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-// 关闭窗口时的回调
-let onCloseCallback: ((id: number) => void) | null = null
 
-export function setOnPomodoroClose(cb: (id: number) => void) {
-  onCloseCallback = cb
+let pomodoroWin: BrowserWindow | null = null
+let currentReminderId: number | null = null
+let mainWin: BrowserWindow | null = null
+
+// 初始化：传入主窗口引用
+export function initPomodoro(win: BrowserWindow | null) {
+  mainWin = win
+}
+
+// 通知主窗口番茄钟被关闭
+function notifyMainWindow(id: number) {
+  mainWin?.webContents.send('pomodoro-closed', id)
 }
 
 export function openPomodoroWindow(data: {
@@ -19,11 +25,10 @@ export function openPomodoroWindow(data: {
   text: string
   minutes: number
 }) {
-  // 如果已有窗口，先关闭（单例）
+ 
   if (pomodoroWin && !pomodoroWin.isDestroyed()) {
-    // 通知前端旧的番茄钟被关闭
-    if (currentReminderId !== null && onCloseCallback) {
-      onCloseCallback(currentReminderId)
+    if (currentReminderId !== null) {
+      notifyMainWindow(currentReminderId)
     }
     pomodoroWin.destroy()
     pomodoroWin = null
@@ -34,7 +39,7 @@ export function openPomodoroWindow(data: {
   const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize
 
   pomodoroWin = new BrowserWindow({
-    width: Math.round(screenW * 0.15),  
+    width: Math.round(screenW * 0.15),
     height: Math.round(screenH * 0.25),
     resizable: false,
     alwaysOnTop: true,
@@ -45,27 +50,24 @@ export function openPomodoroWindow(data: {
     },
   })
 
+  const params = encodeURIComponent(JSON.stringify({
+    title: data.title,
+    text: data.text,
+    minutes: data.minutes
+  }))
+
   if (process.env.VITE_DEV_SERVER_URL) {
-    pomodoroWin.loadURL(`${process.env.VITE_DEV_SERVER_URL}#/pomodoro`)
+    pomodoroWin.loadURL(`${process.env.VITE_DEV_SERVER_URL}#/pomodoro?data=${params}`)
   } else {
     pomodoroWin.loadFile(path.join(__dirname, '../dist/index.html'), {
-      hash: '/pomodoro'
+      hash: `/pomodoro?data=${params}`
     })
   }
 
-  // 页面加载完后发送数据
-  pomodoroWin.webContents.on('did-finish-load', () => {
-    pomodoroWin?.webContents.send('pomodoro-init', {
-      title: data.title,
-      text: data.text,
-      minutes: data.minutes
-    })
-  })
-
-  // 窗口被用户关闭时
+  
   pomodoroWin.on('closed', () => {
-    if (currentReminderId !== null && onCloseCallback) {
-      onCloseCallback(currentReminderId)
+    if (currentReminderId !== null) {
+      notifyMainWindow(currentReminderId)
     }
     pomodoroWin = null
     currentReminderId = null
@@ -74,7 +76,6 @@ export function openPomodoroWindow(data: {
 
 export function closePomodoroWindow() {
   if (pomodoroWin && !pomodoroWin.isDestroyed()) {
-    // 不触发 onCloseCallback，因为是主动关闭
     const win = pomodoroWin
     pomodoroWin = null
     currentReminderId = null
@@ -82,15 +83,10 @@ export function closePomodoroWindow() {
   }
 }
 
-export function getCurrentPomodoroId(): number | null {
-  return currentReminderId
-}
-
 export function setupPomodoroIpc() {
-  // 番茄钟倒计时结束
   ipcMain.handle('pomodoro-finished', () => {
-    if (currentReminderId !== null && onCloseCallback) {
-      onCloseCallback(currentReminderId)
+    if (currentReminderId !== null) {
+      notifyMainWindow(currentReminderId)
     }
     closePomodoroWindow()
     return true

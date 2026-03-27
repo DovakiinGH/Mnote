@@ -14,8 +14,7 @@ import { getResourcePath } from './path'
 import {
   openPomodoroWindow,
   closePomodoroWindow,
-  getCurrentPomodoroId,
-  setOnPomodoroClose,
+  initPomodoro,
   setupPomodoroIpc
 } from './reminder/pomodoro'
 
@@ -46,30 +45,11 @@ let isQuitting = false
 let tray: Tray | null = null
 let currentShortcut = 'Alt+Space'
 
-const scheduler = createReminderScheduler(async (payload) => {
-  if (payload.mode === 'NOTIFICATION') {
-    // 系统通知
-    const n = new Notification({
-      title: payload.title,
-      body: payload.text
-    })
-    n.show()
-  } else if (payload.mode === 'POPUP_WINDOW'){
-    // 弹窗
-    openReminderMandatoryWindow(payload.text)
-  }
-},
-  () => { win?.webContents.send('reminders:changed')}
-)
-
 // for windows system
 if (process.platform === 'win32') {
   app.setAppUserModelId('com.yourapp.mnote')
 }
-
-//win
 //--------------------------------------createWindow----------------------------------------------------------------------//
-
 
 function createWindow() {
   win = new BrowserWindow({
@@ -90,12 +70,6 @@ function createWindow() {
     }
   })
 
-  // Test active push message to Renderer-process.
-  win.webContents.on('did-finish-load', () => {
-    win?.webContents.send('main-process-message', (new Date).toLocaleString())
-  })
-  
-//URL
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(`${VITE_DEV_SERVER_URL}#/`)
   } else {
@@ -165,7 +139,21 @@ function registerHotkey(accelerator: string) {
   currentShortcut = accelerator
   return true
 }
-//------------------------------------reminders mandatory pop windows------------------------------------------------
+//------------------------------------reminders pop windows------------------------------------------------
+const scheduler = createReminderScheduler(async (payload) => {
+  if (payload.mode === 'NOTIFICATION') {
+    const n = new Notification({
+      title: payload.title,
+      body: payload.text
+    })
+    n.show()
+  } else if (payload.mode === 'POPUP_WINDOW'){
+    openReminderMandatoryWindow(payload.text)
+  }
+},
+  () => { win?.webContents.send('reminders:changed')}
+)
+
 function openReminderMandatoryWindow(initialText: string) {
   const channel = `reminder:submit-mandatory:${randomUUID()}`
 
@@ -270,8 +258,10 @@ async function bootstrap() {
 
     //a set up 'pomodoro-finished' from pomodoro.ts, 
     // which will be called when pomodoro window sends 'pomodoro-finished' after countdown ends
+    initPomodoro(win)
     setupPomodoroIpc()
 
+    // from Pomodoro vue 
     ipcMain.handle('pomodoro-start', (_event, data: {
       id: number
       title: string
@@ -287,10 +277,6 @@ async function bootstrap() {
       return true
     })
 
-    // set a callback to notify renderer when pomodoro window is closed by user or finished
-    setOnPomodoroClose((id: number) => {
-      win?.webContents.send('pomodoro-closed', id)
-    })
 
     //---------------------------------------------------------------//
     //SingletInstance

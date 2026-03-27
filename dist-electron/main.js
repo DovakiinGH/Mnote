@@ -164,7 +164,7 @@ function createReminderScheduler(notify, onChanged) {
     running = true;
     try {
       const now = Date.now();
-      const rows = await getEnabledReminders();
+      const rows = getEnabledReminders();
       let changed = false;
       for (const row of rows) {
         if (!isDue(row, now)) continue;
@@ -173,9 +173,9 @@ function createReminderScheduler(notify, onChanged) {
           text: row.text || "",
           mode: row.mode
         });
-        await markTriggered(row.id, now);
+        markTriggered(row.id, now);
         if (row.type === "AFTER_MINUTES" || row.type === "DATE_TIME") {
-          await disableReminder(row.id, now);
+          disableReminder(row.id, now);
         }
         changed = true;
       }
@@ -402,7 +402,7 @@ async function saveQuickNote(mainWindow) {
   if (!title && !content) return;
   const now = Date.now();
   const id = now;
-  await saveNoteService({
+  saveNoteService({
     id,
     title: title || "Untitled",
     content,
@@ -441,20 +441,18 @@ function openPomodoroWindow(data) {
       preload: path.join(__dirname$2, "preload.mjs")
     }
   });
+  const params = encodeURIComponent(JSON.stringify({
+    title: data.title,
+    text: data.text,
+    minutes: data.minutes
+  }));
   if (process.env.VITE_DEV_SERVER_URL) {
-    pomodoroWin.loadURL(`${process.env.VITE_DEV_SERVER_URL}#/pomodoro`);
+    pomodoroWin.loadURL(`${process.env.VITE_DEV_SERVER_URL}#/pomodoro?data=${params}`);
   } else {
     pomodoroWin.loadFile(path.join(__dirname$2, "../dist/index.html"), {
-      hash: "/pomodoro"
+      hash: `/pomodoro?data=${params}`
     });
   }
-  pomodoroWin.webContents.on("did-finish-load", () => {
-    pomodoroWin == null ? void 0 : pomodoroWin.webContents.send("pomodoro-init", {
-      title: data.title,
-      text: data.text,
-      minutes: data.minutes
-    });
-  });
   pomodoroWin.on("closed", () => {
     if (currentReminderId !== null && onCloseCallback) {
       onCloseCallback(currentReminderId);

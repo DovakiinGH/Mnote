@@ -57,8 +57,7 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('pomodoro-stop'),
   pomodoroFinished: () =>
     ipcRenderer.invoke('pomodoro-finished'),
-  onPomodoroInit: (cb: (data: { title: string; text: string; minutes: number }) => void) =>
-    ipcRenderer.on('pomodoro-init', (_event, data) => cb(data)),
+
   onPomodoroClosed: (cb: (id: number) => void) =>
     ipcRenderer.on('pomodoro-closed', (_event, id) => cb(id)),
   })
