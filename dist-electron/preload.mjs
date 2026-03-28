@@ -45,5 +45,9 @@ electron.contextBridge.exposeInMainWorld("api", {
   pomodoroStart: (data) => electron.ipcRenderer.invoke("pomodoro-start", data),
   pomodoroStop: () => electron.ipcRenderer.invoke("pomodoro-stop"),
   pomodoroFinished: () => electron.ipcRenderer.invoke("pomodoro-finished"),
-  onPomodoroClosed: (cb) => electron.ipcRenderer.on("pomodoro-closed", (_event, id) => cb(id))
+  onPomodoroClosed: (cb) => electron.ipcRenderer.on("pomodoro-closed", (_event, id) => cb(id)),
+  settingsOpen: () => electron.ipcRenderer.invoke("settings-open"),
+  settingsClose: () => electron.ipcRenderer.invoke("settings-close"),
+  settingsSave: (settings) => electron.ipcRenderer.invoke("settings-save", settings),
+  onSettingsChanged: (cb) => electron.ipcRenderer.on("settings-changed", (_event, settings) => cb(settings))
 });

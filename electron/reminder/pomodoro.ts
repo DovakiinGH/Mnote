@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain, screen } from 'electron'
+import { BrowserWindow, ipcMain,screen  } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getResourcePath } from '../path'
@@ -7,16 +7,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 let pomodoroWin: BrowserWindow | null = null
 let currentReminderId: number | null = null
-let mainWin: BrowserWindow | null = null
 
-// 初始化：传入主窗口引用
-export function initPomodoro(win: BrowserWindow | null) {
-  mainWin = win
-}
+let onCloseCallback: ((id: number) => void) | null = null
 
-// 通知主窗口番茄钟被关闭
-function notifyMainWindow(id: number) {
-  mainWin?.webContents.send('pomodoro-closed', id)
+export function setOnPomodoroClose(cb: (id: number) => void) {
+  onCloseCallback = cb
 }
 
 export function openPomodoroWindow(data: {
@@ -25,23 +20,21 @@ export function openPomodoroWindow(data: {
   text: string
   minutes: number
 }) {
- 
   if (pomodoroWin && !pomodoroWin.isDestroyed()) {
-    if (currentReminderId !== null) {
-      notifyMainWindow(currentReminderId)
+    if (currentReminderId !== null && onCloseCallback) {
+      onCloseCallback(currentReminderId)
     }
     pomodoroWin.destroy()
     pomodoroWin = null
   }
 
   currentReminderId = data.id
-
   const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize
 
   pomodoroWin = new BrowserWindow({
-    width: Math.round(screenW * 0.15),
-    height: Math.round(screenH * 0.25),
-    resizable: false,
+   width: Math.round(screenW * 0.25),
+    height: Math.round(screenH * 0.35),
+    resizable: true,
     alwaysOnTop: true,
     frame: false,
     icon: getResourcePath('icon.ico'),
@@ -50,11 +43,19 @@ export function openPomodoroWindow(data: {
     },
   })
 
-  const params = encodeURIComponent(JSON.stringify({
-    title: data.title,
-    text: data.text,
-    minutes: data.minutes
-  }))
+  if (process.env.VITE_DEV_SERVER_URL) {
+    pomodoroWin.loadURL(`${process.env.VITE_DEV_SERVER_URL}#/pomodoro`)
+  } else {
+    pomodoroWin.loadFile(path.join(__dirname, '../dist/index.html'), {
+      hash: '/pomodoro'
+    })
+  }
+
+const params = encodeURIComponent(JSON.stringify({
+  title: data.title,
+  text: data.text,
+  minutes: data.minutes
+}))
 
   if (process.env.VITE_DEV_SERVER_URL) {
     pomodoroWin.loadURL(`${process.env.VITE_DEV_SERVER_URL}#/pomodoro?data=${params}`)
@@ -64,10 +65,9 @@ export function openPomodoroWindow(data: {
     })
   }
 
-  
   pomodoroWin.on('closed', () => {
-    if (currentReminderId !== null) {
-      notifyMainWindow(currentReminderId)
+    if (currentReminderId !== null && onCloseCallback) {
+      onCloseCallback(currentReminderId)
     }
     pomodoroWin = null
     currentReminderId = null
@@ -83,10 +83,14 @@ export function closePomodoroWindow() {
   }
 }
 
+export function getCurrentPomodoroId(): number | null {
+  return currentReminderId
+}
+
 export function setupPomodoroIpc() {
   ipcMain.handle('pomodoro-finished', () => {
-    if (currentReminderId !== null) {
-      notifyMainWindow(currentReminderId)
+    if (currentReminderId !== null && onCloseCallback) {
+      onCloseCallback(currentReminderId)
     }
     closePomodoroWindow()
     return true

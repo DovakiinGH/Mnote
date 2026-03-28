@@ -42,7 +42,7 @@
         <el-button
         class="gear-btn side-btn "
         text
-        @click="onToggleLang">
+        @click="onOpenSettings">
         <el-icon><Setting /></el-icon>
         </el-button>
 
@@ -493,6 +493,11 @@ onMounted(() => {
       scheduleSaveReminder(id)
     }
      })
+   window.api.onSettingsChanged((settings) => {
+    if (settings.language) {
+      locale.value = settings.language
+    }
+  })
   
 })
 
@@ -887,11 +892,14 @@ const sortedReminders = computed(() => {
     return bu - au
   })
 })
-//---------------------------------language-----------------------------------------------------
+//---------------------------------settings-----------------------------------------------------
 const onToggleLang = () => {
   const next = locale.value === 'en-US' ? 'zh-CN' : 'en-US'
   locale.value = next
   localStorage.setItem('lang', next)
+}
+const onOpenSettings = async () => {
+  await window.api.settingsOpen()
 }
 //-----------------------------watch-------------------------------------
 
@@ -903,10 +911,7 @@ watch(
   ],
   ([tabType, id, _form], [_prevTabType, prevId, _prevForm]) => {
     if (tabType !== 'reminders' || !id) return
-
-   
     if (id !== prevId) return
-
     scheduleSaveReminder(id)
   },
   { deep: true }

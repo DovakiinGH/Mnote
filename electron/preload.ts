@@ -45,7 +45,6 @@ contextBridge.exposeInMainWorld('api', {
   showReminder: (payload: { title: string; body: string }) =>
     ipcRenderer.invoke('reminder:show', payload),
   openMandatoryReminder: (text: string) => ipcRenderer.invoke('reminder:open-mandatory', text),
- 
   submitMandatoryReminder: (payload: { text: string }, channel: string) =>
   ipcRenderer.invoke(channel, payload),
   onRemindersChanged: (cb: () => void) => {
@@ -57,9 +56,15 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('pomodoro-stop'),
   pomodoroFinished: () =>
     ipcRenderer.invoke('pomodoro-finished'),
-
   onPomodoroClosed: (cb: (id: number) => void) =>
     ipcRenderer.on('pomodoro-closed', (_event, id) => cb(id)),
+  
+  settingsOpen: () => ipcRenderer.invoke('settings-open'),
+  settingsClose: () => ipcRenderer.invoke('settings-close'),
+  settingsSave: (settings: { language: string; closeAction: string }) =>
+    ipcRenderer.invoke('settings-save', settings),
+  onSettingsChanged: (cb: (settings: { language: string; closeAction: string }) => void) =>
+    ipcRenderer.on('settings-changed', (_event, settings) => cb(settings)),
   })
 
 

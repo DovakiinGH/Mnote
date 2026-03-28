@@ -30,6 +30,10 @@ declare global {
         onPomodoroInit: (cb: (data: {title: string;text: string;minutes: number}) => void) => void
         onPomodoroClosed: (cb: (id: number) => void) => void
 
+        settingsOpen: () => Promise<boolean>
+        settingsClose: () => Promise<boolean>
+        settingsSave: (settings: { language: string; closeAction: string }) => Promise<boolean>
+        onSettingsChanged: (cb: (settings: { language: string; closeAction: string }) => void) => void
        
     }
   }

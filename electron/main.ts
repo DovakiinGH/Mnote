@@ -1,5 +1,4 @@
 import { app, BrowserWindow,ipcMain,Menu,Tray,nativeImage,globalShortcut, Notification,screen  } from 'electron'
-// import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { randomUUID } from 'crypto'
 import path from 'node:path'
@@ -11,33 +10,16 @@ import { listNotesService,saveNoteService,removeNoteService,createNoteService } 
 import { listRemindersService, saveReminderService, removeReminderService, markReminderTriggeredService,createReminderService} from './backend/reminders.service' // 你文件名按实际改
 import { updateQuickNote, saveQuickNote } from './backend/quick.service'
 import { getResourcePath } from './path'
-import {
-  openPomodoroWindow,
-  closePomodoroWindow,
-  initPomodoro,
-  setupPomodoroIpc
-} from './reminder/pomodoro'
-
+import {openPomodoroWindow,closePomodoroWindow,setOnPomodoroClose,setupPomodoroIpc} from './reminder/pomodoro'
+import { initSettings,setupSettingsIpc } from './settings'
 console.log('[main] main.ts loaded')
 // const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
-// The built directory structure
-//
-// ├─┬─┬ dist
-// │ │ └── index.html
-// │ │
-// │ ├─┬ dist-electron
-// │ │ ├── main.js
-// │ │ └── preload.mjs
-// │
 process.env.APP_ROOT = path.join(__dirname, '..')
-
 // 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
 export const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
 export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron')
 export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
-
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
 
 let win: BrowserWindow | null = null
@@ -49,6 +31,7 @@ let currentShortcut = 'Alt+Space'
 if (process.platform === 'win32') {
   app.setAppUserModelId('com.yourapp.mnote')
 }
+app.setName('MNote')
 //--------------------------------------createWindow----------------------------------------------------------------------//
 
 function createWindow() {
@@ -75,6 +58,8 @@ function createWindow() {
   } else {
     win.loadFile(path.join(RENDERER_DIST, 'index.html'), { hash: '/' })
   }
+  initSettings(win)
+
 }
 
 //-------------------------------------tray----------------------------------------------------------------------------
@@ -149,10 +134,14 @@ const scheduler = createReminderScheduler(async (payload) => {
     n.show()
   } else if (payload.mode === 'POPUP_WINDOW'){
     openReminderMandatoryWindow(payload.text)
+  } else if (payload.mode === 'POMODORO') {
+      const n = new Notification({
+      title: payload.title,
+      body: payload.text
+    })
+    n.show()
   }
-},
-  () => { win?.webContents.send('reminders:changed')}
-)
+}, () => { win?.webContents.send('reminders:changed') })
 
 function openReminderMandatoryWindow(initialText: string) {
   const channel = `reminder:submit-mandatory:${randomUUID()}`
@@ -258,25 +247,21 @@ async function bootstrap() {
 
     //a set up 'pomodoro-finished' from pomodoro.ts, 
     // which will be called when pomodoro window sends 'pomodoro-finished' after countdown ends
-    initPomodoro(win)
     setupPomodoroIpc()
-
     // from Pomodoro vue 
-    ipcMain.handle('pomodoro-start', (_event, data: {
-      id: number
-      title: string
-      text: string
-      minutes: number
-    }) => {
+    ipcMain.handle('pomodoro-start', (_event, data: {id: number,title: string,text: string,minutes: number}) => {
       openPomodoroWindow(data)
       return true
     })
-
     ipcMain.handle('pomodoro-stop', () => {
       closePomodoroWindow()
       return true
     })
+    setOnPomodoroClose((id: number) => {
+      win?.webContents.send('pomodoro-closed', id)
+    })
 
+    setupSettingsIpc()
 
     //---------------------------------------------------------------//
     //SingletInstance
@@ -295,8 +280,6 @@ async function bootstrap() {
       })
       app.whenReady().then(createWindow)
     }
-
-    
     registerHotkey(currentShortcut)
     createTray()
     scheduler.start() //FOR REMINDERS

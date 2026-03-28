@@ -413,9 +413,9 @@ async function saveQuickNote(mainWindow) {
   mainWindow == null ? void 0 : mainWindow.webContents.send("notes:changed");
   clearQuickNote();
 }
+const __dirname$3 = path.dirname(fileURLToPath(import.meta.url));
 let pomodoroWin = null;
 let currentReminderId = null;
-const __dirname$2 = path.dirname(fileURLToPath(import.meta.url));
 let onCloseCallback = null;
 function setOnPomodoroClose(cb) {
   onCloseCallback = cb;
@@ -431,16 +431,23 @@ function openPomodoroWindow(data) {
   currentReminderId = data.id;
   const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
   pomodoroWin = new BrowserWindow({
-    width: Math.round(screenW * 0.15),
-    height: Math.round(screenH * 0.25),
-    resizable: false,
+    width: Math.round(screenW * 0.25),
+    height: Math.round(screenH * 0.35),
+    resizable: true,
     alwaysOnTop: true,
     frame: false,
     icon: getResourcePath("icon.ico"),
     webPreferences: {
-      preload: path.join(__dirname$2, "preload.mjs")
+      preload: path.join(__dirname$3, "preload.mjs")
     }
   });
+  if (process.env.VITE_DEV_SERVER_URL) {
+    pomodoroWin.loadURL(`${process.env.VITE_DEV_SERVER_URL}#/pomodoro`);
+  } else {
+    pomodoroWin.loadFile(path.join(__dirname$3, "../dist/index.html"), {
+      hash: "/pomodoro"
+    });
+  }
   const params = encodeURIComponent(JSON.stringify({
     title: data.title,
     text: data.text,
@@ -449,7 +456,7 @@ function openPomodoroWindow(data) {
   if (process.env.VITE_DEV_SERVER_URL) {
     pomodoroWin.loadURL(`${process.env.VITE_DEV_SERVER_URL}#/pomodoro?data=${params}`);
   } else {
-    pomodoroWin.loadFile(path.join(__dirname$2, "../dist/index.html"), {
+    pomodoroWin.loadFile(path.join(__dirname$3, "../dist/index.html"), {
       hash: `/pomodoro?data=${params}`
     });
   }
@@ -478,6 +485,63 @@ function setupPomodoroIpc() {
     return true;
   });
 }
+const __dirname$2 = path.dirname(fileURLToPath(import.meta.url));
+let settingsWin = null;
+let mainWin = null;
+function initSettings(win2) {
+  mainWin = win2;
+}
+function openSettingsWindow() {
+  if (settingsWin && !settingsWin.isDestroyed()) {
+    settingsWin.focus();
+    return;
+  }
+  const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
+  settingsWin = new BrowserWindow({
+    width: Math.round(screenW * 0.45),
+    height: Math.round(screenH * 0.55),
+    resizable: false,
+    modal: true,
+    alwaysOnTop: true,
+    center: true,
+    parent: mainWin ?? void 0,
+    icon: getResourcePath("icon.ico"),
+    frame: false,
+    webPreferences: {
+      preload: path.join(__dirname$2, "preload.mjs")
+    }
+  });
+  if (process.env.VITE_DEV_SERVER_URL) {
+    settingsWin.loadURL(`${process.env.VITE_DEV_SERVER_URL}#/settings`);
+  } else {
+    settingsWin.loadFile(path.join(__dirname$2, "../dist/index.html"), {
+      hash: "/settings"
+    });
+  }
+  settingsWin.on("closed", () => {
+    settingsWin = null;
+  });
+}
+function closeSettingsWindow() {
+  if (settingsWin && !settingsWin.isDestroyed()) {
+    settingsWin.destroy();
+    settingsWin = null;
+  }
+}
+function setupSettingsIpc() {
+  ipcMain.handle("settings-open", () => {
+    openSettingsWindow();
+    return true;
+  });
+  ipcMain.handle("settings-close", () => {
+    closeSettingsWindow();
+    return true;
+  });
+  ipcMain.handle("settings-save", (_event, settings) => {
+    mainWin == null ? void 0 : mainWin.webContents.send("settings-changed", settings);
+    return true;
+  });
+}
 console.log("[main] main.ts loaded");
 const __dirname$1 = path.dirname(fileURLToPath(import.meta.url));
 process.env.APP_ROOT = path.join(__dirname$1, "..");
@@ -489,25 +553,10 @@ let win = null;
 let isQuitting = false;
 let tray = null;
 let currentShortcut = "Alt+Space";
-const scheduler = createReminderScheduler(
-  async (payload) => {
-    if (payload.mode === "NOTIFICATION") {
-      const n = new Notification({
-        title: payload.title,
-        body: payload.text
-      });
-      n.show();
-    } else if (payload.mode === "POPUP_WINDOW") {
-      openReminderMandatoryWindow(payload.text);
-    }
-  },
-  () => {
-    win == null ? void 0 : win.webContents.send("reminders:changed");
-  }
-);
 if (process.platform === "win32") {
   app.setAppUserModelId("com.yourapp.mnote");
 }
+app.setName("MNote");
 function createWindow() {
   win = new BrowserWindow({
     icon: getResourcePath("icon.ico"),
@@ -522,14 +571,12 @@ function createWindow() {
       win == null ? void 0 : win.hide();
     }
   });
-  win.webContents.on("did-finish-load", () => {
-    win == null ? void 0 : win.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
-  });
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(`${VITE_DEV_SERVER_URL}#/`);
   } else {
     win.loadFile(path.join(RENDERER_DIST, "index.html"), { hash: "/" });
   }
+  initSettings(win);
 }
 function resolveResourcePath(fileName) {
   if (app.isPackaged) {
@@ -587,6 +634,25 @@ function registerHotkey(accelerator) {
   currentShortcut = accelerator;
   return true;
 }
+const scheduler = createReminderScheduler(async (payload) => {
+  if (payload.mode === "NOTIFICATION") {
+    const n = new Notification({
+      title: payload.title,
+      body: payload.text
+    });
+    n.show();
+  } else if (payload.mode === "POPUP_WINDOW") {
+    openReminderMandatoryWindow(payload.text);
+  } else if (payload.mode === "POMODORO") {
+    const n = new Notification({
+      title: payload.title,
+      body: payload.text
+    });
+    n.show();
+  }
+}, () => {
+  win == null ? void 0 : win.webContents.send("reminders:changed");
+});
 function openReminderMandatoryWindow(initialText) {
   const channel = `reminder:submit-mandatory:${randomUUID()}`;
   const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
@@ -685,6 +751,7 @@ async function bootstrap() {
     setOnPomodoroClose((id) => {
       win == null ? void 0 : win.webContents.send("pomodoro-closed", id);
     });
+    setupSettingsIpc();
     Menu.setApplicationMenu(null);
     const gotTheLock = app.requestSingleInstanceLock();
     if (!gotTheLock) {

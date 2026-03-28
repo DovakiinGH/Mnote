@@ -36,6 +36,14 @@ export default {
     },
     pomodoro:{
       end:' is finished.',
+  },
+    settings: {
+    title: "Settings",
+    language: "Language",
+    closeAction: "Close Behavior",
+    closeActionQuit: "Quit Application",
+    closeActionTray: "Minimize to Tray",
+    done: "Done"
   }
 }
 }

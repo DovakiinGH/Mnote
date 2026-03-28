@@ -14,12 +14,32 @@
       </div>
     </el-scrollbar>
 
-    <div class="reminder-footer">
-      <el-button @click="onSubmit">Done</el-button>
+    <div class="footer">
+      <el-button @click="onSubmit">{{ t('app.settings.done') }}</el-button>
     </div>
   </div>
 </template>
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
 
+const route = useRoute()
+const text = ref('')
+const channel = ref('')
+const editorRef = ref<HTMLElement | null>(null)
+
+onMounted(() => {
+  text.value = String(route.query.text ?? '')
+  channel.value = String(route.query.channel ?? '')  
+  if (editorRef.value) editorRef.value.innerText = text.value
+})
+
+const onSubmit = async () => {
+  await window.api.submitMandatoryReminder({ text: text.value }, channel.value)
+}
+</script>
 <style scoped>
 .reminder-mandatory {
   height: 100vh;
@@ -63,42 +83,4 @@
   color: #999;
 }
 
-.reminder-footer {
-  padding: 12px 20px;
-  display: flex;
-  justify-content: flex-end;
-  border-top: 1px solid #eee;
-}
-
-.reminder-footer :deep(.el-button) {
-  background-color: #409eff;
-  border: #409eff;
-  color: #fff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18);
-}
-
-.reminder-footer :deep(.el-button:hover) {
-  background-color: #fff;
-  border-color: #409eff;
-  color: #409eff;
-}
 </style>
-<script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
-
-const route = useRoute()
-const text = ref('')
-const channel = ref('')
-const editorRef = ref<HTMLElement | null>(null)
-
-onMounted(() => {
-  text.value = String(route.query.text ?? '')
-  channel.value = String(route.query.channel ?? '')  
-  if (editorRef.value) editorRef.value.innerText = text.value
-})
-
-const onSubmit = async () => {
-  await window.api.submitMandatoryReminder({ text: text.value }, channel.value)
-}
-</script>

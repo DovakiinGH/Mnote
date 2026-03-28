@@ -36,6 +36,14 @@ export default {
     },
     pomodoro:{
       end:' 已经结束。',
+  },
+   settings: {
+    title: "设置",
+    language: "语言",
+    closeAction: "关闭行为",
+    closeActionQuit: "退出应用",
+    closeActionTray: "最小化到托盘",
+    done: "完成"
   }
   }
 }
