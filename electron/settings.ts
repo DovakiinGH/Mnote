@@ -20,6 +20,7 @@ export function openSettingsWindow(){
         width: Math.round(screenW * 0.45),  
         height: Math.round(screenH * 0.55),
         resizable: false,
+        movable: false, 
         modal: true,
         alwaysOnTop: true,
         center: true,

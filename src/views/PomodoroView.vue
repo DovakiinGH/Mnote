@@ -3,7 +3,7 @@
     <!-- 自定义标题栏 -->
     <div class="pomodoro-header">
       <span class="pomodoro-drag"></span>
-      <button class="pomodoro-close" @click="onClose">×</button>
+      <button class="pomodoro-close-button" @click="onClose">×</button>
     </div>
 
     <div class="pomodoro-body">
@@ -87,7 +87,7 @@ onBeforeUnmount(() => {
   opacity: 0.7;
 }
 
-.pomodoro-close {
+.pomodoro-close-button {
   -webkit-app-region: no-drag;  /* 按钮不参与拖动 */
   background: none;
   border: none;
@@ -102,7 +102,7 @@ onBeforeUnmount(() => {
   border-radius: 4px;
 }
 
-.pomodoro-close:hover {
+.pomodoro-close-button:hover {
   background: rgba(255, 255, 255, 0.2);
 }
 
