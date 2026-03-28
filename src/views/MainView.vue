@@ -334,6 +334,7 @@ const isSubOpen = ref(true)
 const selectedSubId = ref<number | null>(null)
 
 const topButton = false
+const currentCloseAction=ref('tray')
 
 const testClick=async ()=>{
   await window.api.showReminder({
@@ -341,7 +342,6 @@ const testClick=async ()=>{
   body: 'Buy milk at 18:00'
 })
 }
-
 const testClickSecond=async ()=>{
   await window.api.openMandatoryReminder('Pay rent today')
 }
@@ -477,7 +477,7 @@ window.api.onSaveBeforeClose(async () => {
   }
 })
 
-onMounted(() => {
+onMounted(async () => {
   loadNotes()
   loadReminders()
   window.api.onNotesChanged(() => {
@@ -493,11 +493,14 @@ onMounted(() => {
       scheduleSaveReminder(id)
     }
      })
-   window.api.onSettingsChanged((settings) => {
-    if (settings.language) {
+  const settings = await window.api.settingsGet()  
+  locale.value = settings.language                  
+  currentCloseAction.value = settings.closeAction
+  window.api.onSettingsChanged((settings) => {
       locale.value = settings.language
-    }
-  })
+      currentCloseAction.value = settings.closeAction
+    })
+    
   
 })
 
@@ -780,7 +783,7 @@ const selectedName = computed({
   },
   set(val: string) {
     if (!activeContentItem.value) return
-    if (activeContentItem.value.name === val) return  // ← 新增
+    if (activeContentItem.value.name === val) return  
 
     activeContentItem.value.name = val
     activeContentItem.value.updatedAt = Date.now()

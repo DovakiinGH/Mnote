@@ -528,19 +528,28 @@ function closeSettingsWindow() {
     settingsWin = null;
   }
 }
-function setupSettingsIpc() {
-  ipcMain.handle("settings-open", () => {
-    openSettingsWindow();
-    return true;
-  });
-  ipcMain.handle("settings-close", () => {
-    closeSettingsWindow();
-    return true;
-  });
-  ipcMain.handle("settings-save", (_event, settings) => {
-    mainWin == null ? void 0 : mainWin.webContents.send("settings-changed", settings);
-    return true;
-  });
+const defaultSettings = {
+  language: "en-US",
+  closeAction: "tray"
+};
+const filePath = path.join(app.getPath("userData"), "settings.json");
+function loadSettings() {
+  try {
+    if (fs.existsSync(filePath)) {
+      const raw = fs.readFileSync(filePath, "utf-8");
+      return { ...defaultSettings, ...JSON.parse(raw) };
+    }
+  } catch (e) {
+    console.error("[settings] load failed:", e);
+  }
+  return { ...defaultSettings };
+}
+function saveSettings(settings) {
+  try {
+    fs.writeFileSync(filePath, JSON.stringify(settings, null, 2), "utf-8");
+  } catch (e) {
+    console.error("[settings] save failed:", e);
+  }
 }
 console.log("[main] main.ts loaded");
 const __dirname$1 = path.dirname(fileURLToPath(import.meta.url));
@@ -553,6 +562,7 @@ let win = null;
 let isQuitting = false;
 let tray = null;
 let currentShortcut = "Alt+Space";
+let currentSettings = loadSettings();
 if (process.platform === "win32") {
   app.setAppUserModelId("com.yourapp.mnote");
 }
@@ -566,9 +576,13 @@ function createWindow() {
     }
   });
   win.on("close", (e) => {
-    if (!isQuitting) {
+    if (isQuitting) return;
+    if (currentSettings.closeAction === "tray") {
       e.preventDefault();
       win == null ? void 0 : win.hide();
+    } else if (currentSettings.closeAction === "quit") {
+      e.preventDefault();
+      requestQuitWithSave();
     }
   });
   if (VITE_DEV_SERVER_URL) {
@@ -751,7 +765,23 @@ async function bootstrap() {
     setOnPomodoroClose((id) => {
       win == null ? void 0 : win.webContents.send("pomodoro-closed", id);
     });
-    setupSettingsIpc();
+    ipcMain.handle("settings-open", () => {
+      openSettingsWindow();
+      return true;
+    });
+    ipcMain.handle("settings-close", () => {
+      closeSettingsWindow();
+      return true;
+    });
+    ipcMain.handle("settings-save", (_event, settings) => {
+      currentSettings = { ...settings };
+      saveSettings(currentSettings);
+      win == null ? void 0 : win.webContents.send("settings-changed", settings);
+      return true;
+    });
+    ipcMain.handle("settings-get", () => {
+      return currentSettings;
+    });
     Menu.setApplicationMenu(null);
     const gotTheLock = app.requestSingleInstanceLock();
     if (!gotTheLock) {

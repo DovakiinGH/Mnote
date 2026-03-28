@@ -13,8 +13,8 @@
         <!-- 语言 -->
         <el-form-item :label="t('app.settings.language')">
           <el-select v-model="form.language" @change="onLanguageChange">
-            <el-option label="English" value="en" />
-            <el-option label="中文" value="zh" />
+            <el-option label="English" value="en-US" />
+            <el-option label="中文" value="zh-CN" />
           </el-select>
         </el-form-item>
 
@@ -45,20 +45,11 @@ const form = reactive({
   closeAction: 'tray',
 })
 
-onMounted(() => {
-  // 从 URL 参数读取当前设置
-  const hash = window.location.hash
-  const search = hash.split('?')[1]
-  if (search) {
-    const params = new URLSearchParams(search)
-    const raw = params.get('data')
-    if (raw) {
-      const data = JSON.parse(decodeURIComponent(raw))
-      form.language = data.language ?? 'en'
-      form.closeAction = data.closeAction ?? 'tray'
-      locale.value = form.language
-    }
-  }
+onMounted(async () => {
+  const settings = await window.api.settingsGet()
+  form.language = settings.language
+  form.closeAction = settings.closeAction
+  locale.value = form.language
 })
 
 const onLanguageChange = (lang: string) => {

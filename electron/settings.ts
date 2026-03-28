@@ -7,10 +7,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 let settingsWin: BrowserWindow | null = null
 let mainWin: BrowserWindow | null = null
 
-// function getMainWindow(): BrowserWindow | null {
-//   const allWindows = BrowserWindow.getAllWindows()
-//   return allWindows.find(w => w !== settingsWin && !w.isDestroyed()) ?? null
-// }
 export function initSettings(win: BrowserWindow | null) {
   mainWin = win
 }
@@ -20,7 +16,6 @@ export function openSettingsWindow(){
         return
     }
     const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize
-    // const mainWin = getMainWindow()
     settingsWin = new BrowserWindow({
         width: Math.round(screenW * 0.45),  
         height: Math.round(screenH * 0.55),
@@ -52,18 +47,4 @@ export function closeSettingsWindow() {
     settingsWin = null
   }
 }
-export function setupSettingsIpc() {
-  ipcMain.handle('settings-open', () => {openSettingsWindow()
-    return true
-  })
-  ipcMain.handle('settings-close', () => {closeSettingsWindow()
-    return true
-  })
-  ipcMain.handle('settings-save', (_event, settings: {
-    language: string
-    closeAction: string
-  }) => {
-    mainWin?.webContents.send('settings-changed', settings)
-    return true
-  })
-}
+

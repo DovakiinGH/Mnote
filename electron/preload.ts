@@ -61,10 +61,13 @@ contextBridge.exposeInMainWorld('api', {
   
   settingsOpen: () => ipcRenderer.invoke('settings-open'),
   settingsClose: () => ipcRenderer.invoke('settings-close'),
+  //renderer to main; let main know user saved settings and pass the settings data
   settingsSave: (settings: { language: string; closeAction: string }) =>
     ipcRenderer.invoke('settings-save', settings),
+  //main to renderer; let renderer know settings changed
   onSettingsChanged: (cb: (settings: { language: string; closeAction: string }) => void) =>
     ipcRenderer.on('settings-changed', (_event, settings) => cb(settings)),
+  settingsGet: () => ipcRenderer.invoke('settings-get'),
   })
 
 

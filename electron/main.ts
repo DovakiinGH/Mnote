@@ -11,7 +11,9 @@ import { listRemindersService, saveReminderService, removeReminderService, markR
 import { updateQuickNote, saveQuickNote } from './backend/quick.service'
 import { getResourcePath } from './path'
 import {openPomodoroWindow,closePomodoroWindow,setOnPomodoroClose,setupPomodoroIpc} from './reminder/pomodoro'
-import { initSettings,setupSettingsIpc } from './settings'
+import { initSettings,openSettingsWindow,closeSettingsWindow } from './settings'
+import { loadSettings, saveSettings } from './settings-store'
+import type { AppSettings } from './settings-store'
 console.log('[main] main.ts loaded')
 // const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -26,8 +28,10 @@ let win: BrowserWindow | null = null
 let isQuitting = false
 let tray: Tray | null = null
 let currentShortcut = 'Alt+Space'
+let currentSettings = loadSettings()
 
-// for windows system
+
+
 if (process.platform === 'win32') {
   app.setAppUserModelId('com.yourapp.mnote')
 }
@@ -46,12 +50,16 @@ function createWindow() {
 //   win.webContents.openDevTools()
 // }
   win.on('close', (e) => {
-    if (!isQuitting) {
+    if (isQuitting) return
+    if (currentSettings.closeAction === 'tray') {
       e.preventDefault()
-       win?.hide()
-      // win?.webContents.send('app:save-before-close')
+      win?.hide()
+    }else if (currentSettings.closeAction === 'quit') {
+      e.preventDefault() 
+      requestQuitWithSave()
     }
   })
+   
 
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(`${VITE_DEV_SERVER_URL}#/`)
@@ -260,8 +268,23 @@ async function bootstrap() {
     setOnPomodoroClose((id: number) => {
       win?.webContents.send('pomodoro-closed', id)
     })
+    //------------------settings ipc-------------------------------------------//
+    ipcMain.handle('settings-open', () => {openSettingsWindow()
+      return true
+    })
+    ipcMain.handle('settings-close', () => {closeSettingsWindow()
+      return true
+    })
+    ipcMain.handle('settings-save', (_event, settings: AppSettings) => {  
+      currentSettings = { ...settings }                                    
+      saveSettings(currentSettings)                                        
+      win?.webContents.send('settings-changed', settings)                
+      return true
+    })
 
-    setupSettingsIpc()
+    ipcMain.handle('settings-get', () => {                               
+      return currentSettings                                            
+    }) 
 
     //---------------------------------------------------------------//
     //SingletInstance
