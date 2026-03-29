@@ -112,6 +112,7 @@
               v-if="item.id !== confirmDeleteId"
               class="item-del-btn"
               text
+              :disabled="isReminderActive(item.id)"
               @click.stop="onDeleteItem(item.id)"
             >
             <el-icon class="item-del-icon"><Delete /></el-icon>
@@ -519,8 +520,6 @@ let reminderSaveTimer: number | null = null
 
 const scheduleSaveReminder = (id: number) => {
   if (reminderSaveTimer) window.clearTimeout(reminderSaveTimer)
-  const item = dataMap.value.reminders.find(r => r.id === id)
-  if (item) item.updatedAt = Date.now()
   reminderSaveTimer = window.setTimeout(() => {
     saveReminder(id)
   }, 500)
@@ -910,6 +909,8 @@ watch(
   ([tabType, id, _form], [_prevTabType, prevId, _prevForm]) => {
     if (tabType !== 'reminders' || !id) return
     if (id !== prevId) return
+    const item = dataMap.value.reminders.find(r => r.id === id)
+    if (item) item.updatedAt = Date.now()
     scheduleSaveReminder(id)
   },
   { deep: true }

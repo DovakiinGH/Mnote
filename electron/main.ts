@@ -10,7 +10,7 @@ import { listNotesService,saveNoteService,removeNoteService,createNoteService } 
 import { listRemindersService, saveReminderService, removeReminderService, markReminderTriggeredService,createReminderService} from './backend/reminders.service' // 你文件名按实际改
 import { updateQuickNote, saveQuickNote } from './backend/quick.service'
 import { getResourcePath } from './path'
-import {openPomodoroWindow,closePomodoroWindow,initPomodoro,setupPomodoroIpc,getCurrentPomodoroId} from './reminder/pomodoro'
+import {openPomodoroWindow,closePomodoroWindow,initPomodoro,getCurrentPomodoroId} from './reminder/pomodoro'
 import { initSettings,openSettingsWindow,closeSettingsWindow } from './settings'
 import { loadSettings, saveSettings } from './settings-store'
 import type { AppSettings } from './settings-store'
