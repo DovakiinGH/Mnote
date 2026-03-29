@@ -7,13 +7,34 @@ import {
 } from './reminders.repo'
 
 export function normalizeReminderByType(f: ReminderUpsertInput) {
+  if (f.mode === 'POMODORO') {
+    return {
+      type: 'AFTER_MINUTES' as const,
+      minutes: Math.min(Math.max(f.minutes ?? 25, 1), 1440),
+      date: null,
+      time: null,
+      days: null
+    }
+  }
   if (f.type === 'AFTER_MINUTES') {
-    return { minutes: f.minutes ?? 1, date: null, time: null, days: null }
+    return {
+      type: f.type,
+      minutes: Math.min(Math.max(f.minutes ?? 1, 1), 1440),
+      date: null,
+      time: null,
+      days: null
+    }
   }
   if (f.type === 'DATE_TIME') {
-    return { minutes: null, date: f.date ?? null, time: f.time ?? null, days: null }
+    return { type: f.type, minutes: null, date: f.date ?? null, time: f.time ?? null, days: null }
   }
-  return { minutes: null, date: null, time: f.time ?? null, days: f.days ?? 1 }
+  return {
+    type: f.type,
+    minutes: null,
+    date: null,
+    time: f.time ?? null,
+    days: Math.min(Math.max(f.days ?? 1, 1), 365)
+  }
 }
 
 export function listRemindersService() {

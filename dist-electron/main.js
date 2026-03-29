@@ -1,4 +1,4 @@
-import { app, screen, BrowserWindow, globalShortcut, ipcMain, Notification, Menu, nativeImage, Tray } from "electron";
+import { app, screen, BrowserWindow, ipcMain, globalShortcut, Notification, Menu, nativeImage, Tray } from "electron";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "crypto";
 import path from "node:path";
@@ -164,7 +164,7 @@ function createReminderScheduler(notify, onChanged) {
     running = true;
     try {
       const now = Date.now();
-      const rows = await getEnabledReminders();
+      const rows = getEnabledReminders();
       let changed = false;
       for (const row of rows) {
         if (!isDue(row, now)) continue;
@@ -173,9 +173,9 @@ function createReminderScheduler(notify, onChanged) {
           text: row.text || "",
           mode: row.mode
         });
-        await markTriggered(row.id, now);
+        markTriggered(row.id, now);
         if (row.type === "AFTER_MINUTES" || row.type === "DATE_TIME") {
-          await disableReminder(row.id, now);
+          disableReminder(row.id, now);
         }
         changed = true;
       }
@@ -308,13 +308,34 @@ function createNoteService() {
   return note;
 }
 function normalizeReminderByType(f) {
+  if (f.mode === "POMODORO") {
+    return {
+      type: "AFTER_MINUTES",
+      minutes: Math.min(Math.max(f.minutes ?? 25, 1), 1440),
+      date: null,
+      time: null,
+      days: null
+    };
+  }
   if (f.type === "AFTER_MINUTES") {
-    return { minutes: f.minutes ?? 1, date: null, time: null, days: null };
+    return {
+      type: f.type,
+      minutes: Math.min(Math.max(f.minutes ?? 1, 1), 1440),
+      date: null,
+      time: null,
+      days: null
+    };
   }
   if (f.type === "DATE_TIME") {
-    return { minutes: null, date: f.date ?? null, time: f.time ?? null, days: null };
+    return { type: f.type, minutes: null, date: f.date ?? null, time: f.time ?? null, days: null };
   }
-  return { minutes: null, date: null, time: f.time ?? null, days: f.days ?? 1 };
+  return {
+    type: f.type,
+    minutes: null,
+    date: null,
+    time: f.time ?? null,
+    days: Math.min(Math.max(f.days ?? 1, 1), 365)
+  };
 }
 function listRemindersService() {
   return getAllReminders();
@@ -381,7 +402,7 @@ async function saveQuickNote(mainWindow) {
   if (!title && !content) return;
   const now = Date.now();
   const id = now;
-  await saveNoteService({
+  saveNoteService({
     id,
     title: title || "Untitled",
     content,
@@ -391,6 +412,145 @@ async function saveQuickNote(mainWindow) {
   });
   mainWindow == null ? void 0 : mainWindow.webContents.send("notes:changed");
   clearQuickNote();
+}
+const __dirname$3 = path.dirname(fileURLToPath(import.meta.url));
+let pomodoroWin = null;
+let currentReminderId = null;
+let onCloseCallback = null;
+function setOnPomodoroClose(cb) {
+  onCloseCallback = cb;
+}
+function openPomodoroWindow(data) {
+  if (pomodoroWin && !pomodoroWin.isDestroyed()) {
+    if (currentReminderId !== null && onCloseCallback) {
+      onCloseCallback(currentReminderId);
+    }
+    pomodoroWin.destroy();
+    pomodoroWin = null;
+  }
+  currentReminderId = data.id;
+  const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
+  pomodoroWin = new BrowserWindow({
+    width: Math.round(screenW * 0.25),
+    height: Math.round(screenH * 0.35),
+    resizable: true,
+    alwaysOnTop: true,
+    frame: false,
+    icon: getResourcePath("icon.ico"),
+    webPreferences: {
+      preload: path.join(__dirname$3, "preload.mjs")
+    }
+  });
+  if (process.env.VITE_DEV_SERVER_URL) {
+    pomodoroWin.loadURL(`${process.env.VITE_DEV_SERVER_URL}#/pomodoro`);
+  } else {
+    pomodoroWin.loadFile(path.join(__dirname$3, "../dist/index.html"), {
+      hash: "/pomodoro"
+    });
+  }
+  const params = encodeURIComponent(JSON.stringify({
+    title: data.title,
+    text: data.text,
+    minutes: data.minutes
+  }));
+  if (process.env.VITE_DEV_SERVER_URL) {
+    pomodoroWin.loadURL(`${process.env.VITE_DEV_SERVER_URL}#/pomodoro?data=${params}`);
+  } else {
+    pomodoroWin.loadFile(path.join(__dirname$3, "../dist/index.html"), {
+      hash: `/pomodoro?data=${params}`
+    });
+  }
+  pomodoroWin.on("closed", () => {
+    if (currentReminderId !== null && onCloseCallback) {
+      onCloseCallback(currentReminderId);
+    }
+    pomodoroWin = null;
+    currentReminderId = null;
+  });
+}
+function closePomodoroWindow() {
+  if (pomodoroWin && !pomodoroWin.isDestroyed()) {
+    const win2 = pomodoroWin;
+    pomodoroWin = null;
+    currentReminderId = null;
+    win2.destroy();
+  }
+}
+function setupPomodoroIpc() {
+  ipcMain.handle("pomodoro-finished", () => {
+    if (currentReminderId !== null && onCloseCallback) {
+      onCloseCallback(currentReminderId);
+    }
+    closePomodoroWindow();
+    return true;
+  });
+}
+const __dirname$2 = path.dirname(fileURLToPath(import.meta.url));
+let settingsWin = null;
+let mainWin = null;
+function initSettings(win2) {
+  mainWin = win2;
+}
+function openSettingsWindow() {
+  if (settingsWin && !settingsWin.isDestroyed()) {
+    settingsWin.focus();
+    return;
+  }
+  const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
+  settingsWin = new BrowserWindow({
+    width: Math.round(screenW * 0.45),
+    height: Math.round(screenH * 0.55),
+    resizable: false,
+    movable: false,
+    modal: true,
+    alwaysOnTop: true,
+    center: true,
+    parent: mainWin ?? void 0,
+    icon: getResourcePath("icon.ico"),
+    frame: false,
+    webPreferences: {
+      preload: path.join(__dirname$2, "preload.mjs")
+    }
+  });
+  if (process.env.VITE_DEV_SERVER_URL) {
+    settingsWin.loadURL(`${process.env.VITE_DEV_SERVER_URL}#/settings`);
+  } else {
+    settingsWin.loadFile(path.join(__dirname$2, "../dist/index.html"), {
+      hash: "/settings"
+    });
+  }
+  settingsWin.on("closed", () => {
+    settingsWin = null;
+  });
+}
+function closeSettingsWindow() {
+  if (settingsWin && !settingsWin.isDestroyed()) {
+    settingsWin.destroy();
+    settingsWin = null;
+  }
+}
+const defaultSettings = {
+  language: "en-US",
+  closeAction: "tray"
+};
+const filePath = path.join(app.getPath("userData"), "settings.json");
+function loadSettings() {
+  try {
+    if (fs.existsSync(filePath)) {
+      const raw = fs.readFileSync(filePath, "utf-8");
+      return { ...defaultSettings, ...JSON.parse(raw) };
+    }
+  } catch (e) {
+    console.error("[settings] load failed:", e);
+  }
+  return { ...defaultSettings };
+}
+function saveSettings(settings) {
+  try {
+    fs.writeFileSync(filePath, JSON.stringify(settings, null, 2), "utf-8");
+  } catch (e) {
+    console.error("[settings] save failed:", e);
+  }
 }
 console.log("[main] main.ts loaded");
 const __dirname$1 = path.dirname(fileURLToPath(import.meta.url));
@@ -403,25 +563,11 @@ let win = null;
 let isQuitting = false;
 let tray = null;
 let currentShortcut = "Alt+Space";
-const scheduler = createReminderScheduler(
-  async (payload) => {
-    if (payload.mode === "NOTIFICATION") {
-      const n = new Notification({
-        title: payload.title,
-        body: payload.text
-      });
-      n.show();
-    } else if (payload.mode === "POPUP_WINDOW") {
-      openReminderMandatoryWindow(payload.text);
-    }
-  },
-  () => {
-    win == null ? void 0 : win.webContents.send("reminders:changed");
-  }
-);
+let currentSettings = loadSettings();
 if (process.platform === "win32") {
   app.setAppUserModelId("com.yourapp.mnote");
 }
+app.setName("MNote");
 function createWindow() {
   win = new BrowserWindow({
     icon: getResourcePath("icon.ico"),
@@ -431,19 +577,21 @@ function createWindow() {
     }
   });
   win.on("close", (e) => {
-    if (!isQuitting) {
+    if (isQuitting) return;
+    if (currentSettings.closeAction === "tray") {
       e.preventDefault();
       win == null ? void 0 : win.hide();
+    } else if (currentSettings.closeAction === "quit") {
+      e.preventDefault();
+      requestQuitWithSave();
     }
-  });
-  win.webContents.on("did-finish-load", () => {
-    win == null ? void 0 : win.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
   });
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(`${VITE_DEV_SERVER_URL}#/`);
   } else {
     win.loadFile(path.join(RENDERER_DIST, "index.html"), { hash: "/" });
   }
+  initSettings(win);
 }
 function resolveResourcePath(fileName) {
   if (app.isPackaged) {
@@ -501,6 +649,25 @@ function registerHotkey(accelerator) {
   currentShortcut = accelerator;
   return true;
 }
+const scheduler = createReminderScheduler(async (payload) => {
+  if (payload.mode === "NOTIFICATION") {
+    const n = new Notification({
+      title: payload.title,
+      body: payload.text
+    });
+    n.show();
+  } else if (payload.mode === "POPUP_WINDOW") {
+    openReminderMandatoryWindow(payload.text);
+  } else if (payload.mode === "POMODORO") {
+    const n = new Notification({
+      title: payload.title,
+      body: payload.text
+    });
+    n.show();
+  }
+}, () => {
+  win == null ? void 0 : win.webContents.send("reminders:changed");
+});
 function openReminderMandatoryWindow(initialText) {
   const channel = `reminder:submit-mandatory:${randomUUID()}`;
   const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
@@ -587,6 +754,35 @@ async function bootstrap() {
       "reminders:markTriggered",
       async (_e, id, ts) => markReminderTriggeredService(id, ts)
     );
+    setupPomodoroIpc();
+    ipcMain.handle("pomodoro-start", (_event, data) => {
+      openPomodoroWindow(data);
+      return true;
+    });
+    ipcMain.handle("pomodoro-stop", () => {
+      closePomodoroWindow();
+      return true;
+    });
+    setOnPomodoroClose((id) => {
+      win == null ? void 0 : win.webContents.send("pomodoro-closed", id);
+    });
+    ipcMain.handle("settings-open", () => {
+      openSettingsWindow();
+      return true;
+    });
+    ipcMain.handle("settings-close", () => {
+      closeSettingsWindow();
+      return true;
+    });
+    ipcMain.handle("settings-save", (_event, settings) => {
+      currentSettings = { ...settings };
+      saveSettings(currentSettings);
+      win == null ? void 0 : win.webContents.send("settings-changed", settings);
+      return true;
+    });
+    ipcMain.handle("settings-get", () => {
+      return currentSettings;
+    });
     Menu.setApplicationMenu(null);
     const gotTheLock = app.requestSingleInstanceLock();
     if (!gotTheLock) {

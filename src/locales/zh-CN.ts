@@ -26,12 +26,24 @@ export default {
       close:'关闭',
       notification:'提示框',
       popUpWindow:'弹窗提示',
+      pomodoro: "番茄钟",
       minutesLater:'几分钟后',
       YMD:'年/月/日',
       everyDays:'几天一次',
       date:'选择日期',
       time:'选择时间（可选）',
       text:'请输入提示文本（最多500字）'
-    }
+    },
+    pomodoro:{
+      end:' 已经结束。',
+  },
+   settings: {
+    title: "设置",
+    language: "语言",
+    closeAction: "关闭行为",
+    closeActionQuit: "退出应用",
+    closeActionTray: "最小化到托盘",
+    done: "完成"
+  }
   }
 }

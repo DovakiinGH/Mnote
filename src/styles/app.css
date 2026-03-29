@@ -34,29 +34,7 @@
 /* =========================================================
    Top Bar / Header / Top Menu
    ========================================================= */
-/* 顶部蓝条 */
-.top-bar {
-  background: linear-gradient(to right,#45a5fa,#3794EA,#317EC7);
-  display: flex;
-  align-items: center;
-  padding: 0 12px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  height: 6vh;
-  min-height: 32px;
-  max-height: 70px;
-}
 
-/* 标题 */
-.app-title {
-  color: #fff;
-  font-weight: 600;
-  margin-right: 16px;
-  margin-left: 16px;
-  font-size: clamp(2px, 2vw, 25px);
-   z-index: 100;
-}
 
 /* 菜单去掉默认边框 */
 .top-menu {
@@ -636,22 +614,6 @@
   gap: 10px;
 }
 
-/* .reminder-textarea .el-textarea__inner {
-  overflow-y: auto;
-  resize: none;
-}
-
-
-
-.reminder-textarea,
-.reminder-textarea .el-textarea,
-.reminder-textarea .el-textarea__inner {
-  height: 100%;
-}
-
-.reminder-textarea .el-textarea__inner {
-  resize: none;
-} */
 
 /* 外层滚动容器：有边框、固定高度 */
 .reminder-text-scroll {
@@ -697,3 +659,7 @@
   display: inline-block;
   transform: skewX(-10deg);
 }
+
+
+
+   

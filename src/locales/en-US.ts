@@ -26,12 +26,24 @@ export default {
       close:'close',
       notification:'notification',
       popUpWindow:'pop up window',
+      pomodoro: "pomodoro timer",
       minutesLater:'minutes later',
       YMD:'yy/mm/dd',
       everyDays:'every few days',
       date:'select date',
       time:'select time(optional)',
       text:'Please input reminder text(Maximum 500 characters )'
-    }
+    },
+    pomodoro:{
+      end:' is finished.',
+  },
+    settings: {
+    title: "Settings",
+    language: "Language",
+    closeAction: "Close Behavior",
+    closeActionQuit: "Quit Application",
+    closeActionTray: "Minimize to Tray",
+    done: "Done"
   }
+}
 }

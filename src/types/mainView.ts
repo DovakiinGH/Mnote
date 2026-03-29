@@ -10,7 +10,7 @@ export type UnitItem = {
 }
 
 export type ReminderTypeKey = 'AFTER_MINUTES' | 'DATE_TIME' | 'EVERY_DAYS'
-export type ReminderMode = 'NOTIFICATION' | 'POPUP_WINDOW'
+export type ReminderMode = 'NOTIFICATION' | 'POPUP_WINDOW'| 'POMODORO'
 
 export type ReminderForm = {
   type: ReminderTypeKey

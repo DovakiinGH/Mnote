@@ -45,13 +45,29 @@ contextBridge.exposeInMainWorld('api', {
   showReminder: (payload: { title: string; body: string }) =>
     ipcRenderer.invoke('reminder:show', payload),
   openMandatoryReminder: (text: string) => ipcRenderer.invoke('reminder:open-mandatory', text),
-  // submitMandatoryReminder: (payload: { text: string }) =>
-  // ipcRenderer.invoke('reminder:submit-mandatory', payload),
   submitMandatoryReminder: (payload: { text: string }, channel: string) =>
   ipcRenderer.invoke(channel, payload),
   onRemindersChanged: (cb: () => void) => {
-  ipcRenderer.on('reminders:changed', () => cb())
+  ipcRenderer.on('reminders:changed', () => cb())},//cb for call back function
+  
+  pomodoroStart: (data: { id: number; title: string; text: string; minutes: number }) =>
+    ipcRenderer.invoke('pomodoro-start', data),
+  pomodoroStop: () =>
+    ipcRenderer.invoke('pomodoro-stop'),
+  pomodoroFinished: () =>
+    ipcRenderer.invoke('pomodoro-finished'),
+  onPomodoroClosed: (cb: (id: number) => void) =>
+    ipcRenderer.on('pomodoro-closed', (_event, id) => cb(id)),
+  
+  settingsOpen: () => ipcRenderer.invoke('settings-open'),
+  settingsClose: () => ipcRenderer.invoke('settings-close'),
+  //renderer to main; let main know user saved settings and pass the settings data
+  settingsSave: (settings: { language: string; closeAction: string }) =>
+    ipcRenderer.invoke('settings-save', settings),
+  //main to renderer; let renderer know settings changed
+  onSettingsChanged: (cb: (settings: { language: string; closeAction: string }) => void) =>
+    ipcRenderer.on('settings-changed', (_event, settings) => cb(settings)),
+  settingsGet: () => ipcRenderer.invoke('settings-get'),
+  })
 
-},
-})
-//cb for call back function
+

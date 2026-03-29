@@ -1,5 +1,4 @@
 import { app, BrowserWindow,ipcMain,Menu,Tray,nativeImage,globalShortcut, Notification,screen  } from 'electron'
-// import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { randomUUID } from 'crypto'
 import path from 'node:path'
@@ -11,57 +10,33 @@ import { listNotesService,saveNoteService,removeNoteService,createNoteService } 
 import { listRemindersService, saveReminderService, removeReminderService, markReminderTriggeredService,createReminderService} from './backend/reminders.service' // 你文件名按实际改
 import { updateQuickNote, saveQuickNote } from './backend/quick.service'
 import { getResourcePath } from './path'
+import {openPomodoroWindow,closePomodoroWindow,setOnPomodoroClose,setupPomodoroIpc} from './reminder/pomodoro'
+import { initSettings,openSettingsWindow,closeSettingsWindow } from './settings'
+import { loadSettings, saveSettings } from './settings-store'
+import type { AppSettings } from './settings-store'
 console.log('[main] main.ts loaded')
 // const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
-// The built directory structure
-//
-// ├─┬─┬ dist
-// │ │ └── index.html
-// │ │
-// │ ├─┬ dist-electron
-// │ │ ├── main.js
-// │ │ └── preload.mjs
-// │
 process.env.APP_ROOT = path.join(__dirname, '..')
-
 // 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
 export const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
 export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron')
 export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
-
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
 
 let win: BrowserWindow | null = null
 let isQuitting = false
 let tray: Tray | null = null
 let currentShortcut = 'Alt+Space'
+let currentSettings = loadSettings()
 
-const scheduler = createReminderScheduler(async (payload) => {
-  if (payload.mode === 'NOTIFICATION') {
-    // 系统通知
-    const n = new Notification({
-      title: payload.title,
-      body: payload.text
-    })
-    n.show()
-  } else if (payload.mode === 'POPUP_WINDOW'){
-    // 弹窗
-    openReminderMandatoryWindow(payload.text)
-  }
-},
-  () => { win?.webContents.send('reminders:changed')}
-)
 
-// for windows system
+
 if (process.platform === 'win32') {
   app.setAppUserModelId('com.yourapp.mnote')
 }
-
-//win
-//---------------------------------------life cycle----------------------------------------------------------------------//
-
+app.setName('MNote')
+//--------------------------------------createWindow----------------------------------------------------------------------//
 
 function createWindow() {
   win = new BrowserWindow({
@@ -75,24 +50,24 @@ function createWindow() {
 //   win.webContents.openDevTools()
 // }
   win.on('close', (e) => {
-    if (!isQuitting) {
+    if (isQuitting) return
+    if (currentSettings.closeAction === 'tray') {
       e.preventDefault()
-       win?.hide()
-      // win?.webContents.send('app:save-before-close')
+      win?.hide()
+    }else if (currentSettings.closeAction === 'quit') {
+      e.preventDefault() 
+      requestQuitWithSave()
     }
   })
+   
 
-  // Test active push message to Renderer-process.
-  win.webContents.on('did-finish-load', () => {
-    win?.webContents.send('main-process-message', (new Date).toLocaleString())
-  })
-  
-//URL
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(`${VITE_DEV_SERVER_URL}#/`)
   } else {
     win.loadFile(path.join(RENDERER_DIST, 'index.html'), { hash: '/' })
   }
+  initSettings(win)
+
 }
 
 //-------------------------------------tray----------------------------------------------------------------------------
@@ -157,7 +132,25 @@ function registerHotkey(accelerator: string) {
   currentShortcut = accelerator
   return true
 }
-//------------------------------------pop windows------------------------------------------------
+//------------------------------------reminders pop windows------------------------------------------------
+const scheduler = createReminderScheduler(async (payload) => {
+  if (payload.mode === 'NOTIFICATION') {
+    const n = new Notification({
+      title: payload.title,
+      body: payload.text
+    })
+    n.show()
+  } else if (payload.mode === 'POPUP_WINDOW'){
+    openReminderMandatoryWindow(payload.text)
+  } else if (payload.mode === 'POMODORO') {
+      const n = new Notification({
+      title: payload.title,
+      body: payload.text
+    })
+    n.show()
+  }
+}, () => { win?.webContents.send('reminders:changed') })
+
 function openReminderMandatoryWindow(initialText: string) {
   const channel = `reminder:submit-mandatory:${randomUUID()}`
 
@@ -190,11 +183,14 @@ function openReminderMandatoryWindow(initialText: string) {
       hash: `/reminder-mandatory?text=${encodeURIComponent(initialText)}&channel=${channel}`
     })
   }
+
+  // Prevent closing the window without submitting
   let handled = false
   popup.on('close', (event) => {
     if (!handled) event.preventDefault()
   })
-
+  // Handle for the random channel for just one time use when submit button is clicked in the mandatory reminder window,
+  // then close the popup and remove the handler to avoid memory leak
   ipcMain.handleOnce(channel, async (_event, _payload: { text: string }) => {
     handled = true
     popup.close()
@@ -255,6 +251,40 @@ async function bootstrap() {
     ipcMain.handle('reminders:markTriggered', async (_e, id: number, ts?: number) =>
       markReminderTriggeredService(id, ts)
     )
+    // ---- pomodoro ---- //
+
+    //a set up 'pomodoro-finished' from pomodoro.ts, 
+    // which will be called when pomodoro window sends 'pomodoro-finished' after countdown ends
+    setupPomodoroIpc()
+    // from Pomodoro vue 
+    ipcMain.handle('pomodoro-start', (_event, data: {id: number,title: string,text: string,minutes: number}) => {
+      openPomodoroWindow(data)
+      return true
+    })
+    ipcMain.handle('pomodoro-stop', () => {
+      closePomodoroWindow()
+      return true
+    })
+    setOnPomodoroClose((id: number) => {
+      win?.webContents.send('pomodoro-closed', id)
+    })
+    //------------------settings ipc-------------------------------------------//
+    ipcMain.handle('settings-open', () => {openSettingsWindow()
+      return true
+    })
+    ipcMain.handle('settings-close', () => {closeSettingsWindow()
+      return true
+    })
+    ipcMain.handle('settings-save', (_event, settings: AppSettings) => {  
+      currentSettings = { ...settings }                                    
+      saveSettings(currentSettings)                                        
+      win?.webContents.send('settings-changed', settings)                
+      return true
+    })
+
+    ipcMain.handle('settings-get', () => {                               
+      return currentSettings                                            
+    }) 
 
     //---------------------------------------------------------------//
     //SingletInstance
@@ -273,8 +303,6 @@ async function bootstrap() {
       })
       app.whenReady().then(createWindow)
     }
-
-    
     registerHotkey(currentShortcut)
     createTray()
     scheduler.start() //FOR REMINDERS

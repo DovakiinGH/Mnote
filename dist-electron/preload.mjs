@@ -37,10 +37,20 @@ electron.contextBridge.exposeInMainWorld("api", {
   onNotesChanged: (cb) => electron.ipcRenderer.on("notes:changed", () => cb()),
   showReminder: (payload) => electron.ipcRenderer.invoke("reminder:show", payload),
   openMandatoryReminder: (text) => electron.ipcRenderer.invoke("reminder:open-mandatory", text),
-  // submitMandatoryReminder: (payload: { text: string }) =>
-  // ipcRenderer.invoke('reminder:submit-mandatory', payload),
   submitMandatoryReminder: (payload, channel) => electron.ipcRenderer.invoke(channel, payload),
   onRemindersChanged: (cb) => {
     electron.ipcRenderer.on("reminders:changed", () => cb());
-  }
+  },
+  //cb for call back function
+  pomodoroStart: (data) => electron.ipcRenderer.invoke("pomodoro-start", data),
+  pomodoroStop: () => electron.ipcRenderer.invoke("pomodoro-stop"),
+  pomodoroFinished: () => electron.ipcRenderer.invoke("pomodoro-finished"),
+  onPomodoroClosed: (cb) => electron.ipcRenderer.on("pomodoro-closed", (_event, id) => cb(id)),
+  settingsOpen: () => electron.ipcRenderer.invoke("settings-open"),
+  settingsClose: () => electron.ipcRenderer.invoke("settings-close"),
+  //renderer to main; let main know user saved settings and pass the settings data
+  settingsSave: (settings) => electron.ipcRenderer.invoke("settings-save", settings),
+  //main to renderer; let renderer know settings changed
+  onSettingsChanged: (cb) => electron.ipcRenderer.on("settings-changed", (_event, settings) => cb(settings)),
+  settingsGet: () => electron.ipcRenderer.invoke("settings-get")
 });

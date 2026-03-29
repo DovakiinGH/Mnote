@@ -42,7 +42,7 @@
         <el-button
         class="gear-btn side-btn "
         text
-        @click="onToggleLang">
+        @click="onOpenSettings">
         <el-icon><Setting /></el-icon>
         </el-button>
 
@@ -199,27 +199,30 @@
     <div class="reminder-panel" :class="{ 'is-locked': isReminderLocked }">
       <!-- only this stays enabled -->
       <div class="reminder-status">
-        <el-radio-group v-model="currentReminderForm.enabled">
+        <el-radio-group v-model="currentReminderForm.enabled"
+        @change="onEnabledChange">
           <el-radio-button :label="true">{{ t('app.reminderButton.start') }}</el-radio-button>
           <el-radio-button :label="false">{{ t('app.reminderButton.close') }}</el-radio-button>
         </el-radio-group>
       </div>
-
+       <!-- select mode-->
       <div class="reminder-mode lockable">
         <el-select
           v-model="currentReminderForm.mode"
           placeholder="choose reminder mode"
           :disabled="isReminderLocked"
+          @change="onModeChange"
         >
           <el-option :label="t('app.reminderButton.notification')" value="NOTIFICATION" />
           <el-option :label="t('app.reminderButton.popUpWindow')" value="POPUP_WINDOW" />
+           <el-option :label="t('app.reminderButton.pomodoro')" value="POMODORO" />
         </el-select>
       </div>
-
+      <!-- select type and related settings -->
       <el-select
         v-model="currentReminderForm.type"
         placeholder="choose type"
-        :disabled="isReminderLocked"
+        :disabled="isReminderLocked|| currentReminderForm.mode === 'POMODORO'"
         class="lockable"
       >
         <el-option v-for="rt in REMINDER_TYPES" :key="rt.key" :label="t(rt.labelKey)" :value="rt.key" />
@@ -229,6 +232,7 @@
         <el-input-number
           v-model="currentReminderForm.minutes"
           :min="1"
+          :max="1440"
           :disabled="isReminderLocked"
           class="lockable"
         />
@@ -268,6 +272,7 @@
         <el-input-number
           v-model="currentReminderForm.days"
           :min="1"
+          :max="365"
           :disabled="isReminderLocked"
           class="lockable"
         />
@@ -329,6 +334,7 @@ const isSubOpen = ref(true)
 const selectedSubId = ref<number | null>(null)
 
 const topButton = false
+const currentCloseAction=ref('tray')
 
 const testClick=async ()=>{
   await window.api.showReminder({
@@ -336,7 +342,6 @@ const testClick=async ()=>{
   body: 'Buy milk at 18:00'
 })
 }
-
 const testClickSecond=async ()=>{
   await window.api.openMandatoryReminder('Pay rent today')
 }
@@ -442,6 +447,15 @@ const saveAllReminders = async () => {
     await saveReminder(r.id)
   }
 }
+const closePomodoroBeforeClose = async () => {
+  for (const [idStr, form] of Object.entries(reminderStore.value)) {
+    if (form.mode === 'POMODORO' && form.enabled) {
+      await window.api.pomodoroStop()
+      form.enabled = false
+      await saveReminder(Number(idStr))
+    }
+  }
+}
 window.api.onSaveBeforeClose(async () => {
   try {
     if (saveTimer) {
@@ -452,9 +466,10 @@ window.api.onSaveBeforeClose(async () => {
       window.clearTimeout(reminderSaveTimer)
       reminderSaveTimer = null
     }
-
+    
     await saveAllNotes()
     await saveAllReminders()
+    await closePomodoroBeforeClose()
   } catch (e) {
     console.error('[onSaveBeforeClose] failed:', e)
   } finally {
@@ -462,7 +477,7 @@ window.api.onSaveBeforeClose(async () => {
   }
 })
 
-onMounted(() => {
+onMounted(async () => {
   loadNotes()
   loadReminders()
   window.api.onNotesChanged(() => {
@@ -471,6 +486,22 @@ onMounted(() => {
   window.api.onRemindersChanged(() => {
     loadReminders()
   })
+  window.api.onPomodoroClosed((id: number) => {
+    const form = reminderStore.value[id]
+    if (form) {
+      form.enabled = false
+      scheduleSaveReminder(id)
+    }
+     })
+  const settings = await window.api.settingsGet()  
+  locale.value = settings.language                  
+  currentCloseAction.value = settings.closeAction
+  window.api.onSettingsChanged((settings) => {
+      locale.value = settings.language
+      currentCloseAction.value = settings.closeAction
+    })
+    
+  
 })
 
 
@@ -556,6 +587,44 @@ const disabledMinutes = (hour: number) => {
   if (hour > now.getHours()) return []  
   if (hour < now.getHours()) return Array.from({ length: 60 }, (_, i) => i)  
   return Array.from({ length: now.getMinutes() }, (_, i) => i)
+}
+// functions related to reminder form
+const onModeChange = (mode: string) => {
+  if (mode === 'POMODORO') {
+    currentReminderForm.value.type = 'AFTER_MINUTES'
+    if (!currentReminderForm.value.minutes || currentReminderForm.value.minutes < 1) {
+      currentReminderForm.value.minutes = 25
+    }
+  }
+}
+const onEnabledChange = async (val: boolean) => {
+  const item = activeContentItem.value
+  if (!item) return
+  const form = reminderStore.value[item.id]
+  if (!form || form.mode !== 'POMODORO') return
+
+  if (val) {
+    // close other pomodoro windows
+    for (const [idStr, f] of Object.entries(reminderStore.value)) {
+      //id and f are string and ReminderForm;  Object means the pair of id and form in reminderStore
+      const otherId = Number(idStr)
+      if (otherId !== item.id && f.mode === 'POMODORO' && f.enabled) {
+        f.enabled = false
+        scheduleSaveReminder(otherId)
+      }
+    }
+
+    // start pomodoro window
+    await window.api.pomodoroStart({
+      id: item.id,
+      title: item.name,
+      text: form.text ?? '',
+      minutes: form.minutes ?? 25
+    })
+  } else {
+    // close pomodoro window
+    await window.api.pomodoroStop()
+  }
 }
 //--------------------------------add new item------------------------------------------------------------
 
@@ -714,7 +783,7 @@ const selectedName = computed({
   },
   set(val: string) {
     if (!activeContentItem.value) return
-    if (activeContentItem.value.name === val) return  // ← 新增
+    if (activeContentItem.value.name === val) return  
 
     activeContentItem.value.name = val
     activeContentItem.value.updatedAt = Date.now()
@@ -761,48 +830,28 @@ const onTogglePin = (item: UnitItem) => {
 //------------------------------preview----------------------------------------------------------------------
 const stripMarkdown = (text: string): string => {
   return text
-    // 数学公式块 $$...$$
     .replace(/\$\$[\s\S]*?\$\$/g, '')
-    // 行内数学公式 $...$
     .replace(/\$([^$]+)\$/g, '$1')
-    // 标题 # ## ###
     .replace(/^#{1,6}\s+/gm, '')
-    // 图片 ![alt](url)
     .replace(/!\[.*?\]\(.*?\)/g, '')
-    // 链接 [text](url) → text
     .replace(/\[([^\]]*)\]\(.*?\)/g, '$1')
-    // 加粗+斜体 ***text*** / ___text___
     .replace(/\*{3}(.+?)\*{3}/g, '$1')
     .replace(/_{3}(.+?)_{3}/g, '$1')
-    // 加粗 **text** / __text__
     .replace(/\*{2}(.+?)\*{2}/g, '$1')
     .replace(/_{2}(.+?)_{2}/g, '$1')
-    // 斜体 *text* / _text_
     .replace(/\*(.+?)\*/g, '$1')
     .replace(/_(.+?)_/g, '$1')
-    // 删除线 ~~text~~
     .replace(/~~(.+?)~~/g, '$1')
-    // 行内代码 `code`
     .replace(/`([^`]+)`/g, '$1')
-    // 代码块 ```...```
     .replace(/```[\s\S]*?```/g, '')
-    // 引用 >
     .replace(/^>\s+/gm, '')
-    // 无序列表 - * +
     .replace(/^[\s]*[-*+]\s+/gm, '')
-    // 有序列表 1. 2.
     .replace(/^[\s]*\d+\.\s+/gm, '')
-    // 任务列表 - [ ] / - [x]
     .replace(/^[\s]*-\s*\[[ x]\]\s+/gm, '')
-    // 分割线 --- *** ___
     .replace(/^[-*_]{3,}\s*$/gm, '')
-    // 表格分隔行 | --- | --- |
     .replace(/^\|?[\s-:|]+\|[\s-:|]*$/gm, '')
-    // 表格竖线
     .replace(/\|/g, ' ')
-    // HTML 标签
     .replace(/<[^>]+>/g, '')
-    // 多余空白
     .replace(/\s+/g, ' ')
     .trim()
 }
@@ -846,11 +895,14 @@ const sortedReminders = computed(() => {
     return bu - au
   })
 })
-//---------------------------------language-----------------------------------------------------
+//---------------------------------settings-----------------------------------------------------
 const onToggleLang = () => {
   const next = locale.value === 'en-US' ? 'zh-CN' : 'en-US'
   locale.value = next
   localStorage.setItem('lang', next)
+}
+const onOpenSettings = async () => {
+  await window.api.settingsOpen()
 }
 //-----------------------------watch-------------------------------------
 
@@ -862,10 +914,7 @@ watch(
   ],
   ([tabType, id, _form], [_prevTabType, prevId, _prevForm]) => {
     if (tabType !== 'reminders' || !id) return
-
-   
     if (id !== prevId) return
-
     scheduleSaveReminder(id)
   },
   { deep: true }

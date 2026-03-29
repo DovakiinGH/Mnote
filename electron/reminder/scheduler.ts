@@ -1,13 +1,13 @@
-import { getEnabledReminders, markTriggered, disableReminder } from "../backend/reminders.repo"
+import { getEnabledReminders, markTriggered, disableReminder,ReminderMode } from "../backend/reminders.repo"
 import { isDue } from './timeCalc'
-
 type NotifyPayload = {
   title: string
   text: string
-  mode: 'NOTIFICATION' | 'POPUP_WINDOW'
+  mode: ReminderMode
 }
 
 type NotifyFn = (payload: NotifyPayload) => Promise<void> | void
+// can be async or not
 
 //FACTORY FUNCTION
 export function createReminderScheduler(notify: NotifyFn,onChanged?: () => void) {
@@ -22,7 +22,7 @@ export function createReminderScheduler(notify: NotifyFn,onChanged?: () => void)
 
     try {
       const now = Date.now()
-      const rows = await getEnabledReminders()
+      const rows = getEnabledReminders()
       let changed = false  
 
       //every reminder that enable(start)
@@ -30,18 +30,18 @@ export function createReminderScheduler(notify: NotifyFn,onChanged?: () => void)
         // not time up
         if (!isDue(row, now)) continue
 
-        //time's up
+        //time's up; here give the function input 
         await notify({
           title: row.title || 'M Note',
           text: row.text || '',
           mode: row.mode
         })
 
-        await markTriggered(row.id, now)
+        markTriggered(row.id, now)
 
         // one time reminder -> close it
         if (row.type === 'AFTER_MINUTES' || row.type === 'DATE_TIME') {
-          await disableReminder(row.id, now)
+          disableReminder(row.id, now)
         }
         changed = true
       }
@@ -59,7 +59,7 @@ export function createReminderScheduler(notify: NotifyFn,onChanged?: () => void)
     start() {
       if (timer) return
       void tick() //run once at first
-      timer = setInterval(() => { //then 15 seconds run once
+      timer = setInterval(() => { 
         void tick()
       }, 5_000)
     },
