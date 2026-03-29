@@ -8,10 +8,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 let pomodoroWin: BrowserWindow | null = null
 let currentReminderId: number | null = null
 
-let onCloseCallback: ((id: number) => void) | null = null
+// let onCloseCallback: ((id: number) => void) | null = null
 
-export function setOnPomodoroClose(cb: (id: number) => void) {
-  onCloseCallback = cb
+// export function setOnPomodoroClose(cb: (id: number) => void) {
+//   onCloseCallback = cb
+// }
+let mainWin: BrowserWindow | null = null
+
+export function initPomodoro(win: BrowserWindow | null) {
+  mainWin = win
 }
 
 export function openPomodoroWindow(data: {
@@ -21,8 +26,8 @@ export function openPomodoroWindow(data: {
   minutes: number
 }) {
   if (pomodoroWin && !pomodoroWin.isDestroyed()) {
-    if (currentReminderId !== null && onCloseCallback) {
-      onCloseCallback(currentReminderId)
+    if (currentReminderId !== null && mainWin && !mainWin.isDestroyed()) {
+      mainWin.webContents.send('pomodoro-closed', currentReminderId)
     }
     pomodoroWin.destroy()
     pomodoroWin = null
@@ -66,8 +71,8 @@ const params = encodeURIComponent(JSON.stringify({
   }
 
   pomodoroWin.on('closed', () => {
-    if (currentReminderId !== null && onCloseCallback) {
-      onCloseCallback(currentReminderId)
+      if (currentReminderId !== null && mainWin && !mainWin.isDestroyed()) {
+      mainWin.webContents.send('pomodoro-closed', currentReminderId)
     }
     pomodoroWin = null
     currentReminderId = null
@@ -87,12 +92,3 @@ export function getCurrentPomodoroId(): number | null {
   return currentReminderId
 }
 
-export function setupPomodoroIpc() {
-  ipcMain.handle('pomodoro-finished', () => {
-    if (currentReminderId !== null && onCloseCallback) {
-      onCloseCallback(currentReminderId)
-    }
-    closePomodoroWindow()
-    return true
-  })
-}

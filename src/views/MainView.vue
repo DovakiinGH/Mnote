@@ -896,11 +896,6 @@ const sortedReminders = computed(() => {
   })
 })
 //---------------------------------settings-----------------------------------------------------
-const onToggleLang = () => {
-  const next = locale.value === 'en-US' ? 'zh-CN' : 'en-US'
-  locale.value = next
-  localStorage.setItem('lang', next)
-}
 const onOpenSettings = async () => {
   await window.api.settingsOpen()
 }
