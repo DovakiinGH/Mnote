@@ -8,11 +8,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 let pomodoroWin: BrowserWindow | null = null
 let currentReminderId: number | null = null
 
-// let onCloseCallback: ((id: number) => void) | null = null
-
-// export function setOnPomodoroClose(cb: (id: number) => void) {
-//   onCloseCallback = cb
-// }
 let mainWin: BrowserWindow | null = null
 
 export function initPomodoro(win: BrowserWindow | null) {

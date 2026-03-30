@@ -1,7 +1,7 @@
 import db from './db'
 
 export function initSchema() {
-  // notes 表
+  // notes 
   db.exec(`
     CREATE TABLE IF NOT EXISTS notes (
       id INTEGER PRIMARY KEY,
@@ -13,7 +13,7 @@ export function initSchema() {
     )
   `)
 
-  // reminders 表
+  // reminders 
   db.exec(`
     CREATE TABLE IF NOT EXISTS reminders (
       id INTEGER PRIMARY KEY,
@@ -35,7 +35,6 @@ export function initSchema() {
     )
   `)
 
-  // 索引（IF NOT EXISTS 不会重复创建，不需要 catch）
   db.exec(`CREATE INDEX IF NOT EXISTS idx_reminders_enabled ON reminders(enabled)`)
   db.exec(`CREATE INDEX IF NOT EXISTS idx_reminders_updatedAt ON reminders(updatedAt)`)
 

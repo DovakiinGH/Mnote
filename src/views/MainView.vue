@@ -324,6 +324,8 @@ import type { UnitItem, TabType, ReminderForm  } from '../types/mainView'
 import {REMINDER_TYPES} from '../services/reminderUtils'
 import { formatTime } from '../services/timeUtils'
 import { useWheelScroll } from '../composables/useWheelScroll'
+import { getPreview as getTextPreview } from '../services/markdownPreview'
+import { useReminderForm } from '../composables/useReminderForm'
 
 const { onTabWheel, onTitleWheel } = useWheelScroll()
 
@@ -537,94 +539,8 @@ const dataMap = ref<{
 const contentStore = ref<Record<number, string>>({
   101: '',
 })
-
-//----------------------------reminder const-----------------------------------------------------------------
 const reminderStore = ref<Record<number, ReminderForm>>({})
 
-const isReminderLocked = computed(() => {
-  return currentReminderForm.value.enabled === true
-})
-const currentReminderForm = computed<ReminderForm>(() => {
-  const id = activeContentItem.value?.id
-  if (!id) {
-    return { type: 'AFTER_MINUTES',mode: 'NOTIFICATION', text: '', minutes: 5, enabled: false }
-  } 
-  if (!reminderStore.value[id]) {
-  reminderStore.value[id] = {
-    type: 'AFTER_MINUTES',
-    mode: 'NOTIFICATION',
-    text: '',
-    minutes: 5,
-    enabled: false
-  }
-}
-  return reminderStore.value[id]
-})
-//use to make reminder sub list item change color
-const isReminderActive = (id: number): boolean => {
-  if (currentCategoryName.value !== 'reminders') return false
-  return reminderStore.value[id]?.enabled === true
-}
-const disablePastDate = (time: Date) => {
-  return time.getTime() < Date.now() - 8.64e7
-}
-const isToday = computed(() => {
-  if (!currentReminderForm.value.date) return false
-  const today = new Date().toISOString().slice(0, 10)  
-  return currentReminderForm.value.date === today
-})
-
-const disabledHours = () => {
-  if (!isToday.value) return []
-  const currentHour = new Date().getHours()
-  return Array.from({ length: currentHour }, (_, i) => i)
-}
-
-const disabledMinutes = (hour: number) => {
-  if (!isToday.value) return []
-  const now = new Date()
-  if (hour > now.getHours()) return []  
-  if (hour < now.getHours()) return Array.from({ length: 60 }, (_, i) => i)  
-  return Array.from({ length: now.getMinutes() }, (_, i) => i)
-}
-// functions related to reminder form
-const onModeChange = (mode: string) => {
-  if (mode === 'POMODORO') {
-    currentReminderForm.value.type = 'AFTER_MINUTES'
-    if (!currentReminderForm.value.minutes || currentReminderForm.value.minutes < 1) {
-      currentReminderForm.value.minutes = 25
-    }
-  }
-}
-const onEnabledChange = async (val: boolean) => {
-  const item = activeContentItem.value
-  if (!item) return
-  const form = reminderStore.value[item.id]
-  if (!form || form.mode !== 'POMODORO') return
-
-  if (val) {
-    // close other pomodoro windows
-    for (const [idStr, f] of Object.entries(reminderStore.value)) {
-      //id and f are string and ReminderForm;  Object means the pair of id and form in reminderStore
-      const otherId = Number(idStr)
-      if (otherId !== item.id && f.mode === 'POMODORO' && f.enabled) {
-        f.enabled = false
-        scheduleSaveReminder(otherId)
-      }
-    }
-
-    // start pomodoro window
-    await window.api.pomodoroStart({
-      id: item.id,
-      title: item.name,
-      text: form.text ?? '',
-      minutes: form.minutes ?? 25
-    })
-  } else {
-    // close pomodoro window
-    await window.api.pomodoroStop()
-  }
-}
 //--------------------------------add new item------------------------------------------------------------
 
 const onNewItem = async () => {
@@ -755,7 +671,22 @@ const onDrop = (key: string) => {
     // 5. 清除记录
   dragKey = null
 }
-
+//----------------------------reminder frontend logic-----------------------------------------------------------------
+const {
+  currentReminderForm,
+  isReminderLocked,
+  isReminderActive,
+  disablePastDate,
+  disabledHours,
+  disabledMinutes,
+  onModeChange,
+  onEnabledChange
+} = useReminderForm(
+  reminderStore,
+  activeContentItem,
+  currentCategoryName,
+  scheduleSaveReminder
+)
 //-----------------------------------------------------name and content---------------------------------------------------
 //content
 const selectedContent = computed({
@@ -827,43 +758,12 @@ const onTogglePin = (item: UnitItem) => {
   }
 }
 //------------------------------preview----------------------------------------------------------------------
-const stripMarkdown = (text: string): string => {
-  return text
-    .replace(/\$\$[\s\S]*?\$\$/g, '')
-    .replace(/\$([^$]+)\$/g, '$1')
-    .replace(/^#{1,6}\s+/gm, '')
-    .replace(/!\[.*?\]\(.*?\)/g, '')
-    .replace(/\[([^\]]*)\]\(.*?\)/g, '$1')
-    .replace(/\*{3}(.+?)\*{3}/g, '$1')
-    .replace(/_{3}(.+?)_{3}/g, '$1')
-    .replace(/\*{2}(.+?)\*{2}/g, '$1')
-    .replace(/_{2}(.+?)_{2}/g, '$1')
-    .replace(/\*(.+?)\*/g, '$1')
-    .replace(/_(.+?)_/g, '$1')
-    .replace(/~~(.+?)~~/g, '$1')
-    .replace(/`([^`]+)`/g, '$1')
-    .replace(/```[\s\S]*?```/g, '')
-    .replace(/^>\s+/gm, '')
-    .replace(/^[\s]*[-*+]\s+/gm, '')
-    .replace(/^[\s]*\d+\.\s+/gm, '')
-    .replace(/^[\s]*-\s*\[[ x]\]\s+/gm, '')
-    .replace(/^[-*_]{3,}\s*$/gm, '')
-    .replace(/^\|?[\s-:|]+\|[\s-:|]*$/gm, '')
-    .replace(/\|/g, ' ')
-    .replace(/<[^>]+>/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
 const getPreview = (contentId?: number) => {
   if (!contentId) return ''
-  const text = contentStore.value[contentId] ?? ''
-  return stripMarkdown(text).slice(0, 40)
+  return getTextPreview(contentStore.value[contentId] ?? '')
 }
-
 const getReminderPreview = (id: number) => {
-  const text = reminderStore.value[id]?.text ?? ''
-  return stripMarkdown(text).slice(0, 40)
+  return getTextPreview(reminderStore.value[id]?.text ?? '')
 }
 
 //----------------------------------sort of items------------------------------------------------
