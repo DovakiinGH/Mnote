@@ -21,6 +21,9 @@ electron.contextBridge.exposeInMainWorld("ipcRenderer", {
   // ...
 });
 electron.contextBridge.exposeInMainWorld("api", {
+  windowMinimize: () => electron.ipcRenderer.send("window:minimize"),
+  windowToggleMaximize: () => electron.ipcRenderer.send("window:toggle-maximize"),
+  windowClose: () => electron.ipcRenderer.send("window:close"),
   notesGetAll: () => electron.ipcRenderer.invoke("notes:getAll"),
   notesUpsert: (note) => electron.ipcRenderer.invoke("notes:upsert", note),
   notesDelete: (id) => electron.ipcRenderer.invoke("notes:delete", id),

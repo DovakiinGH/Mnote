@@ -23,6 +23,10 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
   // ...
 })
 contextBridge.exposeInMainWorld('api', {
+  windowMinimize: () => ipcRenderer.send('window:minimize'),
+  windowToggleMaximize: () => ipcRenderer.send('window:toggle-maximize'),
+  windowClose: () => ipcRenderer.send('window:close'),
+
   notesGetAll: () => ipcRenderer.invoke('notes:getAll'),
   notesUpsert: (note: { id: number; title: string; content: string; updatedAt: number }) =>
     ipcRenderer.invoke('notes:upsert', note),

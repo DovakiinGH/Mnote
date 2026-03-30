@@ -1,0 +1,184 @@
+/* =========================================================
+   Sub-side
+   ========================================================= */
+.sub-side {
+  background: #f7f7f7;
+  border-left: 1px solid #e5e5e5;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: clamp(100px, 27vh, 800px);
+  transition: width 0.3s ease;
+  overflow: hidden;
+}
+
+.sub-collapse {
+  width: 0 !important;
+  padding: 0 !important;
+  border-left: none !important;
+}
+
+.sub-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: clamp(10px, 10vh, 100px);
+  border-bottom: 1px solid #e5e5e5;
+  padding-bottom: 8px;
+}
+
+.sub-end {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: clamp(10px, 10vh, 100px);
+  border-top: 1px solid #e5e5e5;
+}
+
+.sub-title {
+  font-weight: 700;
+  color: #3b4a63;
+}
+
+.sub-list {
+  flex: 1;
+  padding: 15px;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.sub-list .el-scrollbar__view {
+  display: flex;
+  flex-direction: column;
+  gap: 2vh;
+}
+
+
+
+.sub-item.active {
+  border: 1px solid #6aa8f7;
+  box-shadow: 0 0 0 2px rgba(106,168,247,0.2);
+}
+
+.sub-item {
+    cursor: pointer;
+  position: relative;
+  background: #fff;
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  flex: 0 0 auto;
+  min-height: 7vw;
+}
+
+
+/* =========================================================
+   Sub Item Content / Preview / Delete / Pin / Confirm / ReminderActive
+   ========================================================= */
+/* item content text */
+.item-content {
+  transition: filter 0.2s ease;
+  padding-right: 28px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item-preview {
+  color: #888;
+  font-size: 12px;
+  margin-top: 4px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.4;
+  max-height: 2.8em;
+}
+
+/* delete button */
+.item-del-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: none;
+  padding: 0.8vw;
+}
+
+/* show delete button on hover */
+.sub-item:hover .item-del-btn {
+  display: inline-flex;
+}
+
+/* delete icon */
+.item-del-icon {
+  color: #e34b4b;
+  font-size: 16px;
+}
+
+/* pin button */
+.item-pin-btn {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  display: none;
+  padding: 0.8vw;
+}
+
+.sub-item:hover .item-pin-btn {
+  display: inline-flex;
+}
+
+.item-pin-icon {
+  color: #9aa0a6;
+  font-size: 16px;
+}
+
+/* blur state while confirming delete */
+.sub-item.is-confirm .item-content {
+  filter: blur(2px);
+  opacity: 0.6;
+}
+
+.sub-item.is-confirm .item-preview {
+  filter: blur(2px);
+  opacity: 0.6;
+}
+
+/* confirm action overlay */
+.item-confirm {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  gap: clamp(4px, 1vw, 8px);
+  padding: clamp(2px, 0.5vw, 6px);
+  justify-content: center;
+  align-items: center;
+}
+.item-confirm .el-button {
+  font-size: clamp(10px, 1.2vw, 14px) !important;
+  padding: clamp(2px, 0.5vw, 6px) clamp(6px, 1.5vw, 16px) !important;
+  min-height: unset !important;
+  height: clamp(22px, 3vw, 32px) !important;
+  border-radius: clamp(3px, 0.5vw, 6px) !important;
+}
+
+/* confirm button */
+.btn-confirm {
+  background: #e34b4b;
+  color: #fff;
+  border: none;
+}
+.btn-confirm:hover {
+  background: #f90000 !important;
+  color: #fde2e2;
+}
+
+/* cancel button */
+.btn-cancel {
+  background: #fff;
+  color: #333;
+  border: 1px solid #ddd;
+}

@@ -3,7 +3,9 @@
     <!-- 自定义标题栏 -->
     <div class="pomodoro-header">
       <span class="pomodoro-drag"></span>
-      <button class="pomodoro-close-button" @click="onClose">×</button>
+      <el-button class="win-btn close" text @click="onClose">
+          <el-icon><Close /></el-icon>
+        </el-button>
     </div>
 
     <div class="pomodoro-body">
@@ -78,6 +80,7 @@ onBeforeUnmount(() => {
   align-items: center;
   padding: 4px 8px;
   -webkit-app-region: drag;     /* 可以拖动窗口 */
+  height: 10vh;
 }
 
 .pomodoro-drag {
@@ -85,24 +88,6 @@ onBeforeUnmount(() => {
   opacity: 0.7;
 }
 
-.pomodoro-close-button {
-  -webkit-app-region: no-drag;  /* 按钮不参与拖动 */
-  background: none;
-  border: none;
-  color: #fff;
-  font-size: 20px;
-  cursor: pointer;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-}
-
-.pomodoro-close-button:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
 
 /* 内容区域 */
 .pomodoro-body {

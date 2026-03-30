@@ -565,6 +565,7 @@ function createWindow() {
   win = new BrowserWindow({
     icon: getResourcePath("icon.ico"),
     title: "MNote",
+    frame: false,
     webPreferences: {
       preload: path.join(__dirname$1, "preload.mjs")
     }
@@ -667,8 +668,8 @@ function openReminderMandatoryWindow(initialText) {
   const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
   const hasParent = !!win && !win.isDestroyed();
   const popup = new BrowserWindow({
-    width: Math.round(screenW * 0.6),
-    height: Math.round(screenH * 0.65),
+    width: Math.round(screenW * 0.5),
+    height: Math.round(screenH * 0.55),
     ...hasParent ? { parent: win, modal: true } : {},
     center: true,
     resizable: false,
@@ -677,6 +678,7 @@ function openReminderMandatoryWindow(initialText) {
     alwaysOnTop: true,
     skipTaskbar: false,
     autoHideMenuBar: true,
+    frame: false,
     webPreferences: {
       preload: path.join(__dirname$1, "preload.mjs")
     },
@@ -707,12 +709,22 @@ function openReminderMandatoryWindow(initialText) {
 async function bootstrap() {
   try {
     await app.whenReady();
-    console.log("[env] DB_HOST:", process.env.DB_HOST);
-    console.log("[env] DB_USER:", process.env.DB_USER);
-    console.log("[env] DB_PASSWORD:", process.env.DB_PASSWORD ? "***有值***" : "***空***");
-    console.log("[env] DB_NAME:", process.env.DB_NAME);
     initSchema();
     console.log("[main] schema init ok");
+    ipcMain.on("window:minimize", (event) => {
+      const w = BrowserWindow.fromWebContents(event.sender);
+      w == null ? void 0 : w.minimize();
+    });
+    ipcMain.on("window:toggle-maximize", (event) => {
+      const w = BrowserWindow.fromWebContents(event.sender);
+      if (!w) return;
+      if (w.isMaximized()) w.unmaximize();
+      else w.maximize();
+    });
+    ipcMain.on("window:close", (event) => {
+      const w = BrowserWindow.fromWebContents(event.sender);
+      w == null ? void 0 : w.close();
+    });
     ipcMain.on("app:save-done", () => {
       isQuitting = true;
       win == null ? void 0 : win.close();

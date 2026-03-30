@@ -2,7 +2,7 @@ export default {
   app: {
     title: 'M Note',
     notes: '笔记',
-    reminders: '提醒',
+    reminders: '提醒器',
     emptySpace:'添 加 窗 口',
     menu: {
       file: '文件',
@@ -20,6 +20,7 @@ export default {
     },
     note:{
       placeHolder:'写点东西...',
+      tilePlace:'输入标题',
     },
     reminderButton:{
       start:'启用',
@@ -34,6 +35,10 @@ export default {
       time:'选择时间（可选）',
       text:'请输入提示文本（最多500字）',
       lastTriggered: '上次触发:'
+    },
+     reminderWindow:{
+      title:'提醒器',
+      text:'以下为提醒内容:',
     },
     pomodoro:{
       end:' 已经结束。',

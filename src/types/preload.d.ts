@@ -35,6 +35,10 @@ declare global {
         settingsSave: (settings: { language: string; closeAction: string }) => Promise<boolean>
         onSettingsChanged: (cb: (settings: { language: string; closeAction: string }) => void) => void
         settingsGet: () => Promise<{ language: string; closeAction: string }>
+        windowMinimize: () => void
+        windowToggleMaximize: () => void
+        windowClose: () => void
+
        
     }
   }

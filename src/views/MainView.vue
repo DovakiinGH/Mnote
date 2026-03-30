@@ -4,17 +4,21 @@
     <!-- top part-->
     <el-header class="top-bar">
       <div class="app-title">{{ t('app.title') }}</div>
-      <el-menu
-        mode="horizontal"
-        class="top-menu"
-        background-color="transparent"
-        text-color="#fff"
-        active-text-color="#fff"
-      >
-        <el-menu-item @click="testClick" v-if = topButton index="file" class="top-btn">{{ t('app.menu.file') }}</el-menu-item>
-        <el-menu-item @click="testClickSecond" v-if = topButton index="edit" class="top-btn">{{ t('app.menu.edit') }}</el-menu-item>
-        <el-menu-item v-if = topButton index="view" class="top-btn">{{ t('app.menu.view') }}</el-menu-item>
-      </el-menu>
+      <div class="window-actions">
+        <el-button class="win-btn" text @click="onMinimize">
+          <el-icon><Minus /></el-icon>
+        </el-button>
+
+        <el-button class="win-btn" text @click="onToggleMaximize">
+          <el-icon>
+            <CopyDocument />
+          </el-icon>
+        </el-button>
+
+        <el-button class="win-btn close" text @click="onClose">
+          <el-icon><Close /></el-icon>
+        </el-button>
+      </div>
     </el-header>
 
   <el-container class="body">
@@ -173,7 +177,7 @@
           <el-input
             v-model="selectedName"
             class="title-input"
-            placeholder="Input the tile"
+            :placeholder="t('app.note.tilePlace')"
             maxlength="50"
             show-word-limit
             spellcheck="false"
@@ -253,7 +257,7 @@
         <el-date-picker
           v-model="currentReminderForm.date"
           type="date"
-          placeholder="Select date"
+          :placeholder="t('app.reminderButton.date')"
           :disabled="isReminderLocked"
           :disabled-date="disablePastDate"
           class="lockable"
@@ -270,7 +274,7 @@
         />
         <el-time-picker
           v-model="currentReminderForm.time"
-          placeholder="Select time(optional)"
+          :placeholder="t('app.reminderButton.time')"
           :disabled="isReminderLocked"
           class="lockable"
           value-format="HH:mm:ss"
@@ -335,7 +339,7 @@ import {REMINDER_TYPES} from '../services/reminderUtils'
 import { formatTime } from '../services/timeUtils'
 import { useWheelScroll } from '../composables/useWheelScroll'
 import { getPreview as getTextPreview } from '../services/markdownPreview'
-import { useReminderForm } from '../composables/useReminderForm'
+import { useReminderForm } from '../composables/useReminder'
 
 const { onTabWheel, onTitleWheel } = useWheelScroll()
 
@@ -346,18 +350,11 @@ const isCollapse = ref(true)
 const isSubOpen = ref(true)
 const selectedSubId = ref<number | null>(null)
 
-const topButton = false
 const currentCloseAction=ref('tray')
 
-const testClick=async ()=>{
-  await window.api.showReminder({
-  title: 'MNote Reminder',
-  body: 'Buy milk at 18:00'
-})
-}
-const testClickSecond=async ()=>{
-  await window.api.openMandatoryReminder('Pay rent today')
-}
+const onMinimize = () => window.api.windowMinimize()
+const onToggleMaximize = () => window.api.windowToggleMaximize()
+const onClose = () => window.api.windowClose()
 
 
 //---------------------------------------------------data load and save------------------------------------------------------//

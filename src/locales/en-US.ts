@@ -20,6 +20,7 @@ export default {
     },
     note:{
       placeHolder:'Write some thing...',
+      tilePlace:'Input the tile',
     },
     reminderButton:{
       start:'start',
@@ -34,6 +35,10 @@ export default {
       time:'select time(optional)',
       text:'Please input reminder text(Maximum 500 characters )',
       lastTriggered: 'Last triggered:'
+    },
+    reminderWindow:{
+      title:'Reminder',
+      text:'Please handle this now:',
     },
     pomodoro:{
       end:' is finished.',

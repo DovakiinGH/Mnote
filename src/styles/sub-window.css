@@ -1,0 +1,23 @@
+.sub-window{
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #fff;
+  user-select: none;
+  overflow: hidden;
+}
+
+/* 标题栏 */
+.sub-window-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  -webkit-app-region: drag;
+  height: 8vh;
+}
+
+
+.sub-window-body {
+  flex: 1;
+  padding: 20px 24px;
+}

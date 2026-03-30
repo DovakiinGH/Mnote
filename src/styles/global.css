@@ -9,6 +9,7 @@
   height: 6vh;
   min-height: 32px;
   max-height: 70px;
+  -webkit-app-region: drag;  /* 整个栏可拖动 */
 }
 
 .app-title {
@@ -20,6 +21,34 @@
    z-index: 100;
 }
 
+/* window button */
+.window-actions {
+  -webkit-app-region: no-drag;
+  margin-left: auto;
+  display: flex;
+  height: 100%;
+}
+.win-btn.el-button {
+  -webkit-app-region: no-drag;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #fff;
+  height: 100%;
+  width: clamp(40px, 3.2vw, 56px);
+  padding: 0;
+    display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+}
+.window-actions .win-btn.el-button:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+/* done button footer */
 .footer {
   padding: 12px 20px;
   display: flex;

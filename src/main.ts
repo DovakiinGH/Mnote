@@ -11,6 +11,10 @@ import *as ElementPlusIconsVue from '@element-plus/icons-vue'
 import './styles/base.css'
 import './styles/app.css'
 import './styles/global.css'
+import './styles/side-menu.css'
+import './styles/sub-side-menu.css'
+import './styles/milkdown.css'
+import './styles/sub-window.css'
 import router from './router'
 
 const app = createApp(App)
