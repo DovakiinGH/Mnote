@@ -16,14 +16,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
-
+import { formatDuration } from '../services/timeUtils'
 
 const title = ref('')
 const text = ref('')
 const remainingSeconds = ref(0)
 let timer: ReturnType<typeof setInterval> | null = null
-
-  import { formatDuration } from '../services/timeUtils'
 const displayTime = computed(() => formatDuration(remainingSeconds.value))
 
 const startCountdown = () => {

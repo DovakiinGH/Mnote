@@ -10,7 +10,7 @@ import { listNotesService,saveNoteService,removeNoteService,createNoteService } 
 import { listRemindersService, saveReminderService, removeReminderService, markReminderTriggeredService,createReminderService} from './backend/reminders.service' // 你文件名按实际改
 import { updateQuickNote, saveQuickNote } from './backend/quick.service'
 import { getResourcePath } from './path'
-import {openPomodoroWindow,closePomodoroWindow,setOnPomodoroClose,setupPomodoroIpc} from './reminder/pomodoro'
+import {openPomodoroWindow,closePomodoroWindow,initPomodoro,getCurrentPomodoroId} from './reminder/pomodoro'
 import { initSettings,openSettingsWindow,closeSettingsWindow } from './settings'
 import { loadSettings, saveSettings } from './settings-store'
 import type { AppSettings } from './settings-store'
@@ -67,6 +67,7 @@ function createWindow() {
     win.loadFile(path.join(RENDERER_DIST, 'index.html'), { hash: '/' })
   }
   initSettings(win)
+  initPomodoro(win)
 
 }
 
@@ -251,11 +252,17 @@ async function bootstrap() {
     ipcMain.handle('reminders:markTriggered', async (_e, id: number, ts?: number) =>
       markReminderTriggeredService(id, ts)
     )
-    // ---- pomodoro ---- //
-
+    // ---- pomodoro ipc ---- -----------------------------------//
     //a set up 'pomodoro-finished' from pomodoro.ts, 
     // which will be called when pomodoro window sends 'pomodoro-finished' after countdown ends
-    setupPomodoroIpc()
+    const currentReminderId =getCurrentPomodoroId() 
+    ipcMain.handle('pomodoro-finished', () => {
+        if (currentReminderId !== null && win && !win.isDestroyed()) {
+          win?.webContents.send('pomodoro-closed', currentReminderId)
+        }
+        closePomodoroWindow()
+        return true
+      })
     // from Pomodoro vue 
     ipcMain.handle('pomodoro-start', (_event, data: {id: number,title: string,text: string,minutes: number}) => {
       openPomodoroWindow(data)
@@ -264,9 +271,6 @@ async function bootstrap() {
     ipcMain.handle('pomodoro-stop', () => {
       closePomodoroWindow()
       return true
-    })
-    setOnPomodoroClose((id: number) => {
-      win?.webContents.send('pomodoro-closed', id)
     })
     //------------------settings ipc-------------------------------------------//
     ipcMain.handle('settings-open', () => {openSettingsWindow()

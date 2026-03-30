@@ -1,4 +1,4 @@
-import { app, screen, BrowserWindow, ipcMain, globalShortcut, Notification, Menu, nativeImage, Tray } from "electron";
+import { app, screen, BrowserWindow, globalShortcut, ipcMain, Notification, Menu, nativeImage, Tray } from "electron";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "crypto";
 import path from "node:path";
@@ -327,7 +327,7 @@ function normalizeReminderByType(f) {
     };
   }
   if (f.type === "DATE_TIME") {
-    return { type: f.type, minutes: null, date: f.date ?? null, time: f.time ?? null, days: null };
+    return { type: f.type, minutes: null, date: f.date ?? (/* @__PURE__ */ new Date()).toISOString().slice(0, 10), time: f.time ?? null, days: null };
   }
   return {
     type: f.type,
@@ -416,14 +416,14 @@ async function saveQuickNote(mainWindow) {
 const __dirname$3 = path.dirname(fileURLToPath(import.meta.url));
 let pomodoroWin = null;
 let currentReminderId = null;
-let onCloseCallback = null;
-function setOnPomodoroClose(cb) {
-  onCloseCallback = cb;
+let mainWin$1 = null;
+function initPomodoro(win2) {
+  mainWin$1 = win2;
 }
 function openPomodoroWindow(data) {
   if (pomodoroWin && !pomodoroWin.isDestroyed()) {
-    if (currentReminderId !== null && onCloseCallback) {
-      onCloseCallback(currentReminderId);
+    if (currentReminderId !== null && mainWin$1 && !mainWin$1.isDestroyed()) {
+      mainWin$1.webContents.send("pomodoro-closed", currentReminderId);
     }
     pomodoroWin.destroy();
     pomodoroWin = null;
@@ -461,8 +461,8 @@ function openPomodoroWindow(data) {
     });
   }
   pomodoroWin.on("closed", () => {
-    if (currentReminderId !== null && onCloseCallback) {
-      onCloseCallback(currentReminderId);
+    if (currentReminderId !== null && mainWin$1 && !mainWin$1.isDestroyed()) {
+      mainWin$1.webContents.send("pomodoro-closed", currentReminderId);
     }
     pomodoroWin = null;
     currentReminderId = null;
@@ -476,14 +476,8 @@ function closePomodoroWindow() {
     win2.destroy();
   }
 }
-function setupPomodoroIpc() {
-  ipcMain.handle("pomodoro-finished", () => {
-    if (currentReminderId !== null && onCloseCallback) {
-      onCloseCallback(currentReminderId);
-    }
-    closePomodoroWindow();
-    return true;
-  });
+function getCurrentPomodoroId() {
+  return currentReminderId;
 }
 const __dirname$2 = path.dirname(fileURLToPath(import.meta.url));
 let settingsWin = null;
@@ -592,6 +586,7 @@ function createWindow() {
     win.loadFile(path.join(RENDERER_DIST, "index.html"), { hash: "/" });
   }
   initSettings(win);
+  initPomodoro(win);
 }
 function resolveResourcePath(fileName) {
   if (app.isPackaged) {
@@ -754,7 +749,14 @@ async function bootstrap() {
       "reminders:markTriggered",
       async (_e, id, ts) => markReminderTriggeredService(id, ts)
     );
-    setupPomodoroIpc();
+    const currentReminderId2 = getCurrentPomodoroId();
+    ipcMain.handle("pomodoro-finished", () => {
+      if (currentReminderId2 !== null && win && !win.isDestroyed()) {
+        win == null ? void 0 : win.webContents.send("pomodoro-closed", currentReminderId2);
+      }
+      closePomodoroWindow();
+      return true;
+    });
     ipcMain.handle("pomodoro-start", (_event, data) => {
       openPomodoroWindow(data);
       return true;
@@ -762,9 +764,6 @@ async function bootstrap() {
     ipcMain.handle("pomodoro-stop", () => {
       closePomodoroWindow();
       return true;
-    });
-    setOnPomodoroClose((id) => {
-      win == null ? void 0 : win.webContents.send("pomodoro-closed", id);
     });
     ipcMain.handle("settings-open", () => {
       openSettingsWindow();

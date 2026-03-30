@@ -14,6 +14,7 @@ function dateToYmd(v: string | Date | null): string | null {
   return `${y}-${m}-${d}`
 }
 
+//no time default to "00:00:00"
 function normalizeTime(v: string | null): string {
   if (!v) return '00:00:00'
   // TIME can be HH:mm:ss or HH:mm
