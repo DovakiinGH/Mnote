@@ -103,9 +103,7 @@ function getEnabledReminders() {
   `).all();
 }
 function markTriggered(id, ts) {
-  db.prepare(
-    "UPDATE reminders SET lastTriggeredAt = ?, updatedAt = ? WHERE id = ?"
-  ).run(ts, ts, id);
+  db.prepare("UPDATE reminders SET lastTriggeredAt = ? WHERE id = ?").run(ts, id);
 }
 function disableReminder(id, ts) {
   db.prepare(
@@ -441,6 +439,7 @@ function openPomodoroWindow(data) {
       preload: path.join(__dirname$3, "preload.mjs")
     }
   });
+  markTriggered(data.id, Date.now());
   if (process.env.VITE_DEV_SERVER_URL) {
     pomodoroWin.loadURL(`${process.env.VITE_DEV_SERVER_URL}#/pomodoro`);
   } else {
@@ -759,6 +758,7 @@ async function bootstrap() {
     });
     ipcMain.handle("pomodoro-start", (_event, data) => {
       openPomodoroWindow(data);
+      win == null ? void 0 : win.webContents.send("reminders:changed");
       return true;
     });
     ipcMain.handle("pomodoro-stop", () => {

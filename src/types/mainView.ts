@@ -1,6 +1,6 @@
-export type TabType = 'notes' | 'reminders'
+// src/types/mainView.ts
 
-export type UnitItem = {
+export type BaseItem = {
   id: number
   name: string
   contentId: number
@@ -9,12 +9,18 @@ export type UnitItem = {
   pinned?: boolean
 }
 
-export type ReminderTypeKey = 'AFTER_MINUTES' | 'DATE_TIME' | 'EVERY_DAYS'
-export type ReminderMode = 'NOTIFICATION' | 'POPUP_WINDOW'| 'POMODORO'
+export type NoteItem = BaseItem
 
+export type ReminderItem = BaseItem & {
+  lastTriggeredAt: number | null
+}
+
+export type TabType = 'notes' | 'reminders'
+
+// 你原来的 ReminderForm 保持不变
 export type ReminderForm = {
-  type: ReminderTypeKey
-  mode: ReminderMode
+  type: 'AFTER_MINUTES' | 'DATE_TIME' | 'EVERY_DAYS'
+  mode: 'NOTIFICATION' | 'POPUP_WINDOW' | 'POMODORO'
   text: string
   enabled: boolean
   minutes?: number

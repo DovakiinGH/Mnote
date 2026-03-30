@@ -266,6 +266,7 @@ async function bootstrap() {
     // from Pomodoro vue 
     ipcMain.handle('pomodoro-start', (_event, data: {id: number,title: string,text: string,minutes: number}) => {
       openPomodoroWindow(data)
+      win?.webContents.send('reminders:changed')
       return true
     })
     ipcMain.handle('pomodoro-stop', () => {

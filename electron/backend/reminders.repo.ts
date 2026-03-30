@@ -95,9 +95,7 @@ export function getEnabledReminders(): ReminderRow[] {
 }
 
 export function markTriggered(id: number, ts: number) {
-  db.prepare(
-    'UPDATE reminders SET lastTriggeredAt = ?, updatedAt = ? WHERE id = ?'
-  ).run(ts, ts, id)
+  db.prepare('UPDATE reminders SET lastTriggeredAt = ? WHERE id = ?').run(ts, id)
 }
 
 export function disableReminder(id: number, ts: number) {

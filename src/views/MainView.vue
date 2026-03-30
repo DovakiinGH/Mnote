@@ -179,12 +179,22 @@
             spellcheck="false"
           />
         </div>
-        <div class="note-time">
-        <div class="time-line">
-            {{ activeContentItem?.createAt ? formatTime(activeContentItem.createAt) : '' }}
+        <div class="time-lines">
+          <div class="note-time">
+            <div class="time-left">
+            <div class="time-line">
+              {{ activeContentItem?.createAt ? formatTime(activeContentItem.createAt) : '--' }}
+            </div>
+            <div class="time-line">
+              {{ activeContentItem?.updatedAt ? formatTime(activeContentItem.updatedAt) : '--' }}
+            </div>
+            </div>
           </div>
-          <div class="time-line">
-            {{ activeContentItem?.updatedAt ? formatTime(activeContentItem.updatedAt) : '' }}
+          <div v-if="activeTab?.type === 'reminders'" class="time-right">
+            <div class="time-line">{{ t('app.reminderButton.lastTriggered') }}</div>
+            <div class="time-line">
+              {{ activeReminderItem?.lastTriggeredAt ? formatTime(activeReminderItem.lastTriggeredAt) : '--' }}          
+            </div>
           </div>
         </div>
         <!-- note----------------------------------------------------------------------------------------------------->
@@ -320,7 +330,7 @@ import { useI18n } from 'vue-i18n'
 import { computed, onMounted } from 'vue'
 import { watch } from 'vue'
 import MdEditor from '../components/MdEditor.vue'
-import type { UnitItem, TabType, ReminderForm  } from '../types/mainView'
+import type { NoteItem, ReminderItem, TabType, ReminderForm } from '../types/mainView'
 import {REMINDER_TYPES} from '../services/reminderUtils'
 import { formatTime } from '../services/timeUtils'
 import { useWheelScroll } from '../composables/useWheelScroll'
@@ -376,7 +386,8 @@ const loadReminders = async()=>{
     contentId: Number(r.id), 
     createAt: Number(r.createAt ?? Date.now()),
     updatedAt: r.updatedAt != null ? Number(r.updatedAt) : null,
-    pinned: Boolean(r.pinned)
+    pinned: Boolean(r.pinned),
+    lastTriggeredAt: r.lastTriggeredAt != null ? Number(r.lastTriggeredAt) : null
   }))
     rows.forEach((r: any) => {
     const id = Number(r.id)
@@ -530,11 +541,11 @@ const scheduleSaveReminder = (id: number) => {
 
 //--------------------------const-------------------------------------------------------------------------------------
 const dataMap = ref<{
-  notes: UnitItem[]
-  reminders: UnitItem[]
+  notes: NoteItem[]
+  reminders: ReminderItem[]
 }>({
   notes: [{ id: 1, name: 'no', contentId: 101 }],
-  reminders: [{ id: 10, name: 'no', contentId: 101 }]
+  reminders: [{ id: 10, name: 'no', contentId: 101, lastTriggeredAt: null }]
 }) //格式：ref<T>(initialValue)
 const contentStore = ref<Record<number, string>>({
   101: '',
@@ -642,6 +653,11 @@ const activeContentItem = computed(() => {
   const list = dataMap.value[activeTab.value.type]
   return list.find(i => i.id === activeTab.value!.itemId) || null
 }) //返回活跃的边栏item
+const activeReminderItem = computed<ReminderItem | null>(() => {
+  if (activeTab.value?.type !== 'reminders') return null
+  const item = dataMap.value.reminders.find(i => i.id === activeTab.value!.itemId)
+  return item ?? null
+})
 
 const closeTab = (key: string) => {
   const idx = tabs.value.findIndex(t => t.key === key)
@@ -683,8 +699,7 @@ const {
   onEnabledChange
 } = useReminderForm(
   reminderStore,
-  activeContentItem,
-  currentCategoryName,
+  activeReminderItem,
   scheduleSaveReminder
 )
 //-----------------------------------------------------name and content---------------------------------------------------
@@ -749,11 +764,11 @@ const onConfirmDelete = async (id: number) => {
   confirmDeleteId.value = null
 }
 //---------------------------------------item pinned-----------------------------------------------------------
-const onTogglePin = (item: UnitItem) => {
+const onTogglePin = (item: NoteItem | ReminderItem) => {
   item.pinned = !item.pinned
-    if (currentCategoryName.value === 'notes') {
+  if (currentCategoryName.value === 'notes') {
     scheduleSave(item.id)
-  }else if (currentCategoryName.value === 'reminders') {
+  } else if (currentCategoryName.value === 'reminders') {
     scheduleSaveReminder(item.id)
   }
 }

@@ -2,7 +2,9 @@ import { BrowserWindow,screen  } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getResourcePath } from '../path'
-
+import {
+  markTriggered,
+} from '../backend/reminders.repo'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 let pomodoroWin: BrowserWindow | null = null
@@ -42,6 +44,7 @@ export function openPomodoroWindow(data: {
       preload: path.join(__dirname, 'preload.mjs'),
     },
   })
+  markTriggered(data.id, Date.now())
 
   if (process.env.VITE_DEV_SERVER_URL) {
     pomodoroWin.loadURL(`${process.env.VITE_DEV_SERVER_URL}#/pomodoro`)

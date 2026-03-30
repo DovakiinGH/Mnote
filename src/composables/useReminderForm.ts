@@ -1,18 +1,18 @@
 import { computed } from 'vue'
 import type { Ref } from 'vue'
-import type { UnitItem, ReminderForm } from '../types/mainView'
+import type { ReminderItem, ReminderForm } from '../types/mainView'
 
 export function useReminderForm(
   reminderStore: Ref<Record<number, ReminderForm>>,
-  activeContentItem: Ref<UnitItem | null>,
-  currentCategoryName: Ref<'notes' | 'reminders'>,
+  activeReminderItem: Ref<ReminderItem | null>,
   scheduleSaveReminder: (id: number) => void
 ) {
   const currentReminderForm = computed<ReminderForm>(() => {
-    const id = activeContentItem.value?.id
+    const id = activeReminderItem.value?.id
     if (!id) {
       return { type: 'AFTER_MINUTES', mode: 'NOTIFICATION', text: '', minutes: 5, enabled: false }
     }
+
     if (!reminderStore.value[id]) {
       reminderStore.value[id] = {
         type: 'AFTER_MINUTES',
@@ -25,12 +25,9 @@ export function useReminderForm(
     return reminderStore.value[id]
   })
 
-  const isReminderLocked = computed(() => {
-    return currentReminderForm.value.enabled === true
-  })
+  const isReminderLocked = computed(() => currentReminderForm.value.enabled === true)
 
   const isReminderActive = (id: number): boolean => {
-    if (currentCategoryName.value !== 'reminders') return false
     return reminderStore.value[id]?.enabled === true
   }
 
@@ -68,8 +65,9 @@ export function useReminderForm(
   }
 
   const onEnabledChange = async (val: boolean) => {
-    const item = activeContentItem.value
+    const item = activeReminderItem.value
     if (!item) return
+
     const form = reminderStore.value[item.id]
     if (!form || form.mode !== 'POMODORO') return
 

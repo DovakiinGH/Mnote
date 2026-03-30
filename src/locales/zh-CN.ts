@@ -32,7 +32,8 @@ export default {
       everyDays:'几天一次',
       date:'选择日期',
       time:'选择时间（可选）',
-      text:'请输入提示文本（最多500字）'
+      text:'请输入提示文本（最多500字）',
+      lastTriggered: '上次触发:'
     },
     pomodoro:{
       end:' 已经结束。',

@@ -32,7 +32,8 @@ export default {
       everyDays:'every few days',
       date:'select date',
       time:'select time(optional)',
-      text:'Please input reminder text(Maximum 500 characters )'
+      text:'Please input reminder text(Maximum 500 characters )',
+      lastTriggered: 'Last triggered:'
     },
     pomodoro:{
       end:' is finished.',
