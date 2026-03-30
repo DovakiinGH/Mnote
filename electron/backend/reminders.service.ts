@@ -26,7 +26,7 @@ export function normalizeReminderByType(f: ReminderUpsertInput) {
     }
   }
   if (f.type === 'DATE_TIME') {
-    return { type: f.type, minutes: null, date: f.date ?? null, time: f.time ?? null, days: null }
+    return { type: f.type, minutes: null, date: f.date ??  new Date().toISOString().slice(0, 10), time: f.time ?? null, days: null }
   }
   return {
     type: f.type,
