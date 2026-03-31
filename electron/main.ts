@@ -33,7 +33,7 @@ let currentSettings = loadSettings()
 
 
 if (process.platform === 'win32') {
-  app.setAppUserModelId('com.yourapp.mnote')
+  app.setAppUserModelId('MNote')
 }
 app.setName('MNote')
 //--------------------------------------createWindow----------------------------------------------------------------------//

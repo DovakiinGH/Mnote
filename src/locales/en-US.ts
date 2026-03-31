@@ -16,7 +16,8 @@ export default {
     button:{
       new:'New',
       confirm:'confirm',
-      exit:'exit'
+      exit:'exit',
+      search: "search..."
     },
     note:{
       placeHolder:'Write some thing...',

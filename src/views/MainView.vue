@@ -141,6 +141,13 @@
         </el-scrollbar>
         <!-- bottom of list -->
         <div class="sub-end">
+            <el-input
+              v-model="searchQuery"
+              class="search-input"
+              :placeholder="t('app.button.search')"
+              clearable
+              :prefix-icon="Search"
+            />
           <el-button
               class="side-btn side-close"
             @click="onSubSideEndClick"
@@ -340,6 +347,7 @@ import { formatTime } from '../services/timeUtils'
 import { useWheelScroll } from '../composables/useWheelScroll'
 import { getPreview as getTextPreview } from '../services/markdownPreview'
 import { useReminderForm } from '../composables/useReminder'
+import { Search } from '@element-plus/icons-vue'
 
 const { onTabWheel, onTitleWheel } = useWheelScroll()
 
@@ -355,6 +363,7 @@ const currentCloseAction=ref('tray')
 const onMinimize = () => window.api.windowMinimize()
 const onToggleMaximize = () => window.api.windowToggleMaximize()
 const onClose = () => window.api.windowClose()
+const searchQuery = ref('')
 
 
 //---------------------------------------------------data load and save------------------------------------------------------//
@@ -536,7 +545,7 @@ const scheduleSaveReminder = (id: number) => {
 }
 
 
-//--------------------------const-------------------------------------------------------------------------------------
+//--------------------------data const-------------------------------------------------------------------------------------
 const dataMap = ref<{
   notes: NoteItem[]
   reminders: ReminderItem[]
@@ -598,9 +607,23 @@ const currentCategoryName = computed<'notes'|'reminders'>(() => {
 })  
 
 const currentItems = computed(() => {
-  if (currentCategoryName.value === 'notes') return sortedNotes.value
-  if (currentCategoryName.value === 'reminders')return sortedReminders.value
-  return []
+  const list = currentCategoryName.value === 'notes' ? sortedNotes.value: sortedReminders.value
+  const q = searchQuery.value
+  if (!q || !normalizeForSearch(q)) return list
+  return list.filter(item => {
+    // 搜索名称
+    if (matchSearch(item.name ?? '', q)) return true
+    // 搜索内容
+    if (currentCategoryName.value === 'notes') {
+      const content = contentStore.value[item.contentId] ?? ''
+      if (matchSearch(content, q)) return true
+    }
+    if (currentCategoryName.value === 'reminders') {
+      const form = reminderStore.value[item.id]
+      if (form && matchSearch(form.text ?? '', q)) return true
+    }
+    return false
+  })
 })
 
 //-----------------------------------Tabs----------------------------------------------------------
@@ -768,6 +791,19 @@ const onTogglePin = (item: NoteItem | ReminderItem) => {
   } else if (currentCategoryName.value === 'reminders') {
     scheduleSaveReminder(item.id)
   }
+}
+//----------------------------------------item search-----------------------------------------------------------
+function normalizeForSearch(str: string): string {
+  return str.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase()
+}
+// \p{L} for language characters, \p{N} for numbers, u for unicode, g for global
+
+function matchSearch(text: string, query: string): boolean {
+  if (!query) return true
+  const normalizedText = normalizeForSearch(text)
+  const normalizedQuery = normalizeForSearch(query)
+  if (!normalizedQuery) return true 
+  return normalizedText.includes(normalizedQuery)
 }
 //------------------------------preview----------------------------------------------------------------------
 const getPreview = (contentId?: number) => {

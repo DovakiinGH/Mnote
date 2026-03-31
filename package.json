@@ -59,6 +59,7 @@
     ],
     "icon": "resources/icon.ico",
     "win": {
+        "appId": "MNote",
       "target": [
         {
           "target": "nsis",

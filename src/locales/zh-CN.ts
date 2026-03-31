@@ -16,7 +16,8 @@ export default {
     button:{
       new:'新建',
       confirm:'删除',
-      exit:'退出'
+      exit:'退出',
+      search: "搜索..."
     },
     note:{
       placeHolder:'写点东西...',

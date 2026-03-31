@@ -26,7 +26,6 @@
   border-bottom: 1px solid #e5e5e5;
   padding-bottom: 8px;
 }
-
 .sub-end {
   position: relative;
   display: flex;
@@ -34,7 +33,11 @@
   justify-content: center;
   height: clamp(10px, 10vh, 100px);
   border-top: 1px solid #e5e5e5;
+  gap: 10px;
+  padding: 10px 8px;
+
 }
+
 
 .sub-title {
   font-weight: 700;
@@ -181,4 +184,27 @@
   background: #fff;
   color: #333;
   border: 1px solid #ddd;
+}
+
+
+
+/* search */
+.search-input {
+ align-self: flex-start;
+  flex: 1;
+  height: 4vh;
+}
+
+.search-input :deep(.el-input__wrapper) {
+  border-radius: 12px;
+  background: var(--el-fill-color-light);
+  box-shadow: none;
+}
+
+.search-input :deep(.el-input__wrapper:hover) {
+  background: var(--el-fill-color);
+}
+
+.search-input :deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px var(--el-color-primary) inset;
 }
