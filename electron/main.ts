@@ -282,7 +282,7 @@ async function bootstrap() {
       closePomodoroWindow()
       return true
     })
-    //------------------settings ipc-------------------------------------------//
+    //------------------settings ipc
     ipcMain.handle('settings-open', () => {openSettingsWindow()
       return true
     })
