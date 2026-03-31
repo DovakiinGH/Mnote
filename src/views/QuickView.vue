@@ -1,23 +1,33 @@
 <template>
-  <div class="quick-content">
-          <el-input
-          v-model="selectedName"
-          class="title-input"
-          :placeholder="t('app.note.tilePlace')"
-          maxlength="50"
-          show-word-limit
-          spellcheck="false"
-        />
-        <el-scrollbar  class="editor-scroll" >
-          <el-input
-            v-model="selectedContent"
-            type="textarea"
-            class="note-editor"
-            :autosize="{ minRows: 10 }"
+    <div class="sub-window">
+          <div class="sub-window-header top-bar">
+      <span class="app-title">{{ t('app.note.quickNote') }}</span>
+      <el-button class="win-btn close" text @click="onClose">
+          <el-icon><Close /></el-icon>
+        </el-button>
+    </div>
+
+    
+    <div class="quick-content">
+            <el-input
+            v-model="selectedName"
+            class="title-input"
+            :placeholder="t('app.note.tilePlace')"
+            maxlength="50"
+            show-word-limit
             spellcheck="false"
-            :placeholder="t('app.note.placeHolder')"
           />
-        </el-scrollbar>
+          <el-scrollbar  class="editor-scroll" >
+            <el-input
+              v-model="selectedContent"
+              type="textarea"
+              class="note-editor"
+              :autosize="{ minRows: 10 }"
+              spellcheck="false"
+              :placeholder="t('app.note.placeHolder')"
+            />
+          </el-scrollbar>
+    </div>
   </div>
 </template>
 
@@ -38,6 +48,14 @@ watch([selectedName, selectedContent], () => {
     content: selectedContent.value
   })
 }, { immediate: true })
+
+const onClose =async () => {
+   window.api.quickNoteUpdate({
+    title: selectedName.value,
+    content: selectedContent.value
+  })
+  window.api.quickNoteClose()
+}
 //callback(second input of watch) will be executed immediately when the watcher is created 
 // (even if the variables haven't changed)
 // ensuring that the initial values are also synchronized

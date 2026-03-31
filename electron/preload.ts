@@ -44,6 +44,7 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('shortcut:update', accelerator),
   quickNoteUpdate: (note: { title: string; content: string }) =>
     ipcRenderer.send('quick:note:update', note),
+  quickNoteClose: () => ipcRenderer.send('quick:note:close'),
   onNotesChanged: (cb: () => void) =>
     ipcRenderer.on('notes:changed', () => cb()),
   showReminder: (payload: { title: string; body: string }) =>

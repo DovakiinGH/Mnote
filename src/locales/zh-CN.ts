@@ -21,6 +21,7 @@ export default {
     note:{
       placeHolder:'写点东西...',
       tilePlace:'输入标题',
+      quickNote:'快速笔记',
     },
     reminderButton:{
       start:'启用',

@@ -223,6 +223,10 @@ function openQuickWindow(VITE_DEV_SERVER_URL2, RENDERER_DIST2, __dirname, onBefo
     show: false,
     alwaysOnTop: true,
     autoHideMenuBar: true,
+    resizable: true,
+    movable: true,
+    frame: false,
+    center: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.mjs")
     },
@@ -248,6 +252,9 @@ function openQuickWindow(VITE_DEV_SERVER_URL2, RENDERER_DIST2, __dirname, onBefo
   quickWin.on("closed", () => {
     quickWin = null;
   });
+}
+function closeQuickWindow() {
+  quickWin == null ? void 0 : quickWin.close();
 }
 function upsertNote(note) {
   const { id, title, content, updatedAt, createAt, pinned } = note;
@@ -735,6 +742,9 @@ async function bootstrap() {
     ipcMain.handle("shortcut:get", () => currentShortcut);
     ipcMain.on("quick:note:update", (_event, note) => {
       updateQuickNote(note);
+    });
+    ipcMain.on("quick:note:close", () => {
+      closeQuickWindow();
     });
     ipcMain.handle("reminder:show", (_event, payload) => {
       const n = new Notification({

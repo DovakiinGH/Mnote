@@ -4,7 +4,7 @@ import { randomUUID } from 'crypto'
 import path from 'node:path'
 import { initSchema } from './backend/schema'
 import { createReminderScheduler } from './reminder/scheduler'
-import { openQuickWindow } from './quickWindow'
+import { openQuickWindow,closeQuickWindow } from './quickWindow'
 
 import { listNotesService,saveNoteService,removeNoteService,createNoteService } from './backend/notes.service'
 import { listRemindersService, saveReminderService, removeReminderService, markReminderTriggeredService,createReminderService} from './backend/reminders.service' // 你文件名按实际改
@@ -235,6 +235,9 @@ async function bootstrap() {
     ipcMain.handle('shortcut:get', () => currentShortcut)
     ipcMain.on('quick:note:update', (_event, note: { title: string; content: string }) => {
       updateQuickNote(note)
+    })
+    ipcMain.on('quick:note:close',()=>{
+      closeQuickWindow()
     })
     ipcMain.handle('reminder:show', (_event, payload: { title: string; body: string }) => {
       const n = new Notification({

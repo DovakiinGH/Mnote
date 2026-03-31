@@ -18,6 +18,7 @@ declare global {
         shortcutGet: () => Promise<string>
         shortcutUpdate: (accelerator: string) => Promise<boolean>
         quickNoteUpdate: (draft: { title: string; content: string }) => void
+        quickNoteClose: () => void
         onNotesChanged: (cb: () => void) => void
         showReminder: (payload: { title: string; body: string }) => Promise<boolean>
         openMandatoryReminder: (text: string) => Promise<boolean>

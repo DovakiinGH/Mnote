@@ -21,6 +21,7 @@ export default {
     note:{
       placeHolder:'Write some thing...',
       tilePlace:'Input the tile',
+      quickNote:'Quick Note',
     },
     reminderButton:{
       start:'start',

@@ -27,6 +27,10 @@ export function openQuickWindow(
     show: false,
     alwaysOnTop: true,
     autoHideMenuBar: true,
+    resizable: true,
+    movable: true, 
+    frame: false,
+    center: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs')
     },
@@ -61,3 +65,7 @@ export function openQuickWindow(
     quickWin = null
   })
 }
+export function closeQuickWindow() {
+  quickWin?.close()
+}
+

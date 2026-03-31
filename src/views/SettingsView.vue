@@ -1,6 +1,5 @@
 <template>
   <div class="sub-window">
-    <!-- 自定义标题栏 -->
     <div class="sub-window-header top-bar">
       <span class="app-title">{{ t('app.settings.title') }}</span>
       <el-button class="win-btn close" text @click="onClose">
@@ -8,11 +7,9 @@
         </el-button>
     </div>
 
-    <!-- 内容区域 -->
     <el-scrollbar class="sub-window-body">
       <el-form label-position="left" label-width="160px" class="settings-form">
 
-        <!-- 语言 -->
         <el-form-item :label="t('app.settings.language')">
           <el-select v-model="form.language" @change="onLanguageChange">
             <el-option label="English" value="en-US" />
@@ -20,7 +17,6 @@
           </el-select>
         </el-form-item>
 
-        <!-- 关闭行为 -->
         <el-form-item :label="t('app.settings.closeAction')">
           <el-select v-model="form.closeAction">
             <el-option :label="t('app.settings.closeActionQuit')" value="quit" />

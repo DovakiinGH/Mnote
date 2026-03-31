@@ -37,6 +37,7 @@ electron.contextBridge.exposeInMainWorld("api", {
   shortcutGet: () => electron.ipcRenderer.invoke("shortcut:get"),
   shortcutUpdate: (accelerator) => electron.ipcRenderer.invoke("shortcut:update", accelerator),
   quickNoteUpdate: (note) => electron.ipcRenderer.send("quick:note:update", note),
+  quickNoteClose: () => electron.ipcRenderer.send("quick:note:close"),
   onNotesChanged: (cb) => electron.ipcRenderer.on("notes:changed", () => cb()),
   showReminder: (payload) => electron.ipcRenderer.invoke("reminder:show", payload),
   openMandatoryReminder: (text) => electron.ipcRenderer.invoke("reminder:open-mandatory", text),
