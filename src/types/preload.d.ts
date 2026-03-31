@@ -20,8 +20,8 @@ declare global {
         quickNoteUpdate: (draft: { title: string; content: string }) => void
         quickNoteClose: () => void
         onNotesChanged: (cb: () => void) => void
-        showReminder: (payload: { title: string; body: string }) => Promise<boolean>
-        openMandatoryReminder: (text: string) => Promise<boolean>
+        // showReminder: (payload: { title: string; body: string }) => Promise<boolean>
+        // openMandatoryReminder: (text: string) => Promise<boolean>
         submitMandatoryReminder: (payload: { text: string }, channel: string) => Promise<boolean>,
         onRemindersChanged: (cb: () => void) => void
 

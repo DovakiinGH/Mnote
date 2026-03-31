@@ -39,8 +39,9 @@ electron.contextBridge.exposeInMainWorld("api", {
   quickNoteUpdate: (note) => electron.ipcRenderer.send("quick:note:update", note),
   quickNoteClose: () => electron.ipcRenderer.send("quick:note:close"),
   onNotesChanged: (cb) => electron.ipcRenderer.on("notes:changed", () => cb()),
-  showReminder: (payload) => electron.ipcRenderer.invoke("reminder:show", payload),
-  openMandatoryReminder: (text) => electron.ipcRenderer.invoke("reminder:open-mandatory", text),
+  // showReminder: (payload: { title: string; body: string }) =>
+  //   ipcRenderer.invoke('reminder:show', payload),
+  // openMandatoryReminder: (text: string) => ipcRenderer.invoke('reminder:open-mandatory', text),
   submitMandatoryReminder: (payload, channel) => electron.ipcRenderer.invoke(channel, payload),
   onRemindersChanged: (cb) => {
     electron.ipcRenderer.on("reminders:changed", () => cb());

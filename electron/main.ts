@@ -1,19 +1,19 @@
-import { app, BrowserWindow,ipcMain,Menu,Tray,nativeImage,globalShortcut, Notification,screen  } from 'electron'
+import { app, BrowserWindow,ipcMain,Menu,Tray,nativeImage,globalShortcut, Notification } from 'electron'
 import { fileURLToPath } from 'node:url'
-import { randomUUID } from 'crypto'
 import path from 'node:path'
 import { initSchema } from './backend/schema'
 import { createReminderScheduler } from './reminder/scheduler'
 import { openQuickWindow,closeQuickWindow } from './quickWindow'
 
 import { listNotesService,saveNoteService,removeNoteService,createNoteService } from './backend/notes.service'
-import { listRemindersService, saveReminderService, removeReminderService, markReminderTriggeredService,createReminderService} from './backend/reminders.service' // 你文件名按实际改
+import { listRemindersService, saveReminderService, removeReminderService, markReminderTriggeredService,createReminderService} from './backend/reminders.service' 
 import { updateQuickNote, saveQuickNote } from './backend/quick.service'
 import { getResourcePath } from './path'
 import {openPomodoroWindow,closePomodoroWindow,initPomodoro,getCurrentPomodoroId} from './reminder/pomodoro'
 import { initSettings,openSettingsWindow,closeSettingsWindow } from './settings'
 import { loadSettings, saveSettings } from './settings-store'
 import type { AppSettings } from './settings-store'
+import { initReminderMandatoryWindow, openReminderMandatoryWindow } from './reminder/reminderMandatoryWindow'
 console.log('[main] main.ts loaded')
 // const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -69,6 +69,7 @@ function createWindow() {
   }
   initSettings(win)
   initPomodoro(win)
+  initReminderMandatoryWindow(win)
 
 }
 
@@ -143,7 +144,7 @@ const scheduler = createReminderScheduler(async (payload) => {
     })
     n.show()
   } else if (payload.mode === 'POPUP_WINDOW'){
-    openReminderMandatoryWindow(payload.text)
+    openReminderMandatoryWindow(VITE_DEV_SERVER_URL, RENDERER_DIST, __dirname, payload.text)
   } else if (payload.mode === 'POMODORO') {
       const n = new Notification({
       title: payload.title,
@@ -153,55 +154,7 @@ const scheduler = createReminderScheduler(async (payload) => {
   }
 }, () => { win?.webContents.send('reminders:changed') })
 
-function openReminderMandatoryWindow(initialText: string) {
-  const channel = `reminder:submit-mandatory:${randomUUID()}`
 
-  const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize
-  const hasParent = !!win && !win.isDestroyed()
-  const popup = new BrowserWindow({
-    width: Math.round(screenW * 0.5),  
-    height: Math.round(screenH * 0.55), 
-    ...(hasParent ? { parent: win!, modal: true } : {}), 
-    center: true,
-    resizable: false,
-    minimizable: false,
-    maximizable: false,
-    alwaysOnTop: true,
-    skipTaskbar: false, 
-    autoHideMenuBar: true,
-    frame: false,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.mjs')
-    },
-     icon: getResourcePath('icon.ico'),
-  })
-  popup.show()
-  popup.focus()
-  if (VITE_DEV_SERVER_URL) {
-    popup.loadURL(
-      `${VITE_DEV_SERVER_URL}#/reminder-mandatory?text=${encodeURIComponent(initialText)}&channel=${channel}`
-    )
-  } else {
-    popup.loadFile(path.join(RENDERER_DIST, 'index.html'), {
-      hash: `/reminder-mandatory?text=${encodeURIComponent(initialText)}&channel=${channel}`
-    })
-  }
-
-  // Prevent closing the window without submitting
-  let handled = false
-  popup.on('close', (event) => {
-    if (!handled) event.preventDefault()
-  })
-  // Handle for the random channel for just one time use when submit button is clicked in the mandatory reminder window,
-  // then close the popup and remove the handler to avoid memory leak
-  ipcMain.handleOnce(channel, async (_event, _payload: { text: string }) => {
-    handled = true
-    popup.close()
-    ipcMain.removeHandler(channel)
-    return true
-  })
-
-}
  
 //-----------------------------------------start-------------------------------------------------
 async function bootstrap() {
@@ -239,18 +192,18 @@ async function bootstrap() {
     ipcMain.on('quick:note:close',()=>{
       closeQuickWindow()
     })
-    ipcMain.handle('reminder:show', (_event, payload: { title: string; body: string }) => {
-      const n = new Notification({
-        title: payload.title || 'Reminder',
-        body: payload.body || ''
-      })
-      n.show()
-      return true
-    })
-    ipcMain.handle('reminder:open-mandatory', (_e, text: string) => {
-      openReminderMandatoryWindow(text || '')
-      return true
-    })
+    // ipcMain.handle('reminder:show', (_event, payload: { title: string; body: string }) => {
+    //   const n = new Notification({
+    //     title: payload.title || 'Reminder',
+    //     body: payload.body || ''
+    //   })
+    //   n.show()
+    //   return true
+    // })
+    // ipcMain.handle('reminder:open-mandatory', (_e, text: string) => {
+    //   openReminderMandatoryWindow(VITE_DEV_SERVER_URL, RENDERER_DIST, __dirname,text || '')
+    //   return true
+    // })
      
     ipcMain.handle('notes:getAll', async () => listNotesService())
     ipcMain.handle('notes:upsert', async (_e, payload) => saveNoteService(payload))

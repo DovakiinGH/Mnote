@@ -47,9 +47,9 @@ contextBridge.exposeInMainWorld('api', {
   quickNoteClose: () => ipcRenderer.send('quick:note:close'),
   onNotesChanged: (cb: () => void) =>
     ipcRenderer.on('notes:changed', () => cb()),
-  showReminder: (payload: { title: string; body: string }) =>
-    ipcRenderer.invoke('reminder:show', payload),
-  openMandatoryReminder: (text: string) => ipcRenderer.invoke('reminder:open-mandatory', text),
+  // showReminder: (payload: { title: string; body: string }) =>
+  //   ipcRenderer.invoke('reminder:show', payload),
+  // openMandatoryReminder: (text: string) => ipcRenderer.invoke('reminder:open-mandatory', text),
   submitMandatoryReminder: (payload: { text: string }, channel: string) =>
   ipcRenderer.invoke(channel, payload),
   onRemindersChanged: (cb: () => void) => {

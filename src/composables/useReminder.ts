@@ -5,7 +5,6 @@ import type { ReminderItem, ReminderForm } from '../types/mainView'
 export function useReminderForm(
   reminderStore: Ref<Record<number, ReminderForm>>,
   activeReminderItem: Ref<ReminderItem | null>,
-  scheduleSaveReminder: (id: number) => void,
   saveReminder: (id: number) => Promise<void>
 ) {
   const currentReminderForm = computed<ReminderForm>(() => {

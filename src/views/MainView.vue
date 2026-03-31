@@ -697,7 +697,6 @@ const {
 } = useReminderForm(
   reminderStore,
   activeReminderItem,
-  scheduleSaveReminder,
   saveReminder
 )
 //-----------------------------------------------------name and content---------------------------------------------------

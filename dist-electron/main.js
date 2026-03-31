@@ -1,9 +1,9 @@
-import { app, screen, BrowserWindow, globalShortcut, ipcMain, Notification, Menu, nativeImage, Tray } from "electron";
+import { app, screen, BrowserWindow, ipcMain, globalShortcut, Menu, nativeImage, Tray, Notification } from "electron";
 import { fileURLToPath } from "node:url";
-import { randomUUID } from "crypto";
 import path from "node:path";
 import Database from "better-sqlite3";
 import fs from "node:fs";
+import { randomUUID } from "crypto";
 function getDbPath() {
   const dir = app.isPackaged ? app.getPath("userData") : process.cwd();
   if (!fs.existsSync(dir)) {
@@ -421,14 +421,14 @@ async function saveQuickNote(mainWindow) {
 const __dirname$3 = path.dirname(fileURLToPath(import.meta.url));
 let pomodoroWin = null;
 let currentReminderId = null;
-let mainWin$1 = null;
+let mainWin$2 = null;
 function initPomodoro(win2) {
-  mainWin$1 = win2;
+  mainWin$2 = win2;
 }
 function openPomodoroWindow(data) {
   if (pomodoroWin && !pomodoroWin.isDestroyed()) {
-    if (currentReminderId !== null && mainWin$1 && !mainWin$1.isDestroyed()) {
-      mainWin$1.webContents.send("pomodoro-closed", currentReminderId);
+    if (currentReminderId !== null && mainWin$2 && !mainWin$2.isDestroyed()) {
+      mainWin$2.webContents.send("pomodoro-closed", currentReminderId);
     }
     pomodoroWin.destroy();
     pomodoroWin = null;
@@ -467,8 +467,8 @@ function openPomodoroWindow(data) {
     });
   }
   pomodoroWin.on("closed", () => {
-    if (currentReminderId !== null && mainWin$1 && !mainWin$1.isDestroyed()) {
-      mainWin$1.webContents.send("pomodoro-closed", currentReminderId);
+    if (currentReminderId !== null && mainWin$2 && !mainWin$2.isDestroyed()) {
+      mainWin$2.webContents.send("pomodoro-closed", currentReminderId);
     }
     pomodoroWin = null;
     currentReminderId = null;
@@ -487,9 +487,9 @@ function getCurrentPomodoroId() {
 }
 const __dirname$2 = path.dirname(fileURLToPath(import.meta.url));
 let settingsWin = null;
-let mainWin = null;
+let mainWin$1 = null;
 function initSettings(win2) {
-  mainWin = win2;
+  mainWin$1 = win2;
 }
 function openSettingsWindow() {
   if (settingsWin && !settingsWin.isDestroyed()) {
@@ -505,7 +505,7 @@ function openSettingsWindow() {
     modal: true,
     alwaysOnTop: true,
     center: true,
-    parent: mainWin ?? void 0,
+    parent: mainWin$1 ?? void 0,
     icon: getResourcePath("icon.ico"),
     frame: false,
     webPreferences: {
@@ -552,6 +552,53 @@ function saveSettings(settings) {
     console.error("[settings] save failed:", e);
   }
 }
+let mainWin = null;
+function initReminderMandatoryWindow(win2) {
+  mainWin = win2;
+}
+function openReminderMandatoryWindow(VITE_DEV_SERVER_URL2, RENDERER_DIST2, __dirname, initialText) {
+  const channel = `reminder:submit-mandatory:${randomUUID()}`;
+  const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
+  const hasParent = !!mainWin && !mainWin.isDestroyed();
+  const popup = new BrowserWindow({
+    width: Math.round(screenW * 0.5),
+    height: Math.round(screenH * 0.55),
+    ...hasParent ? { parent: mainWin, modal: true } : {},
+    center: true,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    alwaysOnTop: true,
+    skipTaskbar: false,
+    autoHideMenuBar: true,
+    frame: false,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.mjs")
+    },
+    icon: getResourcePath("icon.ico")
+  });
+  popup.show();
+  popup.focus();
+  if (VITE_DEV_SERVER_URL2) {
+    popup.loadURL(
+      `${VITE_DEV_SERVER_URL2}#/reminder-mandatory?text=${encodeURIComponent(initialText)}&channel=${channel}`
+    );
+  } else {
+    popup.loadFile(path.join(RENDERER_DIST2, "index.html"), {
+      hash: `/reminder-mandatory?text=${encodeURIComponent(initialText)}&channel=${channel}`
+    });
+  }
+  let handled = false;
+  popup.on("close", (event) => {
+    if (!handled) event.preventDefault();
+  });
+  ipcMain.handleOnce(channel, async (_event, _payload) => {
+    handled = true;
+    popup.close();
+    ipcMain.removeHandler(channel);
+    return true;
+  });
+}
 console.log("[main] main.ts loaded");
 const __dirname$1 = path.dirname(fileURLToPath(import.meta.url));
 process.env.APP_ROOT = path.join(__dirname$1, "..");
@@ -594,6 +641,7 @@ function createWindow() {
   }
   initSettings(win);
   initPomodoro(win);
+  initReminderMandatoryWindow(win);
 }
 function resolveResourcePath(fileName) {
   if (app.isPackaged) {
@@ -659,7 +707,7 @@ const scheduler = createReminderScheduler(async (payload) => {
     });
     n.show();
   } else if (payload.mode === "POPUP_WINDOW") {
-    openReminderMandatoryWindow(payload.text);
+    openReminderMandatoryWindow(VITE_DEV_SERVER_URL, RENDERER_DIST, __dirname$1, payload.text);
   } else if (payload.mode === "POMODORO") {
     const n = new Notification({
       title: payload.title,
@@ -670,49 +718,6 @@ const scheduler = createReminderScheduler(async (payload) => {
 }, () => {
   win == null ? void 0 : win.webContents.send("reminders:changed");
 });
-function openReminderMandatoryWindow(initialText) {
-  const channel = `reminder:submit-mandatory:${randomUUID()}`;
-  const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
-  const hasParent = !!win && !win.isDestroyed();
-  const popup = new BrowserWindow({
-    width: Math.round(screenW * 0.5),
-    height: Math.round(screenH * 0.55),
-    ...hasParent ? { parent: win, modal: true } : {},
-    center: true,
-    resizable: false,
-    minimizable: false,
-    maximizable: false,
-    alwaysOnTop: true,
-    skipTaskbar: false,
-    autoHideMenuBar: true,
-    frame: false,
-    webPreferences: {
-      preload: path.join(__dirname$1, "preload.mjs")
-    },
-    icon: getResourcePath("icon.ico")
-  });
-  popup.show();
-  popup.focus();
-  if (VITE_DEV_SERVER_URL) {
-    popup.loadURL(
-      `${VITE_DEV_SERVER_URL}#/reminder-mandatory?text=${encodeURIComponent(initialText)}&channel=${channel}`
-    );
-  } else {
-    popup.loadFile(path.join(RENDERER_DIST, "index.html"), {
-      hash: `/reminder-mandatory?text=${encodeURIComponent(initialText)}&channel=${channel}`
-    });
-  }
-  let handled = false;
-  popup.on("close", (event) => {
-    if (!handled) event.preventDefault();
-  });
-  ipcMain.handleOnce(channel, async (_event, _payload) => {
-    handled = true;
-    popup.close();
-    ipcMain.removeHandler(channel);
-    return true;
-  });
-}
 async function bootstrap() {
   try {
     await app.whenReady();
@@ -745,18 +750,6 @@ async function bootstrap() {
     });
     ipcMain.on("quick:note:close", () => {
       closeQuickWindow();
-    });
-    ipcMain.handle("reminder:show", (_event, payload) => {
-      const n = new Notification({
-        title: payload.title || "Reminder",
-        body: payload.body || ""
-      });
-      n.show();
-      return true;
-    });
-    ipcMain.handle("reminder:open-mandatory", (_e, text) => {
-      openReminderMandatoryWindow(text || "");
-      return true;
     });
     ipcMain.handle("notes:getAll", async () => listNotesService());
     ipcMain.handle("notes:upsert", async (_e, payload) => saveNoteService(payload));
