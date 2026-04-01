@@ -1,19 +1,22 @@
-import { app as a, screen as b, BrowserWindow as E, ipcMain as i, globalShortcut as M, Menu as X, nativeImage as Z, Tray as ee, Notification as j } from "electron";
-import { fileURLToPath as v } from "node:url";
-import s from "node:path";
-import te from "better-sqlite3";
-import R from "node:fs";
-import { randomUUID as ne } from "crypto";
-function re() {
-  const e = a.isPackaged ? a.getPath("userData") : process.cwd();
-  return R.existsSync(e) || R.mkdirSync(e, { recursive: !0 }), s.join(e, "mnote.db");
+import { app, screen, BrowserWindow, ipcMain, globalShortcut, Menu, nativeImage, Tray, Notification } from "electron";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+import Database from "better-sqlite3";
+import fs from "node:fs";
+import { randomUUID } from "crypto";
+function getDbPath() {
+  const dir = app.isPackaged ? app.getPath("userData") : process.cwd();
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  return path.join(dir, "mnote.db");
 }
-const G = re();
-console.log("[db] SQLite path:", G);
-const f = new te(G);
-f.pragma("journal_mode = WAL");
-function oe() {
-  f.exec(`
+const dbPath = getDbPath();
+console.log("[db] SQLite path:", dbPath);
+const db = new Database(dbPath);
+db.pragma("journal_mode = WAL");
+function initSchema() {
+  db.exec(`
     CREATE TABLE IF NOT EXISTS notes (
       id INTEGER PRIMARY KEY,
       title TEXT NOT NULL DEFAULT '',
@@ -22,7 +25,8 @@ function oe() {
       createAt INTEGER,
       pinned INTEGER NOT NULL DEFAULT 0
     )
-  `), f.exec(`
+  `);
+  db.exec(`
     CREATE TABLE IF NOT EXISTS reminders (
       id INTEGER PRIMARY KEY,
       title TEXT NOT NULL DEFAULT '',
@@ -41,16 +45,19 @@ function oe() {
       updatedAt INTEGER NOT NULL,
       lastTriggeredAt INTEGER
     )
-  `), f.exec("CREATE INDEX IF NOT EXISTS idx_reminders_enabled ON reminders(enabled)"), f.exec("CREATE INDEX IF NOT EXISTS idx_reminders_updatedAt ON reminders(updatedAt)"), console.log("[schema] SQLite tables ready");
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_reminders_enabled ON reminders(enabled)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_reminders_updatedAt ON reminders(updatedAt)`);
+  console.log("[schema] SQLite tables ready");
 }
-function ie() {
-  return f.prepare(`
+function getAllReminders() {
+  return db.prepare(`
     SELECT * FROM reminders ORDER BY updatedAt DESC
   `).all();
 }
-function se(e) {
-  const r = Date.now();
-  return f.prepare(`
+function upsertReminder(input) {
+  const now = Date.now();
+  db.prepare(`
     INSERT INTO reminders
       (id, title, text, enabled, mode, type, minutes, date, time, days, pinned, createAt, updatedAt, lastTriggeredAt)
     VALUES
@@ -69,141 +76,189 @@ function se(e) {
       updatedAt = excluded.updatedAt,
       lastTriggeredAt = COALESCE(excluded.lastTriggeredAt, lastTriggeredAt)
   `).run(
-    e.id,
-    e.title,
-    e.text,
-    e.enabled,
-    e.mode,
-    e.type,
-    e.minutes ?? null,
-    e.date ?? null,
-    e.time ?? null,
-    e.days ?? null,
-    e.pinned ?? 0,
-    e.createAt ?? r,
-    e.updatedAt ?? r,
-    e.lastTriggeredAt ?? null
-  ), !0;
+    input.id,
+    input.title,
+    input.text,
+    input.enabled,
+    input.mode,
+    input.type,
+    input.minutes ?? null,
+    input.date ?? null,
+    input.time ?? null,
+    input.days ?? null,
+    input.pinned ?? 0,
+    input.createAt ?? now,
+    input.updatedAt ?? now,
+    input.lastTriggeredAt ?? null
+  );
+  return true;
 }
-function de(e) {
-  return f.prepare("DELETE FROM reminders WHERE id = ?").run(e), !0;
+function deleteReminder(id) {
+  db.prepare("DELETE FROM reminders WHERE id = ?").run(id);
+  return true;
 }
-function le() {
-  return f.prepare(`
+function getEnabledReminders() {
+  return db.prepare(`
     SELECT * FROM reminders WHERE enabled = 1
   `).all();
 }
-function F(e, r) {
-  f.prepare("UPDATE reminders SET lastTriggeredAt = ? WHERE id = ?").run(r, e);
+function markTriggered(id, ts) {
+  db.prepare("UPDATE reminders SET lastTriggeredAt = ? WHERE id = ?").run(ts, id);
 }
-function ae(e, r) {
-  f.prepare(
+function disableReminder(id, ts) {
+  db.prepare(
     "UPDATE reminders SET enabled = 0, updatedAt = ? WHERE id = ?"
-  ).run(r, e);
+  ).run(ts, id);
 }
-function ce(e) {
-  if (!e) return null;
-  if (typeof e == "string") return e.slice(0, 10);
-  const r = e.getFullYear(), n = String(e.getMonth() + 1).padStart(2, "0"), t = String(e.getDate()).padStart(2, "0");
-  return `${r}-${n}-${t}`;
+function dateToYmd(v) {
+  if (!v) return null;
+  if (typeof v === "string") return v.slice(0, 10);
+  const y = v.getFullYear();
+  const m = String(v.getMonth() + 1).padStart(2, "0");
+  const d = String(v.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
-function Q(e) {
-  return e ? e.length === 5 ? `${e}:00` : e : "00:00:00";
+function normalizeTime(v) {
+  if (!v) return "00:00:00";
+  if (v.length === 5) return `${v}:00`;
+  return v;
 }
-function ue(e, r) {
-  const n = ce(e);
-  if (!n) return null;
-  const t = Q(r), l = (/* @__PURE__ */ new Date(`${n}T${t}`)).getTime();
-  return Number.isNaN(l) ? null : l;
+function toDateTimeTs(dateVal, timeVal) {
+  const ymd = dateToYmd(dateVal);
+  if (!ymd) return null;
+  const hms = normalizeTime(timeVal);
+  const ts = (/* @__PURE__ */ new Date(`${ymd}T${hms}`)).getTime();
+  return Number.isNaN(ts) ? null : ts;
 }
-function me(e) {
-  if (e.type === "AFTER_MINUTES") {
-    const h = e.minutes ?? 1;
-    return (e.updatedAt ?? e.createAt) + h * 60 * 1e3;
+function getDueAt(row) {
+  if (row.type === "AFTER_MINUTES") {
+    const m = row.minutes ?? 1;
+    return (row.updatedAt ?? row.createAt) + m * 60 * 1e3;
   }
-  if (e.type === "DATE_TIME")
-    return ue(e.date, e.time);
-  const r = e.days ?? 1, n = e.lastTriggeredAt ?? e.updatedAt ?? e.createAt, t = new Date(n);
-  t.setDate(t.getDate() + r);
-  const l = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`, c = Q(e.time), T = (/* @__PURE__ */ new Date(`${l}T${c}`)).getTime();
-  return Number.isNaN(T) ? null : T;
+  if (row.type === "DATE_TIME") {
+    return toDateTimeTs(row.date, row.time);
+  }
+  const d = row.days ?? 1;
+  const base = row.lastTriggeredAt ?? row.updatedAt ?? row.createAt;
+  const nextDate = new Date(base);
+  nextDate.setDate(nextDate.getDate() + d);
+  const ymd = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}-${String(nextDate.getDate()).padStart(2, "0")}`;
+  const hms = normalizeTime(row.time);
+  const ts = (/* @__PURE__ */ new Date(`${ymd}T${hms}`)).getTime();
+  return Number.isNaN(ts) ? null : ts;
 }
-function fe(e, r) {
-  const n = me(e);
-  return !(!n || r < n || e.lastTriggeredAt && e.lastTriggeredAt >= n);
+function isDue(row, now) {
+  const dueAt = getDueAt(row);
+  if (!dueAt) return false;
+  if (now < dueAt) return false;
+  if (row.lastTriggeredAt && row.lastTriggeredAt >= dueAt) return false;
+  return true;
 }
-function pe(e, r) {
-  let n = null, t = !1;
-  const l = async () => {
-    if (!t) {
-      t = !0;
-      try {
-        const c = Date.now(), T = le();
-        let h = !1;
-        for (const u of T)
-          fe(u, c) && (await e({
-            title: u.title || "M Note",
-            text: u.text || "",
-            mode: u.mode
-          }), F(u.id, c), (u.type === "AFTER_MINUTES" || u.type === "DATE_TIME") && ae(u.id, c), h = !0);
-        h && r && r();
-      } catch (c) {
-        console.error("[scheduler.tick] failed:", c);
-      } finally {
-        t = !1;
+function createReminderScheduler(notify, onChanged) {
+  let timer = null;
+  let running = false;
+  const tick = async () => {
+    if (running) return;
+    running = true;
+    try {
+      const now = Date.now();
+      const rows = getEnabledReminders();
+      let changed = false;
+      for (const row of rows) {
+        if (!isDue(row, now)) continue;
+        await notify({
+          title: row.title || "M Note",
+          text: row.text || "",
+          mode: row.mode
+        });
+        markTriggered(row.id, now);
+        if (row.type === "AFTER_MINUTES" || row.type === "DATE_TIME") {
+          disableReminder(row.id, now);
+        }
+        changed = true;
       }
+      if (changed && onChanged) {
+        onChanged();
+      }
+    } catch (err) {
+      console.error("[scheduler.tick] failed:", err);
+    } finally {
+      running = false;
     }
   };
   return {
     start() {
-      n || (l(), n = setInterval(() => {
-        l();
-      }, 5e3));
+      if (timer) return;
+      void tick();
+      timer = setInterval(() => {
+        void tick();
+      }, 5e3);
     },
     stop() {
-      n && (clearInterval(n), n = null);
+      if (!timer) return;
+      clearInterval(timer);
+      timer = null;
     }
   };
 }
-const Te = a.isPackaged, S = (e) => Te ? s.join(process.resourcesPath, e) : s.join(process.cwd(), "resources", e);
-let d = null;
-function Ee(e, r, n, t) {
-  const { width: l, height: c } = b.getPrimaryDisplay().workAreaSize;
-  if (d && !d.isDestroyed()) {
-    d.show(), d.focus();
+const isProd = app.isPackaged;
+const getResourcePath = (fileName) => {
+  if (isProd) {
+    return path.join(process.resourcesPath, fileName);
+  }
+  return path.join(process.cwd(), "resources", fileName);
+};
+let quickWin = null;
+function openQuickWindow(VITE_DEV_SERVER_URL2, RENDERER_DIST2, __dirname, onBeforeClose) {
+  const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
+  if (quickWin && !quickWin.isDestroyed()) {
+    quickWin.show();
+    quickWin.focus();
     return;
   }
-  let T = !1;
-  d = new E({
-    width: Math.round(l * 0.45),
-    height: Math.round(c * 0.55),
-    show: !1,
-    alwaysOnTop: !0,
-    autoHideMenuBar: !0,
-    resizable: !0,
-    movable: !0,
-    frame: !1,
-    center: !0,
+  let allowClose = false;
+  quickWin = new BrowserWindow({
+    width: Math.round(screenW * 0.45),
+    height: Math.round(screenH * 0.55),
+    show: false,
+    alwaysOnTop: true,
+    autoHideMenuBar: true,
+    resizable: true,
+    movable: true,
+    frame: false,
+    center: true,
     webPreferences: {
-      preload: s.join(n, "preload.mjs")
+      preload: path.join(__dirname, "preload.mjs")
     },
-    icon: S("icon.ico")
-  }), e ? d.loadURL(`${e}#/quick`) : d.loadFile(s.join(r, "index.html"), { hash: "/quick" }), d.once("ready-to-show", () => {
-    d == null || d.show(), d == null || d.focus();
-  }), d.on("close", (h) => {
-    T || (h.preventDefault(), Promise.resolve(t == null ? void 0 : t()).finally(() => {
-      T = !0, d == null || d.close();
-    }));
-  }), d.on("closed", () => {
-    d = null;
+    icon: getResourcePath("icon.ico")
+  });
+  if (VITE_DEV_SERVER_URL2) {
+    quickWin.loadURL(`${VITE_DEV_SERVER_URL2}#/quick`);
+  } else {
+    quickWin.loadFile(path.join(RENDERER_DIST2, "index.html"), { hash: "/quick" });
+  }
+  quickWin.once("ready-to-show", () => {
+    quickWin == null ? void 0 : quickWin.show();
+    quickWin == null ? void 0 : quickWin.focus();
+  });
+  quickWin.on("close", (e) => {
+    if (allowClose) return;
+    e.preventDefault();
+    Promise.resolve(onBeforeClose == null ? void 0 : onBeforeClose()).finally(() => {
+      allowClose = true;
+      quickWin == null ? void 0 : quickWin.close();
+    });
+  });
+  quickWin.on("closed", () => {
+    quickWin = null;
   });
 }
-function he() {
-  d == null || d.close();
+function closeQuickWindow() {
+  quickWin == null ? void 0 : quickWin.close();
 }
-function Ae(e) {
-  const { id: r, title: n, content: t, updatedAt: l, createAt: c, pinned: T } = e;
-  return f.prepare(`
+function upsertNote(note) {
+  const { id, title, content, updatedAt, createAt, pinned } = note;
+  db.prepare(`
     INSERT INTO notes (id, title, content, updatedAt, createAt, pinned)
     VALUES (?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
@@ -212,90 +267,112 @@ function Ae(e) {
       updatedAt = excluded.updatedAt,
       createAt = excluded.createAt,
       pinned = excluded.pinned
-  `).run(r, n, t, l ?? null, c ?? null, T ? 1 : 0), !0;
+  `).run(id, title, content, updatedAt ?? null, createAt ?? null, pinned ? 1 : 0);
+  return true;
 }
-function ge() {
-  return f.prepare(
+function findAllNotes() {
+  return db.prepare(
     "SELECT id, title, content, createAt, updatedAt, pinned FROM notes ORDER BY pinned DESC, updatedAt DESC"
   ).all();
 }
-function ye(e) {
-  return f.prepare("DELETE FROM notes WHERE id = ?").run(e), !0;
+function deleteNote(id) {
+  db.prepare("DELETE FROM notes WHERE id = ?").run(id);
+  return true;
 }
-function Re() {
-  return ge();
+function listNotesService() {
+  return findAllNotes();
 }
-function C(e) {
-  const r = Date.now();
-  return Ae({
-    ...e,
-    title: (e.title ?? "").trim() || "Untitled",
-    content: e.content ?? "",
-    createAt: e.createAt ?? r,
-    updatedAt: e.updatedAt ?? r,
-    pinned: e.pinned ?? 0
-  }), !0;
+function saveNoteService(input) {
+  const now = Date.now();
+  upsertNote({
+    ...input,
+    title: (input.title ?? "").trim() || "Untitled",
+    content: input.content ?? "",
+    createAt: input.createAt ?? now,
+    updatedAt: input.updatedAt ?? now,
+    pinned: input.pinned ?? 0
+  });
+  return true;
 }
-function De(e) {
-  return ye(e), !0;
+function removeNoteService(id) {
+  deleteNote(id);
+  return true;
 }
-function Ne() {
-  const e = Date.now(), n = {
-    id: e,
+function createNoteService() {
+  const now = Date.now();
+  const id = now;
+  const note = {
+    id,
     title: "new",
     content: "",
-    createAt: e,
-    updatedAt: e,
+    createAt: now,
+    updatedAt: now,
     pinned: 0
   };
-  return C(n), n;
+  saveNoteService(note);
+  return note;
 }
-function Se(e) {
-  return e.mode === "POMODORO" ? {
-    type: "AFTER_MINUTES",
-    minutes: Math.min(Math.max(e.minutes ?? 25, 1), 1440),
-    date: null,
-    time: null,
-    days: null
-  } : e.type === "AFTER_MINUTES" ? {
-    type: e.type,
-    minutes: Math.min(Math.max(e.minutes ?? 1, 1), 1440),
-    date: null,
-    time: null,
-    days: null
-  } : e.type === "DATE_TIME" ? { type: e.type, minutes: null, date: e.date ?? (/* @__PURE__ */ new Date()).toISOString().slice(0, 10), time: e.time ?? null, days: null } : {
-    type: e.type,
+function normalizeReminderByType(f) {
+  if (f.mode === "POMODORO") {
+    return {
+      type: "AFTER_MINUTES",
+      minutes: Math.min(Math.max(f.minutes ?? 25, 1), 1440),
+      date: null,
+      time: null,
+      days: null
+    };
+  }
+  if (f.type === "AFTER_MINUTES") {
+    return {
+      type: f.type,
+      minutes: Math.min(Math.max(f.minutes ?? 1, 1), 1440),
+      date: null,
+      time: null,
+      days: null
+    };
+  }
+  if (f.type === "DATE_TIME") {
+    return { type: f.type, minutes: null, date: f.date ?? (/* @__PURE__ */ new Date()).toISOString().slice(0, 10), time: f.time ?? null, days: null };
+  }
+  return {
+    type: f.type,
     minutes: null,
     date: null,
-    time: e.time ?? null,
-    days: Math.min(Math.max(e.days ?? 1, 1), 365)
+    time: f.time ?? null,
+    days: Math.min(Math.max(f.days ?? 1, 1), 365)
   };
 }
-function Ie() {
-  return ie();
+function listRemindersService() {
+  return getAllReminders();
 }
-function q(e) {
-  const r = Date.now(), n = Se(e);
-  return se({
-    ...e,
-    ...n,
-    title: (e.title ?? "").trim() || "Untitled",
-    text: e.text ?? "",
-    enabled: e.enabled ? 1 : 0,
-    pinned: e.pinned ?? 0,
-    createAt: e.createAt ?? r,
-    updatedAt: e.updatedAt ?? r
-  }), !0;
+function saveReminderService(input) {
+  const now = Date.now();
+  const normalized = normalizeReminderByType(input);
+  upsertReminder({
+    ...input,
+    ...normalized,
+    title: (input.title ?? "").trim() || "Untitled",
+    text: input.text ?? "",
+    enabled: input.enabled ? 1 : 0,
+    pinned: input.pinned ?? 0,
+    createAt: input.createAt ?? now,
+    updatedAt: input.updatedAt ?? now
+  });
+  return true;
 }
-function we(e) {
-  return de(e), !0;
+function removeReminderService(id) {
+  deleteReminder(id);
+  return true;
 }
-function Oe(e, r = Date.now()) {
-  return F(e, r), !0;
+function markReminderTriggeredService(id, ts = Date.now()) {
+  markTriggered(id, ts);
+  return true;
 }
-function be() {
-  const e = Date.now(), n = {
-    id: e,
+function createReminderService() {
+  const now = Date.now();
+  const id = now;
+  const reminder = {
+    id,
     title: "new",
     text: "",
     enabled: 0,
@@ -305,274 +382,462 @@ function be() {
     date: null,
     time: null,
     days: null,
-    createAt: e,
-    updatedAt: e,
+    createAt: now,
+    updatedAt: now,
     pinned: 0,
     lastTriggeredAt: null
   };
-  return q(n), n;
+  saveReminderService(reminder);
+  return reminder;
 }
-let O = { title: "", content: "" };
-function _e(e) {
-  O = {
-    title: (e == null ? void 0 : e.title) ?? "",
-    content: (e == null ? void 0 : e.content) ?? ""
+let quickDraft = { title: "", content: "" };
+function updateQuickNote(note) {
+  quickDraft = {
+    title: (note == null ? void 0 : note.title) ?? "",
+    content: (note == null ? void 0 : note.content) ?? ""
   };
 }
-function Le() {
-  O = { title: "", content: "" };
+function clearQuickNote() {
+  quickDraft = { title: "", content: "" };
 }
-async function xe(e) {
-  var c;
-  const r = ((c = O.title) == null ? void 0 : c.trim()) ?? "", n = O.content ?? "";
-  if (!r && !n) return;
-  const t = Date.now();
-  C({
-    id: t,
-    title: r || "Untitled",
-    content: n,
-    createAt: t,
-    updatedAt: t,
+async function saveQuickNote(mainWindow) {
+  var _a;
+  const title = ((_a = quickDraft.title) == null ? void 0 : _a.trim()) ?? "";
+  const content = quickDraft.content ?? "";
+  if (!title && !content) return;
+  const now = Date.now();
+  const id = now;
+  saveNoteService({
+    id,
+    title: title || "Untitled",
+    content,
+    createAt: now,
+    updatedAt: now,
     pinned: 0
-  }), e == null || e.webContents.send("notes:changed"), Le();
+  });
+  mainWindow == null ? void 0 : mainWindow.webContents.send("notes:changed");
+  clearQuickNote();
 }
-const x = s.dirname(v(import.meta.url));
-let m = null, A = null, g = null;
-function Me(e) {
-  g = e;
+const __dirname$3 = path.dirname(fileURLToPath(import.meta.url));
+let pomodoroWin = null;
+let currentReminderId = null;
+let mainWin$2 = null;
+function initPomodoro(win2) {
+  mainWin$2 = win2;
 }
-function Ue(e) {
-  m && !m.isDestroyed() && (A !== null && g && !g.isDestroyed() && g.webContents.send("pomodoro-closed", A), m.destroy(), m = null), A = e.id;
-  const { width: r, height: n } = b.getPrimaryDisplay().workAreaSize;
-  m = new E({
-    width: Math.round(r * 0.25),
-    height: Math.round(n * 0.35),
-    resizable: !0,
-    alwaysOnTop: !0,
-    frame: !1,
-    icon: S("icon.ico"),
-    webPreferences: {
-      preload: s.join(x, "preload.mjs")
+function openPomodoroWindow(data) {
+  if (pomodoroWin && !pomodoroWin.isDestroyed()) {
+    if (currentReminderId !== null && mainWin$2 && !mainWin$2.isDestroyed()) {
+      mainWin$2.webContents.send("pomodoro-closed", currentReminderId);
     }
-  }), F(e.id, Date.now()), process.env.VITE_DEV_SERVER_URL ? m.loadURL(`${process.env.VITE_DEV_SERVER_URL}#/pomodoro`) : m.loadFile(s.join(x, "../dist/index.html"), {
-    hash: "/pomodoro"
+    pomodoroWin.destroy();
+    pomodoroWin = null;
+  }
+  currentReminderId = data.id;
+  const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
+  pomodoroWin = new BrowserWindow({
+    width: Math.round(screenW * 0.25),
+    height: Math.round(screenH * 0.35),
+    resizable: true,
+    alwaysOnTop: true,
+    frame: false,
+    icon: getResourcePath("icon.ico"),
+    webPreferences: {
+      preload: path.join(__dirname$3, "preload.mjs")
+    }
   });
-  const t = encodeURIComponent(JSON.stringify({
-    title: e.title,
-    text: e.text,
-    minutes: e.minutes
+  markTriggered(data.id, Date.now());
+  if (process.env.VITE_DEV_SERVER_URL) {
+    pomodoroWin.loadURL(`${process.env.VITE_DEV_SERVER_URL}#/pomodoro`);
+  } else {
+    pomodoroWin.loadFile(path.join(__dirname$3, "../dist/index.html"), {
+      hash: "/pomodoro"
+    });
+  }
+  const params = encodeURIComponent(JSON.stringify({
+    title: data.title,
+    text: data.text,
+    minutes: data.minutes
   }));
-  process.env.VITE_DEV_SERVER_URL ? m.loadURL(`${process.env.VITE_DEV_SERVER_URL}#/pomodoro?data=${t}`) : m.loadFile(s.join(x, "../dist/index.html"), {
-    hash: `/pomodoro?data=${t}`
-  }), m.on("closed", () => {
-    A !== null && g && !g.isDestroyed() && g.webContents.send("pomodoro-closed", A), m = null, A = null;
+  if (process.env.VITE_DEV_SERVER_URL) {
+    pomodoroWin.loadURL(`${process.env.VITE_DEV_SERVER_URL}#/pomodoro?data=${params}`);
+  } else {
+    pomodoroWin.loadFile(path.join(__dirname$3, "../dist/index.html"), {
+      hash: `/pomodoro?data=${params}`
+    });
+  }
+  pomodoroWin.on("closed", () => {
+    if (currentReminderId !== null && mainWin$2 && !mainWin$2.isDestroyed()) {
+      mainWin$2.webContents.send("pomodoro-closed", currentReminderId);
+    }
+    pomodoroWin = null;
+    currentReminderId = null;
   });
 }
-function V() {
-  if (m && !m.isDestroyed()) {
-    const e = m;
-    m = null, A = null, e.destroy();
+function closePomodoroWindow() {
+  if (pomodoroWin && !pomodoroWin.isDestroyed()) {
+    const win2 = pomodoroWin;
+    pomodoroWin = null;
+    currentReminderId = null;
+    win2.destroy();
   }
 }
-function Pe() {
-  return A;
+function getCurrentPomodoroId() {
+  return currentReminderId;
 }
-const W = s.dirname(v(import.meta.url));
-let p = null, B = null;
-function ve(e) {
-  B = e;
+const __dirname$2 = path.dirname(fileURLToPath(import.meta.url));
+let settingsWin = null;
+let mainWin$1 = null;
+function initSettings(win2) {
+  mainWin$1 = win2;
 }
-function Fe() {
-  if (p && !p.isDestroyed()) {
-    p.focus();
+function openSettingsWindow() {
+  if (settingsWin && !settingsWin.isDestroyed()) {
+    settingsWin.focus();
     return;
   }
-  const { width: e, height: r } = b.getPrimaryDisplay().workAreaSize;
-  p = new E({
-    width: Math.round(e * 0.45),
-    height: Math.round(r * 0.55),
-    resizable: !1,
-    movable: !1,
-    modal: !0,
-    alwaysOnTop: !0,
-    center: !0,
-    parent: B ?? void 0,
-    icon: S("icon.ico"),
-    frame: !1,
+  const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
+  settingsWin = new BrowserWindow({
+    width: Math.round(screenW * 0.45),
+    height: Math.round(screenH * 0.55),
+    resizable: false,
+    movable: false,
+    modal: true,
+    alwaysOnTop: true,
+    center: true,
+    parent: mainWin$1 ?? void 0,
+    icon: getResourcePath("icon.ico"),
+    frame: false,
     webPreferences: {
-      preload: s.join(W, "preload.mjs")
+      preload: path.join(__dirname$2, "preload.mjs")
     }
-  }), process.env.VITE_DEV_SERVER_URL ? p.loadURL(`${process.env.VITE_DEV_SERVER_URL}#/settings`) : p.loadFile(s.join(W, "../dist/index.html"), {
-    hash: "/settings"
-  }), p.on("closed", () => {
-    p = null;
+  });
+  if (process.env.VITE_DEV_SERVER_URL) {
+    settingsWin.loadURL(`${process.env.VITE_DEV_SERVER_URL}#/settings`);
+  } else {
+    settingsWin.loadFile(path.join(__dirname$2, "../dist/index.html"), {
+      hash: "/settings"
+    });
+  }
+  settingsWin.on("closed", () => {
+    settingsWin = null;
   });
 }
-function Ce() {
-  p && !p.isDestroyed() && (p.destroy(), p = null);
+function closeSettingsWindow() {
+  if (settingsWin && !settingsWin.isDestroyed()) {
+    settingsWin.destroy();
+    settingsWin = null;
+  }
 }
-const z = {
+const defaultSettings = {
   language: "en-US",
   closeAction: "tray"
-}, U = s.join(a.getPath("userData"), "settings.json");
-function ke() {
+};
+const filePath = path.join(app.getPath("userData"), "settings.json");
+function loadSettings() {
   try {
-    if (R.existsSync(U)) {
-      const e = R.readFileSync(U, "utf-8");
-      return { ...z, ...JSON.parse(e) };
+    if (fs.existsSync(filePath)) {
+      const raw = fs.readFileSync(filePath, "utf-8");
+      return { ...defaultSettings, ...JSON.parse(raw) };
     }
   } catch (e) {
     console.error("[settings] load failed:", e);
   }
-  return { ...z };
+  return { ...defaultSettings };
 }
-function $e(e) {
+function saveSettings(settings) {
   try {
-    R.writeFileSync(U, JSON.stringify(e, null, 2), "utf-8");
-  } catch (r) {
-    console.error("[settings] save failed:", r);
+    fs.writeFileSync(filePath, JSON.stringify(settings, null, 2), "utf-8");
+  } catch (e) {
+    console.error("[settings] save failed:", e);
   }
 }
-let w = null;
-function je(e) {
-  w = e;
+let mainWin = null;
+function initReminderMandatoryWindow(win2) {
+  mainWin = win2;
 }
-function Ve(e, r, n, t) {
-  const l = `reminder:submit-mandatory:${ne()}`, { width: c, height: T } = b.getPrimaryDisplay().workAreaSize, h = !!w && !w.isDestroyed(), u = new E({
-    width: Math.round(c * 0.5),
-    height: Math.round(T * 0.55),
-    ...h ? { parent: w, modal: !0 } : {},
-    center: !0,
-    resizable: !1,
-    minimizable: !1,
-    maximizable: !1,
-    alwaysOnTop: !0,
-    skipTaskbar: !1,
-    autoHideMenuBar: !0,
-    frame: !1,
+function openReminderMandatoryWindow(VITE_DEV_SERVER_URL2, RENDERER_DIST2, __dirname, initialText) {
+  const channel = `reminder:submit-mandatory:${randomUUID()}`;
+  const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
+  const hasParent = !!mainWin && !mainWin.isDestroyed();
+  const popup = new BrowserWindow({
+    width: Math.round(screenW * 0.5),
+    height: Math.round(screenH * 0.55),
+    ...hasParent ? { parent: mainWin, modal: true } : {},
+    center: true,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    alwaysOnTop: true,
+    skipTaskbar: false,
+    autoHideMenuBar: true,
+    frame: false,
     webPreferences: {
-      preload: s.join(n, "preload.mjs")
+      preload: path.join(__dirname, "preload.mjs")
     },
-    icon: S("icon.ico")
+    icon: getResourcePath("icon.ico")
   });
-  u.show(), u.focus(), e ? u.loadURL(
-    `${e}#/reminder-mandatory?text=${encodeURIComponent(t)}&channel=${l}`
-  ) : u.loadFile(s.join(r, "index.html"), {
-    hash: `/reminder-mandatory?text=${encodeURIComponent(t)}&channel=${l}`
+  popup.show();
+  popup.focus();
+  if (VITE_DEV_SERVER_URL2) {
+    popup.loadURL(
+      `${VITE_DEV_SERVER_URL2}#/reminder-mandatory?text=${encodeURIComponent(initialText)}&channel=${channel}`
+    );
+  } else {
+    popup.loadFile(path.join(RENDERER_DIST2, "index.html"), {
+      hash: `/reminder-mandatory?text=${encodeURIComponent(initialText)}&channel=${channel}`
+    });
+  }
+  let handled = false;
+  popup.on("close", (event) => {
+    if (!handled) event.preventDefault();
   });
-  let k = !1;
-  u.on("close", ($) => {
-    k || $.preventDefault();
-  }), i.handleOnce(l, async ($, He) => (k = !0, u.close(), i.removeHandler(l), !0));
+  ipcMain.handleOnce(channel, async (_event, _payload) => {
+    handled = true;
+    popup.close();
+    ipcMain.removeHandler(channel);
+    return true;
+  });
 }
 console.log("[main] main.ts loaded");
-const _ = s.dirname(v(import.meta.url));
-process.env.APP_ROOT = s.join(_, "..");
-const D = process.env.VITE_DEV_SERVER_URL, Ke = s.join(process.env.APP_ROOT, "dist-electron"), L = s.join(process.env.APP_ROOT, "dist");
-process.env.VITE_PUBLIC = D ? s.join(process.env.APP_ROOT, "public") : L;
-let o = null, N = !1, I = null, P = "Alt+Space", y = ke();
-process.platform === "win32" && a.setAppUserModelId("MNote");
-a.setName("MNote");
-function Y() {
-  o = new E({
-    icon: S("icon.ico"),
+const __dirname$1 = path.dirname(fileURLToPath(import.meta.url));
+process.env.APP_ROOT = path.join(__dirname$1, "..");
+const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
+const MAIN_DIST = path.join(process.env.APP_ROOT, "dist-electron");
+const RENDERER_DIST = path.join(process.env.APP_ROOT, "dist");
+process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, "public") : RENDERER_DIST;
+let win = null;
+let isQuitting = false;
+let tray = null;
+let currentShortcut = "Alt+Space";
+let currentSettings = loadSettings();
+if (process.platform === "win32") {
+  app.setAppUserModelId("MNote");
+}
+app.setName("MNote");
+function createWindow() {
+  win = new BrowserWindow({
+    icon: getResourcePath("icon.ico"),
     title: "MNote",
-    frame: !1,
+    frame: false,
     webPreferences: {
-      preload: s.join(_, "preload.mjs")
+      preload: path.join(__dirname$1, "preload.mjs")
     }
-  }), o.on("close", (e) => {
-    N || (y.closeAction === "tray" ? (e.preventDefault(), o == null || o.hide()) : y.closeAction === "quit" && (e.preventDefault(), J()));
-  }), D ? o.loadURL(`${D}#/`) : o.loadFile(s.join(L, "index.html"), { hash: "/" }), ve(o), Me(o), je(o);
+  });
+  win.on("close", (e) => {
+    if (isQuitting) return;
+    if (currentSettings.closeAction === "tray") {
+      e.preventDefault();
+      win == null ? void 0 : win.hide();
+    } else if (currentSettings.closeAction === "quit") {
+      e.preventDefault();
+      requestQuitWithSave();
+    }
+  });
+  if (VITE_DEV_SERVER_URL) {
+    win.loadURL(`${VITE_DEV_SERVER_URL}#/`);
+  } else {
+    win.loadFile(path.join(RENDERER_DIST, "index.html"), { hash: "/" });
+  }
+  initSettings(win);
+  initPomodoro(win);
+  initReminderMandatoryWindow(win);
 }
-function We(e) {
-  return a.isPackaged ? s.join(process.resourcesPath, e) : s.join(process.cwd(), "resources", e);
+function resolveResourcePath(fileName) {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, fileName);
+  }
+  return path.join(process.cwd(), "resources", fileName);
 }
-function J() {
-  o == null || o.webContents.send("app:save-before-close"), setTimeout(() => {
-    N || (N = !0, a.quit());
+function requestQuitWithSave() {
+  win == null ? void 0 : win.webContents.send("app:save-before-close");
+  setTimeout(() => {
+    if (!isQuitting) {
+      isQuitting = true;
+      app.quit();
+    }
   }, 1e4);
 }
-function ze() {
-  const e = We("tray.ico"), r = Z.createFromPath(e);
-  I = new ee(r), I.setToolTip("MNote");
-  const n = X.buildFromTemplate([
+function createTray() {
+  const trayIconPath = resolveResourcePath("tray.ico");
+  const trayIcon = nativeImage.createFromPath(trayIconPath);
+  tray = new Tray(trayIcon);
+  tray.setToolTip("MNote");
+  const contextMenu = Menu.buildFromTemplate([
     {
       label: "Main Window",
       click: () => {
-        o && (o.show(), o.focus());
+        if (!win) return;
+        win.show();
+        win.focus();
       }
     },
     {
       label: "Exit",
       click: () => {
-        J();
+        requestQuitWithSave();
       }
     }
   ]);
-  I.setContextMenu(n), I.on("click", () => {
-    o && (o.isVisible() ? o.hide() : (o.show(), o.focus()));
+  tray.setContextMenu(contextMenu);
+  tray.on("click", () => {
+    if (!win) return;
+    if (win.isVisible()) win.hide();
+    else {
+      win.show();
+      win.focus();
+    }
   });
 }
-function H(e) {
-  return M.unregisterAll(), M.register(e, () => {
-    console.log("[main] hotkey triggered:", e), Ee(D, L, _, () => xe(o));
-  }) ? (P = e, !0) : !1;
+function registerHotkey(accelerator) {
+  globalShortcut.unregisterAll();
+  const ok = globalShortcut.register(accelerator, () => {
+    console.log("[main] hotkey triggered:", accelerator);
+    openQuickWindow(VITE_DEV_SERVER_URL, RENDERER_DIST, __dirname$1, () => saveQuickNote(win));
+  });
+  if (!ok) return false;
+  currentShortcut = accelerator;
+  return true;
 }
-const K = pe(async (e) => {
-  e.mode === "NOTIFICATION" ? new j({
-    title: e.title,
-    body: e.text
-  }).show() : e.mode === "POPUP_WINDOW" ? Ve(D, L, _, e.text) : e.mode === "POMODORO" && new j({
-    title: e.title,
-    body: e.text
-  }).show();
-}, () => {
-  o == null || o.webContents.send("reminders:changed");
-});
-async function Ye() {
-  try {
-    await a.whenReady(), oe(), console.log("[main] schema init ok"), i.on("window:minimize", (n) => {
-      const t = E.fromWebContents(n.sender);
-      t == null || t.minimize();
-    }), i.on("window:toggle-maximize", (n) => {
-      const t = E.fromWebContents(n.sender);
-      t && (t.isMaximized() ? t.unmaximize() : t.maximize());
-    }), i.on("window:close", (n) => {
-      const t = E.fromWebContents(n.sender);
-      t == null || t.close();
-    }), i.on("app:save-done", () => {
-      N = !0, o == null || o.close();
-    }), i.handle("shortcut:update", (n, t) => H(t)), i.handle("shortcut:get", () => P), i.on("quick:note:update", (n, t) => {
-      _e(t);
-    }), i.on("quick:note:close", () => {
-      he();
-    }), i.handle("notes:getAll", async () => Re()), i.handle("notes:upsert", async (n, t) => C(t)), i.handle("notes:delete", async (n, t) => De(t)), i.handle("notes:create", async () => Ne()), i.handle("reminders:getAll", async () => Ie()), i.handle("reminders:upsert", async (n, t) => q(t)), i.handle("reminders:delete", async (n, t) => we(t)), i.handle("reminder:create", async () => be()), i.handle(
-      "reminders:markTriggered",
-      async (n, t, l) => Oe(t, l)
-    );
-    const e = Pe();
-    i.handle("pomodoro-finished", () => (e !== null && o && !o.isDestroyed() && (o == null || o.webContents.send("pomodoro-closed", e)), V(), !0)), i.handle("pomodoro-start", (n, t) => (Ue(t), o == null || o.webContents.send("reminders:changed"), !0)), i.handle("pomodoro-stop", () => (V(), !0)), i.handle("settings-open", () => (Fe(), !0)), i.handle("settings-close", () => (Ce(), !0)), i.handle("settings-save", (n, t) => (y = { ...t }, $e(y), o == null || o.webContents.send("settings-changed", t), !0)), i.handle("settings-get", () => y), X.setApplicationMenu(null), a.requestSingleInstanceLock() ? (a.on("second-instance", () => {
-      o && (o.isMinimized() && o.restore(), o.isVisible() || o.show(), o.focus());
-    }), a.whenReady().then(Y)) : a.quit(), H(P), ze(), K.start(), a.on("activate", () => {
-      E.getAllWindows().length === 0 && Y();
+const scheduler = createReminderScheduler(async (payload) => {
+  if (payload.mode === "NOTIFICATION") {
+    const n = new Notification({
+      title: payload.title,
+      body: payload.text
     });
-  } catch (e) {
-    console.error("[main] bootstrap failed:", e), a.quit();
+    n.show();
+  } else if (payload.mode === "POPUP_WINDOW") {
+    openReminderMandatoryWindow(VITE_DEV_SERVER_URL, RENDERER_DIST, __dirname$1, payload.text);
+  } else if (payload.mode === "POMODORO") {
+    const n = new Notification({
+      title: payload.title,
+      body: payload.text
+    });
+    n.show();
+  }
+}, () => {
+  win == null ? void 0 : win.webContents.send("reminders:changed");
+});
+async function bootstrap() {
+  try {
+    await app.whenReady();
+    initSchema();
+    console.log("[main] schema init ok");
+    ipcMain.on("window:minimize", (event) => {
+      const w = BrowserWindow.fromWebContents(event.sender);
+      w == null ? void 0 : w.minimize();
+    });
+    ipcMain.on("window:toggle-maximize", (event) => {
+      const w = BrowserWindow.fromWebContents(event.sender);
+      if (!w) return;
+      if (w.isMaximized()) w.unmaximize();
+      else w.maximize();
+    });
+    ipcMain.on("window:close", (event) => {
+      const w = BrowserWindow.fromWebContents(event.sender);
+      w == null ? void 0 : w.close();
+    });
+    ipcMain.on("app:save-done", () => {
+      isQuitting = true;
+      win == null ? void 0 : win.close();
+    });
+    ipcMain.handle("shortcut:update", (_event, accelerator) => {
+      return registerHotkey(accelerator);
+    });
+    ipcMain.handle("shortcut:get", () => currentShortcut);
+    ipcMain.on("quick:note:update", (_event, note) => {
+      updateQuickNote(note);
+    });
+    ipcMain.on("quick:note:close", () => {
+      closeQuickWindow();
+    });
+    ipcMain.handle("notes:getAll", async () => listNotesService());
+    ipcMain.handle("notes:upsert", async (_e, payload) => saveNoteService(payload));
+    ipcMain.handle("notes:delete", async (_e, id) => removeNoteService(id));
+    ipcMain.handle("notes:create", async () => createNoteService());
+    ipcMain.handle("reminders:getAll", async () => listRemindersService());
+    ipcMain.handle("reminders:upsert", async (_e, payload) => saveReminderService(payload));
+    ipcMain.handle("reminders:delete", async (_e, id) => removeReminderService(id));
+    ipcMain.handle("reminder:create", async () => createReminderService());
+    ipcMain.handle(
+      "reminders:markTriggered",
+      async (_e, id, ts) => markReminderTriggeredService(id, ts)
+    );
+    const currentReminderId2 = getCurrentPomodoroId();
+    ipcMain.handle("pomodoro-finished", () => {
+      if (currentReminderId2 !== null && win && !win.isDestroyed()) {
+        win == null ? void 0 : win.webContents.send("pomodoro-closed", currentReminderId2);
+      }
+      closePomodoroWindow();
+      return true;
+    });
+    ipcMain.handle("pomodoro-start", (_event, data) => {
+      openPomodoroWindow(data);
+      win == null ? void 0 : win.webContents.send("reminders:changed");
+      return true;
+    });
+    ipcMain.handle("pomodoro-stop", () => {
+      closePomodoroWindow();
+      return true;
+    });
+    ipcMain.handle("settings-open", () => {
+      openSettingsWindow();
+      return true;
+    });
+    ipcMain.handle("settings-close", () => {
+      closeSettingsWindow();
+      return true;
+    });
+    ipcMain.handle("settings-save", (_event, settings) => {
+      currentSettings = { ...settings };
+      saveSettings(currentSettings);
+      win == null ? void 0 : win.webContents.send("settings-changed", settings);
+      return true;
+    });
+    ipcMain.handle("settings-get", () => {
+      return currentSettings;
+    });
+    Menu.setApplicationMenu(null);
+    const gotTheLock = app.requestSingleInstanceLock();
+    if (!gotTheLock) {
+      app.quit();
+    } else {
+      app.on("second-instance", () => {
+        if (win) {
+          if (win.isMinimized()) win.restore();
+          if (!win.isVisible()) win.show();
+          win.focus();
+        }
+      });
+      app.whenReady().then(createWindow);
+    }
+    registerHotkey(currentShortcut);
+    createTray();
+    scheduler.start();
+    app.on("activate", () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
+  } catch (err) {
+    console.error("[main] bootstrap failed:", err);
+    app.quit();
   }
 }
-Ye();
-a.on("window-all-closed", () => {
-  process.platform !== "darwin" && (a.quit(), o = null);
+bootstrap();
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") {
+    app.quit();
+    win = null;
+  }
 });
-a.on("before-quit", () => {
-  N = !0;
+app.on("before-quit", () => {
+  isQuitting = true;
 });
-a.on("will-quit", () => {
-  K.stop(), M.unregisterAll();
+app.on("will-quit", () => {
+  scheduler.stop();
+  globalShortcut.unregisterAll();
 });
 export {
-  Ke as MAIN_DIST,
-  L as RENDERER_DIST,
-  D as VITE_DEV_SERVER_URL
+  MAIN_DIST,
+  RENDERER_DIST,
+  VITE_DEV_SERVER_URL
 };

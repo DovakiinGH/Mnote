@@ -25,7 +25,6 @@ const emit = defineEmits<{
 let internalChange = false
 const [loading, getInstance] = useInstance()
 
-// 定时检查内容变化（简单可靠的方案）
 let lastMarkdown = props.defaultValue || ''
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
@@ -45,7 +44,6 @@ const startPolling = () => {
         setTimeout(() => { internalChange = false }, 0)
       }
     } catch {
-      // 编辑器可能还没准备好
     }
   }, 300)
 }
@@ -73,13 +71,11 @@ useEditor((root) => {
   })
 })
 
-// 编辑器加载完成后开始监听
 watch(loading, (isLoading) => {
   if (!isLoading) {
     startPolling()
   }
 })
-// 父组件内容变化时（切换 tab），同步到编辑器
 watch(
   () => props.defaultValue,
   (newVal) => {
@@ -101,7 +97,6 @@ watch(
   
 )
 
-// 组件销毁时清理定时器
 import { onBeforeUnmount } from 'vue'
 onBeforeUnmount(() => {
   if (pollTimer) {

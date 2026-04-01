@@ -54,7 +54,7 @@
 
       <el-menu
       v-show="!isCollapse"
-        :default-active="activeIndex"
+        :default-active="activeCategoryIndex"
         class="el-menu-vertical"
         :collapse="isCollapse"
         @select="onSelectSideMenu"
@@ -90,7 +90,7 @@
 
         <el-scrollbar class="sub-list">        
           <div
-            v-for="item in currentItems"
+            v-for="item in currentSubListItems"
             :key="item.id"
             class="sub-item"
             :class="{ 
@@ -98,17 +98,17 @@
               'is-confirm': item.id === confirmDeleteId,
               'is-running': isReminderActive(item.id)
               }"
-            @click="onSubItemClick(item.id)"
+            @click="onSubListItemClick(item.id)"
             >
             <!-- sub list items --------------------------->
              <!--text -->
             <div class="item-content">
               {{ item.name }}
             </div>
-            <div  v-if="activeIndex === '1'" class="item-preview">
+            <div  v-if="activeCategoryIndex === '1'" class="item-preview">
             {{ getPreview(item.contentId) }}
             </div>
-            <div v-if="activeIndex === '2'" class="item-preview">
+            <div v-if="activeCategoryIndex === '2'" class="item-preview">
               {{ getReminderPreview(item.id) }}
             </div>
             <!-- buttons -->
@@ -353,12 +353,14 @@ const { onTabWheel, onTitleWheel } = useWheelScroll()
 
 
 const { t, locale } = useI18n()
-const activeIndex = ref('1')
+const activeCategoryIndex = ref('1')
 const isCollapse = ref(true)
 const isSubOpen = ref(true)
 const selectedSubId = ref<number | null>(null)
 
 const currentCloseAction=ref('tray')
+const tabs = ref<Tab[]>([])
+const activeTabKey = ref<string | null>(null)
 
 const onMinimize = () => window.api.windowMinimize()
 const onToggleMaximize = () => window.api.windowToggleMaximize()
@@ -565,25 +567,22 @@ const onNewItem = async () => {
     const n = await window.api.notesCreate()
     await loadNotes()
     selectedSubId.value = Number(n.id)
-    onSubItemClick(Number(n.id))
+    onSubListItemClick(Number(n.id))
     return
   }
   const r = await window.api.reminderCreate()
   await loadReminders()
   selectedSubId.value = Number(r.id)
-  onSubItemClick(Number(r.id))
+  onSubListItemClick(Number(r.id))
 }
 
-const getTabTitle = (tab: Tab) => {
-  const list = dataMap.value[tab.type]
-  return list.find(i => i.id === tab.itemId)?.name ?? 'Untitled'
-}
+
 
 
 //--------------------------------handleing side menus-----------------------------------------------------------------
-
+// the main side menu
 const onSelectSideMenu = (index: string) => {
-  activeIndex.value = index
+  activeCategoryIndex.value = index
    isSubOpen.value = true
 
   const type = index === '1' ? 'notes' : 'reminders'
@@ -595,7 +594,7 @@ const onSelectSideMenu = (index: string) => {
     selectedSubId.value = null
   }
 }
-
+//the arrow button on the end of sub side menu
 const onSubSideEndClick=() => {
   isCollapse.value=true
   isSubOpen.value = false
@@ -603,10 +602,10 @@ const onSubSideEndClick=() => {
 
 
 const currentCategoryName = computed<'notes'|'reminders'>(() => {
-  return activeIndex.value === '1' ? 'notes' : 'reminders'
+  return activeCategoryIndex.value === '1' ? 'notes' : 'reminders'
 })  
 
-const currentItems = computed(() => {
+const currentSubListItems = computed(() => {
   const list = currentCategoryName.value === 'notes' ? sortedNotes.value: sortedReminders.value
   const q = searchQuery.value
   if (!q || !normalizeForSearch(q)) return list
@@ -632,47 +631,45 @@ type Tab = {
   type: TabType
   itemId: number
 }
-
-const tabs = ref<Tab[]>([])
-const activeTabKey = ref<string | null>(null)
-
+const getTabTitle = (tab: Tab) => {
+  const list = dataMap.value[tab.type]
+  return list.find(i => i.id === tab.itemId)?.name ?? 'Untitled'
+}
+//create tab id
 const makeTabKey = (type: TabType, id: number) => `${type}-${id}`
-//造边栏id
-const onSubItemClick = (id: number) => {
+
+// click sub list item, open or switch to the tab, and update selectedSubId
+const onSubListItemClick = (id: number) => {
   selectedSubId.value = id
   //用type+id 创建 tab的key
   const type: TabType = currentCategoryName.value
   const key = makeTabKey(type, id)
-
-  // 确保 tab 存在 若不存在则使其存在
+  // makesure tab exists
   if (!tabs.value.find(t => t.key === key)) {
     tabs.value.push({ key, type, itemId: id })
   }
-
-  // 通过更改activeTabKey 激活该 tab
+  // change activeTabKey; let that tab be active
   activeTabKey.value = key
-} //点击边栏 激活tab
+} 
 
+// return the active tab based on activeTabKey
 const activeTab = computed(() => {
   return tabs.value.find(t => t.key === activeTabKey.value) || null
-}) //返回活跃的tab
-
+}) 
+// activate a tab by key, update activeTabKey, activeCategoryIndex and selectedSubId 
 const activateTab = (key: string) => {
-  //点击tab 切换边栏
   activeTabKey.value = key
-
   const tab = tabs.value.find(t => t.key === key)
   if (!tab) return
-
-  activeIndex.value = tab.type === 'notes' ? '1' : '2'
+  activeCategoryIndex.value = tab.type === 'notes' ? '1' : '2'
   selectedSubId.value = tab.itemId
-} //更新边栏
+} 
 
 const activeContentItem = computed(() => {
   if (!activeTab.value) return null
   const list = dataMap.value[activeTab.value.type]
   return list.find(i => i.id === activeTab.value!.itemId) || null
-}) //返回活跃的边栏item
+}) 
 const activeReminderItem = computed<ReminderItem | null>(() => {
   if (activeTab.value?.type !== 'reminders') return null
   const item = dataMap.value.reminders.find(i => i.id === activeTab.value!.itemId)
@@ -733,7 +730,6 @@ const selectedContent = computed({
     const id = activeContentItem.value?.contentId
     if (!id) return
 
-    // 内容没变，不更新时间，不触发保存
     if (contentStore.value[id] === val) return
 
     contentStore.value[id] = val
@@ -821,12 +817,12 @@ const sortedNotes = computed(() => {
     //return 正数 b在前
     //return 0不换位置
 
-    // 1) 置顶优先
+    // pin first
     const ap = a.pinned ? 1 : 0
     const bp = b.pinned ? 1 : 0
     if (ap !== bp) return bp - ap
 
-    // 2) 更新时间倒序
+    // sort by updated time 
     const au = a.updatedAt ?? 0
     const bu = b.updatedAt ?? 0
     return bu - au
