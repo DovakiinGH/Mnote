@@ -3,7 +3,7 @@ export default {
     title: 'M Note',
     notes: 'Notes',
     reminders: 'Reminders',
-    emptySpace:'add some thing',
+    emptySpace:'Add some thing',
     menu: {
       file: 'File',
       edit: 'Edit',
@@ -17,7 +17,7 @@ export default {
       new:'New',
       confirm:'confirm',
       exit:'exit',
-      search: "search..."
+      search: "Search..."
     },
     note:{
       placeHolder:'Write some thing...',
@@ -51,7 +51,13 @@ export default {
     closeAction: "Close Behavior",
     closeActionQuit: "Quit Application",
     closeActionTray: "Minimize to Tray",
-    done: "Done"
+    autoLaunch: "Auto Launch",
+    autoLaunchTrue: "True",
+    autoLaunchFalse: "False",
+    done: "Done",
+    shortcut: "Global Shortcut",
+    shortcutRecording: "Modifier keys(CTRL/ALT/SHIFT) + key",
+    shortcutNone: "Not set"
   }
 }
 }

@@ -48,10 +48,16 @@ export default {
    settings: {
     title: "设置",
     language: "语言",
-    closeAction: "关闭行为",
+    closeAction: "关闭时",
     closeActionQuit: "退出应用",
     closeActionTray: "最小化到托盘",
-    done: "完成"
+    autoLaunch: "开机启动",
+    autoLaunchTrue: "启动",
+    autoLaunchFalse: "关闭",
+    done: "完成",
+    shortcut: "全局快捷键",
+    shortcutRecording: "修饰键(CTRL/ALT/SHIFT) + 其他键",
+    shortcutNone: "未设置"
   }
   }
 }

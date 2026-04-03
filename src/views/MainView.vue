@@ -341,13 +341,14 @@ import { useI18n } from 'vue-i18n'
 import { computed, onMounted } from 'vue'
 import { watch } from 'vue'
 import MdEditor from '../components/MdEditor.vue'
-import type { NoteItem, ReminderItem, TabType, ReminderForm } from '../types/mainView'
+import type { NoteItem, ReminderItem, TabType } from '../types/mainView'
 import {REMINDER_TYPES} from '../services/reminderUtils'
 import { formatTime } from '../services/timeUtils'
 import { useWheelScroll } from '../composables/useWheelScroll'
 import { getPreview as getTextPreview } from '../services/markdownPreview'
 import { useReminderForm } from '../composables/useReminder'
 import { Search } from '@element-plus/icons-vue'
+import { useDataStore } from '../composables/useDataStore'
 
 const { onTabWheel, onTitleWheel } = useWheelScroll()
 
@@ -366,199 +367,35 @@ const onMinimize = () => window.api.windowMinimize()
 const onToggleMaximize = () => window.api.windowToggleMaximize()
 const onClose = () => window.api.windowClose()
 const searchQuery = ref('')
-
-
-//---------------------------------------------------data load and save------------------------------------------------------//
-const loadNotes = async () => {
-  const rows = await window.api.notesGetAll()
-
-  dataMap.value.notes = rows.map(r => ({
-    id: r.id,
-    name: r.title,
-    contentId: r.id,
-    createAt: r.createAt,  
-    updatedAt: r.updatedAt,    
-    pinned: Boolean(r.pinned) 
-  }))
-
-  rows.forEach(r => {
-    contentStore.value[r.id] = r.content ?? ''
-  })
-}
-const loadReminders = async()=>{
-  try {const rows = await window.api.reminderGetAll()
-
-    dataMap.value.reminders = rows.map((r: any) => ({
-    id: Number(r.id),
-    name: r.title ?? 'untitled',
-    contentId: Number(r.id), 
-    createAt: Number(r.createAt ?? Date.now()),
-    updatedAt: r.updatedAt != null ? Number(r.updatedAt) : null,
-    pinned: Boolean(r.pinned),
-    lastTriggeredAt: r.lastTriggeredAt != null ? Number(r.lastTriggeredAt) : null
-  }))
-    rows.forEach((r: any) => {
-    const id = Number(r.id)
-    reminderStore.value[id] = {
-      type: r.type,
-      mode: r.mode,
-      text: r.text ?? '',
-      enabled: Boolean(r.enabled),
-      minutes: r.minutes ?? undefined,
-      date: r.date ?? undefined,
-      time: r.time ?? undefined,
-      days: r.days ?? undefined,
-    }
-  })}catch (e) {
-    console.error('[loadReminders] failed', e)
-  }
-
-}
-const saveNote = async (id: number) => {
-  const note = dataMap.value.notes.find(n => n.id === id)
-  if (!note) return
-
-  await window.api.notesUpsert({
-    id,
-    title: note.name,
-    content: contentStore.value[note.contentId] ?? '',
-    updatedAt: note.updatedAt ?? Date.now(),
-    createAt: note.createAt?? null,
-    pinned: note.pinned ? 1 : 0
-  })
-}
-
-const saveReminder = async (id: number) => {
-  const item = dataMap.value.reminders.find(r => r.id === id)
-  if (!item) return
-  const f = reminderStore.value[id]
-  if (!f) return
-
-  await window.api.reminderUpsert({
-    id,
-    title: item.name ?? '',
-    text: f.text ?? '',
-    enabled: f.enabled ? 1 : 0,
-    mode: f.mode,
-    type: f.type,
-    minutes: f.minutes ?? null,
-    date: f.date ?? null,
-    time: f.time ?? null,
-    days: f.days ?? null,
-    createAt: item.createAt ?? Date.now(),
-    updatedAt: item.updatedAt ?? Date.now(),
-    pinned: item.pinned ? 1 : 0
-  })
-}
-
-const saveAllNotes = async () => {
-  const list = dataMap.value.notes
-  for (const n of list) {
-    await window.api.notesUpsert({
-      id: n.id,
-      title: n.name,
-      content: contentStore.value[n.contentId] ?? '',
-      updatedAt: n.updatedAt ?? null,
-      createAt: n.createAt ?? null,
-      pinned: n.pinned ? 1 : 0
-    })
-  }
-}
-const saveAllReminders = async () => {
-  for (const r of dataMap.value.reminders) {
-    await saveReminder(r.id)
-  }
-}
-const closePomodoroBeforeClose = async () => {
-  for (const [idStr, form] of Object.entries(reminderStore.value)) {
-    if (form.mode === 'POMODORO' && form.enabled) {
-      await window.api.pomodoroStop()
-      form.enabled = false
-      await saveReminder(Number(idStr))
-    }
-  }
-}
-window.api.onSaveBeforeClose(async () => {
-  try {
-    if (saveTimer) {
-      window.clearTimeout(saveTimer)
-      saveTimer = null
-    }
-    if (reminderSaveTimer) {
-      window.clearTimeout(reminderSaveTimer)
-      reminderSaveTimer = null
-    }
-    
-    await saveAllNotes()
-    await saveAllReminders()
-    await closePomodoroBeforeClose()
-  } catch (e) {
-    console.error('[onSaveBeforeClose] failed:', e)
-  } finally {
-    window.api.notifySaveDone() 
-  }
-})
+const {
+     dataMap,
+    contentStore,
+    reminderStore,
+    loadNotes,
+    loadReminders,
+    saveReminder,
+    scheduleSave,
+    scheduleSaveReminder,
+    registerSaveBeforeClose,
+    registerDataChangeListeners
+} = useDataStore()
 
 onMounted(async () => {
-  loadNotes()
-  loadReminders()
-  window.api.onNotesChanged(() => {
-    loadNotes()
-  })
-  window.api.onRemindersChanged(() => {
-    loadReminders()
-  })
-  window.api.onPomodoroClosed((id: number) => {
-    const form = reminderStore.value[id]
-    if (form) {
-      form.enabled = false
-      scheduleSaveReminder(id)
-    }
-     })
-  const settings = await window.api.settingsGet()  
-  locale.value = settings.language                  
+  await loadNotes()
+  await loadReminders()
+
+  registerDataChangeListeners()
+
+  registerSaveBeforeClose()
+
+  const settings = await window.api.settingsGet()
+  locale.value = settings.language
   currentCloseAction.value = settings.closeAction
   window.api.onSettingsChanged((settings) => {
-      locale.value = settings.language
-      currentCloseAction.value = settings.closeAction
-    })
-    
-  
+    locale.value = settings.language
+    currentCloseAction.value = settings.closeAction
+  })
 })
-
-
-//--------------------------schedule save-------------------------------------------------------------------------------------
-
-let saveTimer: number | null = null
-
-const scheduleSave = (id: number) => {
-  if (saveTimer) window.clearTimeout(saveTimer)
-  saveTimer = window.setTimeout(() => {
-    saveNote(id)
-  }, 500)
-}
-let reminderSaveTimer: number | null = null
-
-const scheduleSaveReminder = (id: number) => {
-  if (reminderSaveTimer) window.clearTimeout(reminderSaveTimer)
-  reminderSaveTimer = window.setTimeout(() => {
-    saveReminder(id)
-  }, 500)
-}
-
-
-//--------------------------data const-------------------------------------------------------------------------------------
-const dataMap = ref<{
-  notes: NoteItem[]
-  reminders: ReminderItem[]
-}>({
-  notes: [{ id: 1, name: 'no', contentId: 101 }],
-  reminders: [{ id: 10, name: 'no', contentId: 101, lastTriggeredAt: null }]
-}) //格式：ref<T>(initialValue)
-const contentStore = ref<Record<number, string>>({
-  101: '',
-})
-const reminderStore = ref<Record<number, ReminderForm>>({})
 
 //--------------------------------add new item------------------------------------------------------------
 
@@ -575,9 +412,6 @@ const onNewItem = async () => {
   selectedSubId.value = Number(r.id)
   onSubListItemClick(Number(r.id))
 }
-
-
-
 
 //--------------------------------handleing side menus-----------------------------------------------------------------
 // the main side menu
@@ -610,9 +444,7 @@ const currentSubListItems = computed(() => {
   const q = searchQuery.value
   if (!q || !normalizeForSearch(q)) return list
   return list.filter(item => {
-    // 搜索名称
     if (matchSearch(item.name ?? '', q)) return true
-    // 搜索内容
     if (currentCategoryName.value === 'notes') {
       const content = contentStore.value[item.contentId] ?? ''
       if (matchSearch(content, q)) return true
@@ -641,7 +473,7 @@ const makeTabKey = (type: TabType, id: number) => `${type}-${id}`
 // click sub list item, open or switch to the tab, and update selectedSubId
 const onSubListItemClick = (id: number) => {
   selectedSubId.value = id
-  //用type+id 创建 tab的key
+  
   const type: TabType = currentCategoryName.value
   const key = makeTabKey(type, id)
   // makesure tab exists

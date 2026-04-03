@@ -531,7 +531,9 @@ function closeSettingsWindow() {
 }
 const defaultSettings = {
   language: "en-US",
-  closeAction: "tray"
+  closeAction: "tray",
+  autoLaunch: false,
+  shortCut: "Ctrl+Space"
 };
 const filePath = path.join(app.getPath("userData"), "settings.json");
 function loadSettings() {
@@ -609,7 +611,6 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 let win = null;
 let isQuitting = false;
 let tray = null;
-let currentShortcut = "Alt+Space";
 let currentSettings = loadSettings();
 if (process.platform === "win32") {
   app.setAppUserModelId("MNote");
@@ -689,13 +690,21 @@ function createTray() {
     }
   });
 }
+let currentShortcut = "";
 function registerHotkey(accelerator) {
   globalShortcut.unregisterAll();
+  if (!accelerator) {
+    currentShortcut = "";
+    return true;
+  }
   const ok = globalShortcut.register(accelerator, () => {
     console.log("[main] hotkey triggered:", accelerator);
     openQuickWindow(VITE_DEV_SERVER_URL, RENDERER_DIST, __dirname$1, () => saveQuickNote(win));
   });
-  if (!ok) return false;
+  if (!ok) {
+    console.error("[main] hotkey register failed:", accelerator);
+    return false;
+  }
   currentShortcut = accelerator;
   return true;
 }
@@ -791,11 +800,33 @@ async function bootstrap() {
     ipcMain.handle("settings-save", (_event, settings) => {
       currentSettings = { ...settings };
       saveSettings(currentSettings);
+      registerHotkey(currentSettings.shortCut);
       win == null ? void 0 : win.webContents.send("settings-changed", settings);
       return true;
     });
     ipcMain.handle("settings-get", () => {
       return currentSettings;
+    });
+    ipcMain.handle("app:set-auto-launch", (_event, enabled) => {
+      app.setLoginItemSettings({
+        openAtLogin: enabled,
+        args: enabled ? ["--hidden"] : []
+      });
+      return true;
+    });
+    ipcMain.handle("app:get-auto-launch", () => {
+      const settings = app.getLoginItemSettings();
+      return settings.openAtLogin;
+    });
+    ipcMain.handle("shortcut:stop", () => {
+      globalShortcut.unregisterAll();
+      return true;
+    });
+    ipcMain.handle("shortcut:resume", () => {
+      if (currentShortcut) {
+        registerHotkey(currentShortcut);
+      }
+      return true;
     });
     Menu.setApplicationMenu(null);
     const gotTheLock = app.requestSingleInstanceLock();
@@ -811,7 +842,7 @@ async function bootstrap() {
       });
       app.whenReady().then(createWindow);
     }
-    registerHotkey(currentShortcut);
+    registerHotkey(currentSettings.shortCut);
     createTray();
     scheduler.start();
     app.on("activate", () => {

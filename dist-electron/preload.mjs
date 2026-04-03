@@ -57,5 +57,9 @@ electron.contextBridge.exposeInMainWorld("api", {
   settingsSave: (settings) => electron.ipcRenderer.invoke("settings-save", settings),
   //main to renderer; let renderer know settings changed
   onSettingsChanged: (cb) => electron.ipcRenderer.on("settings-changed", (_event, settings) => cb(settings)),
-  settingsGet: () => electron.ipcRenderer.invoke("settings-get")
+  settingsGet: () => electron.ipcRenderer.invoke("settings-get"),
+  setAutoLaunch: (enabled) => electron.ipcRenderer.invoke("app:set-auto-launch", enabled),
+  getAutoLaunch: () => electron.ipcRenderer.invoke("app:get-auto-launch"),
+  stopShortcut: () => electron.ipcRenderer.invoke("shortcut:stop"),
+  resumeShortcut: () => electron.ipcRenderer.invoke("shortcut:resume")
 });

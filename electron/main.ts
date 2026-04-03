@@ -10,9 +10,9 @@ import { listRemindersService, saveReminderService, removeReminderService, markR
 import { updateQuickNote, saveQuickNote } from './backend/quick.service'
 import { getResourcePath } from './path'
 import {openPomodoroWindow,closePomodoroWindow,initPomodoro,getCurrentPomodoroId} from './reminder/pomodoro'
-import { initSettings,openSettingsWindow,closeSettingsWindow } from './settings'
-import { loadSettings, saveSettings } from './settings-store'
-import type { AppSettings } from './settings-store'
+import { initSettings,openSettingsWindow,closeSettingsWindow } from './settingsWindow'
+import { loadSettings, saveSettings } from './settingsStore'
+import type { AppSettings } from './settingsStore'
 import { initReminderMandatoryWindow, openReminderMandatoryWindow } from './reminder/reminderMandatoryWindow'
 console.log('[main] main.ts loaded')
 // const require = createRequire(import.meta.url)
@@ -27,7 +27,6 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 let win: BrowserWindow | null = null
 let isQuitting = false
 let tray: Tray | null = null
-let currentShortcut = 'Alt+Space'
 let currentSettings = loadSettings()
 
 
@@ -125,13 +124,22 @@ function createTray() {
   })
 }
 //------------------------------------------short cut----------------------------------------------------------
+let currentShortcut = ''
 function registerHotkey(accelerator: string) {
   globalShortcut.unregisterAll()
+  // 如果传入空字符串，只注销不注册
+  if (!accelerator) {
+    currentShortcut = ''
+    return true
+  }
   const ok = globalShortcut.register(accelerator, () => {
     console.log('[main] hotkey triggered:', accelerator)
-    openQuickWindow(VITE_DEV_SERVER_URL, RENDERER_DIST, __dirname,() => saveQuickNote(win))
+    openQuickWindow(VITE_DEV_SERVER_URL, RENDERER_DIST, __dirname, () => saveQuickNote(win))
   })
-  if (!ok) return false
+  if (!ok) {
+    console.error('[main] hotkey register failed:', accelerator)
+    return false
+  }
   currentShortcut = accelerator
   return true
 }
@@ -192,19 +200,6 @@ async function bootstrap() {
     ipcMain.on('quick:note:close',()=>{
       closeQuickWindow()
     })
-    // ipcMain.handle('reminder:show', (_event, payload: { title: string; body: string }) => {
-    //   const n = new Notification({
-    //     title: payload.title || 'Reminder',
-    //     body: payload.body || ''
-    //   })
-    //   n.show()
-    //   return true
-    // })
-    // ipcMain.handle('reminder:open-mandatory', (_e, text: string) => {
-    //   openReminderMandatoryWindow(VITE_DEV_SERVER_URL, RENDERER_DIST, __dirname,text || '')
-    //   return true
-    // })
-     
     ipcMain.handle('notes:getAll', async () => listNotesService())
     ipcMain.handle('notes:upsert', async (_e, payload) => saveNoteService(payload))
     ipcMain.handle('notes:delete', async (_e, id: number) => removeNoteService(id))
@@ -247,16 +242,38 @@ async function bootstrap() {
     })
     ipcMain.handle('settings-save', (_event, settings: AppSettings) => {  
       currentSettings = { ...settings }                                    
-      saveSettings(currentSettings)                                        
+      saveSettings(currentSettings)
+      registerHotkey(currentSettings.shortCut)                                        
       win?.webContents.send('settings-changed', settings)                
       return true
     })
-
     ipcMain.handle('settings-get', () => {                               
       return currentSettings                                            
     }) 
+    
+    ipcMain.handle('app:set-auto-launch', (_event, enabled: boolean) => {
+      app.setLoginItemSettings({
+        openAtLogin: enabled,
+        args: enabled ? ['--hidden'] : []
+      })
+      return true
+    })
+    ipcMain.handle('app:get-auto-launch', () => {
+      const settings = app.getLoginItemSettings()
+      return settings.openAtLogin
+    })
+    ipcMain.handle('shortcut:stop', () => {
+      globalShortcut.unregisterAll()
+      return true
+    })
+    ipcMain.handle('shortcut:resume', () => {
+      if (currentShortcut) {
+        registerHotkey(currentShortcut)
+      }
+      return true
+    })
 
-    //---------------------------------------------------------------//
+    //--------------------------------------------------------------------------------------------------------------//
     //SingletInstance
     Menu.setApplicationMenu(null)
     const gotTheLock = app.requestSingleInstanceLock()
@@ -273,7 +290,7 @@ async function bootstrap() {
       })
       app.whenReady().then(createWindow)
     }
-    registerHotkey(currentShortcut)
+    registerHotkey(currentSettings.shortCut)
     createTray()
     scheduler.start() //FOR REMINDERS
 
@@ -288,9 +305,6 @@ async function bootstrap() {
 
 bootstrap()
 //------------------------------------quit------------------------------------------------------
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()

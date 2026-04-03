@@ -4,13 +4,15 @@ import { app } from 'electron'
 
 const defaultSettings = {
   language: 'en-US',
-  closeAction: 'tray'
+  closeAction: 'tray',
+  autoLaunch: false,
+  shortCut: 'Ctrl+Space'
 }
 
 export type AppSettings = typeof defaultSettings
 
 const filePath = path.join(app.getPath('userData'), 'settings.json')
-
+//%APPDATA%\Mnote
 export function loadSettings(): AppSettings {
   try {
     if (fs.existsSync(filePath)) {
@@ -25,7 +27,8 @@ export function loadSettings(): AppSettings {
 
 export function saveSettings(settings: AppSettings): void {
   try {
-    fs.writeFileSync(filePath, JSON.stringify(settings, null, 2), 'utf-8')
+    fs.writeFileSync(filePath, JSON.stringify(settings, null, 2), 'utf-8')  
+    // null for do not use replacer, 2 for pretty-printing(2 spaces at the beginning of each line)
   } catch (e) {
     console.error('[settings] save failed:', e)
   }

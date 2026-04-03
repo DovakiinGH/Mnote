@@ -33,12 +33,18 @@ declare global {
 
         settingsOpen: () => Promise<boolean>        
         settingsClose: () => Promise<boolean>
-        settingsSave: (settings: { language: string; closeAction: string }) => Promise<boolean>
-        onSettingsChanged: (cb: (settings: { language: string; closeAction: string }) => void) => void
-        settingsGet: () => Promise<{ language: string; closeAction: string }>
+        settingsSave: (settings: { language: string; closeAction: string; autoLaunch: boolean; shortCut: string }) => Promise<boolean>
+        onSettingsChanged: (cb: (settings: { language: string; closeAction: string; autoLaunch: boolean; shortCut: string }) => void) => void
+        settingsGet: () => Promise<{ language: string; closeAction: string; autoLaunch: boolean,shortCut: string }>
         windowMinimize: () => void
         windowToggleMaximize: () => void
         windowClose: () => void
+
+        setAutoLaunch: (enabled: boolean) => Promise<boolean>
+        getAutoLaunch: () => Promise<boolean>
+
+        stopShortcut: () => Promise<boolean>
+        resumeShortcut: () => Promise<boolean>
 
        
     }

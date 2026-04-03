@@ -363,32 +363,7 @@ a {
   -ms-overflow-style: none;        /* IE/Edge */
 }
 
-/* search */
-.sub-end {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  border-top: 1px solid var(--el-border-color-lighter);
-}
 
-.search-input {
-  flex: 1;
-}
-
-.search-input :deep(.el-input__wrapper) {
-  border-radius: 12px;
-  background: var(--el-fill-color-light);
-  box-shadow: none;
-}
-
-.search-input :deep(.el-input__wrapper:hover) {
-  background: var(--el-fill-color);
-}
-
-.search-input :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px var(--el-color-primary) inset;
-}
 
 
 

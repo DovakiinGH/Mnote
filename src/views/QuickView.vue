@@ -28,12 +28,15 @@
             />
           </el-scrollbar>
     </div>
+     <div class="footer">
+      <el-button  @click="onSaveClose">{{ t('app.settings.done') }}</el-button>
+    </div>
   </div>
 </template>
 
 <script lang="ts" setup>
 import { ref,onMounted } from 'vue'
-import { watch } from 'vue'
+
 import { useI18n } from 'vue-i18n'
 const { t,locale } = useI18n()
 onMounted(async() => {
@@ -42,14 +45,17 @@ onMounted(async() => {
 })
 const selectedName = ref('')
 const selectedContent = ref('')
-watch([selectedName, selectedContent], () => {
-  window.api.quickNoteUpdate({
-    title: selectedName.value,
-    content: selectedContent.value
-  })
-}, { immediate: true })
-
+// import { watch } from 'vue'
+// watch([selectedName, selectedContent], () => {
+//   window.api.quickNoteUpdate({
+//     title: selectedName.value,
+//     content: selectedContent.value
+//   })
+// }, { immediate: true })
 const onClose =async () => {
+  window.api.quickNoteClose()
+}
+const onSaveClose =async () => {
    window.api.quickNoteUpdate({
     title: selectedName.value,
     content: selectedContent.value
