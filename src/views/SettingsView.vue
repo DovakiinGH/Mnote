@@ -215,7 +215,7 @@ function clearShortcut() {
   width: 100%;
   height: 32px;
   padding: 0 12px;
-  border: 1px solid var(--el-border-color);
+  border: 1px solid var(--main-border-color);
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s;
@@ -223,19 +223,19 @@ function clearShortcut() {
   outline: none;
 }
 .shortcut-input:hover {
-  border-color: var(--el-color-primary);
+  border-color: var( --subm-active-border-color);
 }
 .shortcut-input:focus {
-  border-color: var(--el-color-primary);
-  box-shadow: 0 0 0 1px var(--el-color-primary) inset;
+  border-color: var( --subm-active-border-color);
+  box-shadow: 0 0 0 1px var(--shadow-color) inset;
 }
 .shortcut-input.recording {
-  border-color: var(--el-color-warning);
-  box-shadow: 0 0 0 1px var(--el-color-warning) inset;
-  background-color: var(--el-color-warning-light-9);
+  border-color: var(--subm-active-border-color);
+  box-shadow: 0 0 0 1px var(--subm-active-border-color) inset;
+  background-color: var(--side-bg-active);
 }
 .recording-hint {
-  color: var(--el-color-warning);
+  color: var(--subm-active-border-color);
   font-size: 13px;
   animation: blink 1s infinite;
 }
@@ -245,11 +245,11 @@ function clearShortcut() {
 }
 .shortcut-display {
   font-size: 13px;
-  color: var(--el-text-color-regular);
+  color: var(--sub-text-color);
   letter-spacing: 0.5px;
 }
 .shortcut-clear {
   margin-left: 8px;
-  color: var(--el-text-color-placeholder);
+  color: var(--sub-text-color);
 }
 </style>

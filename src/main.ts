@@ -16,9 +16,11 @@ import './styles/sub-side-menu.css'
 import './styles/milkdown.css'
 import './styles/sub-window.css'
 import router from './router'
+import './theme/base.css'
+import './theme/light-blue.css'
+
 
 const app = createApp(App)
-
 const savedLang = localStorage.getItem('lang') || 'en-US'
 const i18n = createI18n({
   legacy: false,
@@ -28,6 +30,8 @@ const i18n = createI18n({
     'en-US': enUS
   }
 })
+const savedTheme = localStorage.getItem('app-theme') || 'light-blue'
+document.documentElement.setAttribute('data-theme', savedTheme)
 
 for(const [key,component] of Object.entries(ElementPlusIconsVue)){
   app.component(key,component)

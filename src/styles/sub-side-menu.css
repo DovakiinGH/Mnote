@@ -2,8 +2,8 @@
    Sub-side
    ========================================================= */
 .sub-side {
-  background: #f7f7f7;
-  border-left: 1px solid #e5e5e5;
+  background: var(--sub-bg-color-two);
+  border-left: 1px solid var(--sub-side-border-color);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -23,7 +23,7 @@
   align-items: center;
   justify-content: center;
   height: clamp(10px, 10vh, 100px);
-  border-bottom: 1px solid #e5e5e5;
+  border-bottom: 1px solid var(--sub-side-border-color);
   padding-bottom: 8px;
 }
 .sub-end {
@@ -32,7 +32,7 @@
   align-items: center;
   justify-content: center;
   height: clamp(10px, 10vh, 100px);
-  border-top: 1px solid #e5e5e5;
+  border-top: 1px solid var(--sub-side-border-color);
   gap: 10px;
   padding: 10px 8px;
 
@@ -41,7 +41,7 @@
 
 .sub-title {
   font-weight: 700;
-  color: #3b4a63;
+  color: var(--side-text-color);
 }
 
 .sub-list {
@@ -61,17 +61,17 @@
 
 
 .sub-item.active {
-  border: 1px solid #6aa8f7;
-  box-shadow: 0 0 0 2px rgba(106,168,247,0.2);
+  border: 1px solid var( --subm-active-border-color);
+ 
 }
 
 .sub-item {
     cursor: pointer;
   position: relative;
-  background: #fff;
+  background: var(--main-bg-color);
   border-radius: 6px;
   padding: 8px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  box-shadow: 0 1px 2px var(--shadow-color);
   flex: 0 0 auto;
   min-height: 7vw;
 }
@@ -117,7 +117,7 @@
 
 /* delete icon */
 .item-del-icon {
-  color: #e34b4b;
+  color: var(--del-button-color);
   font-size: 16px;
 }
 
@@ -135,7 +135,7 @@
 }
 
 .item-pin-icon {
-  color: #9aa0a6;
+  color: var(--sub-button-color);
   font-size: 16px;
 }
 
@@ -170,20 +170,25 @@
 
 /* confirm button */
 .btn-confirm {
-  background: #e34b4b;
-  color: #fff;
+  background: var(--del-button-color);
+  color: var(--main-text-color);
   border: none;
 }
 .btn-confirm:hover {
-  background: #f90000 !important;
-  color: #fde2e2;
+  background: var(--del-button-hover-color) !important;
+  color: var(--del-hover-text-color);
 }
 
 /* cancel button */
 .btn-cancel {
-  background: #fff;
-  color: #333;
-  border: 1px solid #ddd;
+  background: var(--main-bg-color);
+  color:  var(--side-text-color);
+  border: 1px solid var(--sub-side-border-color);
+}
+.btn-cancel:hover {
+  background: var(--main-button-color) !important;
+  color: var( --main-text-color);
+  border-color: var(--sub-border-colorr);
 }
 
 
@@ -197,14 +202,14 @@
 
 .search-input :deep(.el-input__wrapper) {
   border-radius: 12px;
-  background: var(--el-fill-color-light);
+  background: var(--main-bg-color);
   box-shadow: none;
 }
 
 .search-input :deep(.el-input__wrapper:hover) {
-  background: var(--el-fill-color);
+  background: var( --main-button-color);
 }
 
 .search-input :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px var(--el-color-primary) inset;
+  box-shadow: 0 0 0 1px var(--shadow-colory) inset;
 }

@@ -16,18 +16,16 @@
 }
 
 .empty-placeholder {
-  flex: 1;                     /* 占满内容区剩余空间 */
+  flex: 1;                    
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #d6d6d6;              /* 浅灰字 */
+  color: var( --empty-placeholder-text-color);             
   font-size: 24px;
   font-weight: 600;
   letter-spacing: 0.5px;
-  user-select: none;           /* 不可选中 */
-  /* 字体大小随窗口变化 */
+  user-select: none;          
   font-size: clamp(16px, 2.5vw, 32px);
-  /* 字体粗细随窗口变化 */
   font-weight: clamp(400, 1.5vw, 700);
 }
 
@@ -52,26 +50,26 @@ a {
 
 /*-------------------------reminder active-------------*/
 .sub-item.is-running {
-  background-color: #409eff;
-  color: #fff;
+  background-color: var(--main-button-color);
+  color: var(--main-text-color);
 }
 
 .sub-item.is-running .item-content {
-  color: #fff;
+  color: var(--main-text-color);
 }
 
 .sub-item.is-running .item-preview {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--blur-text-color);
 }
 
 .sub-item.is-running .item-del-icon,
 .sub-item.is-running .item-pin-icon {
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--blur-text-color);
 }
 
 .sub-item.is-running.active {
-  background-color: #7CBBF5;
-  border-color: #fff;
+  background-color: var(--main-tab-color-one);
+  border-color: var(--sub-border-color);
 }
 
 
@@ -84,7 +82,7 @@ a {
   padding: 0 1.2em;
   border-radius: 80px;
   font-weight: 600;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.18);
+  box-shadow: 0 2px 4px var(--shadow-color);
   display: inline-flex;
   align-items: center;
   gap: 0.6em;
@@ -94,8 +92,8 @@ a {
   position: relative;
   justify-content: center;
   padding-left: 2.2em;
-  background-color:#409EFF;
-  color: #ffffff;
+  background-color:var(--main-button-color);
+  color: var(--main-text-color);
 }
 
 /* 左侧圆形 + 号 */
@@ -103,7 +101,7 @@ a {
   width: 5vh;
   height: 5vh;
   border-radius: 50%;
-  background: rgba(255,255,255,0.35);
+  background: var(--new-transparent-color);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -152,7 +150,7 @@ a {
 .reminder-panel.is-locked :deep(.is-disabled .el-input__wrapper),
 .reminder-panel.is-locked :deep(.is-disabled .el-textarea__inner),
 .reminder-panel.is-locked :deep(.is-disabled .el-select__wrapper) {
-  background: #f3f3f3 !important;
+  background: var(--disable-bg-color) !important;
 }
 
 /* =========================================================
@@ -215,7 +213,7 @@ a {
   height: 18px;       
   line-height: 18px;
   font-size: 12px;
-  color: #999;
+  color: var(--sub-text-color);
 }
 .time-right {
   margin-left: auto;
@@ -234,7 +232,7 @@ a {
   align-items: stretch;
   padding: 0;
   gap: 0;                 
-  background: linear-gradient(90deg, #7CBBF5 0%, #2697FF 100%);
+  background: linear-gradient(90deg, var(--main-tab-color-one) 0%, var(--main-tab-color-two) 100%);
   border-bottom: none;
   flex-wrap: nowrap;
   white-space: nowrap;
@@ -253,14 +251,14 @@ a {
   justify-content: space-between;
 
  
-  background: linear-gradient(90deg, #7CBBF5 0%, #2697FF 100%);
-  color: #fff;
+  background: linear-gradient(90deg, var(--main-tab-color-one) 0%, var(--main-tab-color-two) 100%);
+  color: var(--main-text-color);
   padding: 0 10px;
 }
 
 .tab.active {
-  background: linear-gradient(90deg, #ffffff 0%, #f7f7f7 60% ,#e6f0ff 100%);
-  color:#2697FF;
+  background: linear-gradient(90deg, var(--sub-tab-color-one) 0%, var(--sub-tab-color-two) 60% ,var(--sub-tab-color-three) 100%);
+  color: var(--main-tab-color-two);
 }
 
 .tab-title {
@@ -302,10 +300,10 @@ a {
 .reminder-form .el-date-editor {
   box-shadow: none !important;
   border: none !important;
-  background: #f7f9fc; /* 淡灰背景，防止太空 */
+  /* background: #f7f9fc;  */
 }
 
-/* 聚焦时也不要明显边框 */
+
 .reminder-form .is-focus .el-input__wrapper,
 .reminder-form .is-focus .el-select__wrapper,
 .reminder-form .is-focus .el-input-number__wrapper {
@@ -313,7 +311,6 @@ a {
   border: none !important;
 }
 
-/* 输入文字大小随窗口变化 */
 .reminder-form input {
   font-size: clamp(13px, 1.2vw, 16px);
 }
@@ -332,12 +329,11 @@ a {
 }
 
 
-/* 外层滚动容器：有边框、固定高度 */
 .reminder-text-scroll {
-  height: 160px;                /* 固定高度，不随内容变 */
-  border: 1px solid #dcdfe6;
+  height: 160px;               
+  border: 1px solid var(--main-border-color);
   border-radius: 6px;
-  background: #fff;
+  background: var(--main-bg-color);
 }
 .reminder-textarea,
 .reminder-textarea .el-textarea,

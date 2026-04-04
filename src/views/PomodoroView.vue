@@ -68,8 +68,8 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: linear-gradient(to right,#45a5fa,#3794EA,#317EC7);
-  color: #fff;
+  background: linear-gradient(to right,var(--main-bar-first),var(--main-bar-second),var(--main-bar-third));
+  color: var(--main-text-color);
   user-select: none;
     overflow: hidden;
 }

@@ -1,5 +1,5 @@
 .top-bar {
-  background: linear-gradient(to right,#45a5fa,#3794EA,#317EC7);
+  background: linear-gradient(to right,var(--main-bar-first),var(--main-bar-second),var(--main-bar-third));
   display: flex;
   align-items: center;
   padding: 0 12px;
@@ -9,11 +9,11 @@
   height: 6vh;
   min-height: 32px;
   max-height: 70px;
-  -webkit-app-region: drag;  /* 整个栏可拖动 */
+  -webkit-app-region: drag;  
 }
 
 .app-title {
-  color: #fff;
+  color: var(--main-text-color);
   font-weight: 600;
   margin-right: 16px;
   margin-left: 16px;
@@ -21,7 +21,6 @@
    z-index: 100;
 }
 
-/* window button */
 .window-actions {
   -webkit-app-region: no-drag;
   margin-left: auto;
@@ -34,7 +33,7 @@
   border: none;
   border-radius: 0;
   background: transparent;
-  color: #fff;
+  color: var(--main-text-color);
   height: 100%;
   width: clamp(40px, 3.2vw, 56px);
   padding: 0;
@@ -44,8 +43,8 @@
   border-radius: 5px;
 }
 .window-actions .win-btn.el-button:hover {
-  background: rgba(255, 255, 255, 0.16);
-  color: #fff;
+  background: var(--window-button-hover-color);
+  color: var(--main-text-color);
 }
 
 /* done button footer */
@@ -53,19 +52,19 @@
   padding: 12px 20px;
   display: flex;
   justify-content: flex-end;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--main-border-color);
 }
 
 .footer .el-button {
-  background-color: #409eff;
-  border: #409eff;
-  color: #fff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18);
+  background-color: var(--main-button-color);
+  border: var(--main-button-color);
+  color: var(--main-text-color);
+  box-shadow: 0 2px 4px var(--shadow-color);
 }
 
 .footer .el-button:hover {
-  background-color: #fff;
-  border-color: #409eff;
-  color: #409eff;
+  background-color: var(--main-hover-button-color);
+  border-color: var(--main-button-color);
+  color: var(--main-button-color);
 }
 
