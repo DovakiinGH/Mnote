@@ -26,4 +26,21 @@ export default defineConfig({
         : {},
     }),
   ],
+  optimizeDeps: {
+    include: [
+      '@codemirror/theme-one-dark',
+
+    ],
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          codemirror: [
+            '@codemirror/theme-one-dark',
+          ],
+        },
+      },
+    },
+  },
 })

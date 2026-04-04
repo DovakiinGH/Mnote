@@ -1,17 +1,29 @@
 <template>
-  <el-scrollbar class="milkdown-scroll">
+  <el-scrollbar ref="scrollbarRef" class="milkdown-scroll">
   <Milkdown spellcheck="false"/>
   </el-scrollbar>
 </template>
 
 <script setup lang="ts">
-import { watch } from 'vue'
+import { watch ,ref} from 'vue'
 import { Milkdown, useEditor, useInstance } from '@milkdown/vue'
 import { Crepe } from '@milkdown/crepe'
 import { getMarkdown, replaceAll } from '@milkdown/kit/utils'
 
 import '@milkdown/crepe/theme/common/style.css'
 import '@milkdown/crepe/theme/frame.css'
+import { oneDark } from '@codemirror/theme-one-dark' 
+import { javascript } from '@codemirror/lang-javascript'
+import { python } from '@codemirror/lang-python'
+import { java } from '@codemirror/lang-java'
+import { cpp } from '@codemirror/lang-cpp'
+import { go } from '@codemirror/lang-go'
+import { rust } from '@codemirror/lang-rust'
+import { html } from '@codemirror/lang-html'
+import { css } from '@codemirror/lang-css'
+import { json } from '@codemirror/lang-json'
+import { markdown } from '@codemirror/lang-markdown'
+import { sql } from '@codemirror/lang-sql'
 
 const props = defineProps<{
   defaultValue: string
@@ -21,6 +33,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update', value: string): void
 }>()
+const scrollbarRef = ref<InstanceType<typeof import('element-plus')['ElScrollbar']> | null>(null)
 
 let internalChange = false
 const [loading, getInstance] = useInstance()
@@ -47,6 +60,9 @@ const startPolling = () => {
     }
   }, 300)
 }
+const resetScroll = () => {
+  scrollbarRef.value?.setScrollTop(0)
+}
 
 useEditor((root) => {
   return new Crepe({
@@ -67,6 +83,21 @@ useEditor((root) => {
       placeholder: {
         text: 'Write something...',
       },
+    'code-mirror': {                // 新增这一层
+        extensions: [oneDark,
+            javascript(),
+          python(),
+          java(),
+          cpp(),
+          go(),
+          rust(),
+          html(),
+          css(),
+          json(),
+          markdown(),
+          sql(),],     // 将 oneDark 放在这里
+      },
+      
     },
   })
 })
@@ -90,6 +121,7 @@ watch(
       if (currentVal === newVal) return
       lastMarkdown = newVal ?? ''
       editor.action(replaceAll(newVal ?? ''))
+       resetScroll()
     } catch (e) {
       console.warn('[MilkdownEditor] replaceAll failed:', e)
     }
@@ -107,6 +139,8 @@ onBeforeUnmount(() => {
 </script>
 
 <style>
+
+
 .milkdown-scroll {
   height: 100%;
 }
