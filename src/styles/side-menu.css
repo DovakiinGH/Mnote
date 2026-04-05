@@ -50,7 +50,11 @@
   width: clamp(14px, 1.5vw, 30px);
   height: clamp(14px, 1.5vh, 30px);
 }
-
+.side-btn:focus,
+.side-btn:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
 
 /* 折叠时：按钮覆盖整个侧栏 */
 .side-hit {

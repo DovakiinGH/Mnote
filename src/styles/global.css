@@ -46,6 +46,11 @@
   background: var(--window-button-hover-color);
   color: var(--main-text-color);
 }
+.win-btn:focus,
+.win-btn:focus-visible {
+ outline: none;
+  box-shadow: none;
+}
 
 /* done button footer */
 .footer {
