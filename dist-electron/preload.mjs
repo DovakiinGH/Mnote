@@ -1,1 +1,65 @@
-"use strict";const e=require("electron");e.contextBridge.exposeInMainWorld("ipcRenderer",{on(...n){const[r,o]=n;return e.ipcRenderer.on(r,(i,...t)=>o(i,...t))},off(...n){const[r,...o]=n;return e.ipcRenderer.off(r,...o)},send(...n){const[r,...o]=n;return e.ipcRenderer.send(r,...o)},invoke(...n){const[r,...o]=n;return e.ipcRenderer.invoke(r,...o)}});e.contextBridge.exposeInMainWorld("api",{windowMinimize:()=>e.ipcRenderer.send("window:minimize"),windowToggleMaximize:()=>e.ipcRenderer.send("window:toggle-maximize"),windowClose:()=>e.ipcRenderer.send("window:close"),notesGetAll:()=>e.ipcRenderer.invoke("notes:getAll"),notesUpsert:n=>e.ipcRenderer.invoke("notes:upsert",n),notesDelete:n=>e.ipcRenderer.invoke("notes:delete",n),notesCreate:()=>e.ipcRenderer.invoke("notes:create"),reminderGetAll:()=>e.ipcRenderer.invoke("reminders:getAll"),reminderUpsert:n=>e.ipcRenderer.invoke("reminders:upsert",n),reminderDelete:n=>e.ipcRenderer.invoke("reminders:delete",n),reminderCreate:()=>e.ipcRenderer.invoke("reminder:create"),onSaveBeforeClose:n=>e.ipcRenderer.on("app:save-before-close",n),notifySaveDone:()=>e.ipcRenderer.send("app:save-done"),shortcutGet:()=>e.ipcRenderer.invoke("shortcut:get"),shortcutUpdate:n=>e.ipcRenderer.invoke("shortcut:update",n),quickNoteUpdate:n=>e.ipcRenderer.send("quick:note:update",n),quickNoteClose:()=>e.ipcRenderer.send("quick:note:close"),onNotesChanged:n=>e.ipcRenderer.on("notes:changed",()=>n()),submitMandatoryReminder:(n,r)=>e.ipcRenderer.invoke(r,n),onRemindersChanged:n=>{e.ipcRenderer.on("reminders:changed",()=>n())},pomodoroStart:n=>e.ipcRenderer.invoke("pomodoro-start",n),pomodoroStop:()=>e.ipcRenderer.invoke("pomodoro-stop"),pomodoroFinished:()=>e.ipcRenderer.invoke("pomodoro-finished"),onPomodoroClosed:n=>e.ipcRenderer.on("pomodoro-closed",(r,o)=>n(o)),settingsOpen:()=>e.ipcRenderer.invoke("settings-open"),settingsClose:()=>e.ipcRenderer.invoke("settings-close"),settingsSave:n=>e.ipcRenderer.invoke("settings-save",n),onSettingsChanged:n=>e.ipcRenderer.on("settings-changed",(r,o)=>n(o)),settingsGet:()=>e.ipcRenderer.invoke("settings-get"),setAutoLaunch:n=>e.ipcRenderer.invoke("app:set-auto-launch",n),getAutoLaunch:()=>e.ipcRenderer.invoke("app:get-auto-launch"),stopShortcut:()=>e.ipcRenderer.invoke("shortcut:stop"),resumeShortcut:()=>e.ipcRenderer.invoke("shortcut:resume")});
+"use strict";
+const electron = require("electron");
+electron.contextBridge.exposeInMainWorld("ipcRenderer", {
+  on(...args) {
+    const [channel, listener] = args;
+    return electron.ipcRenderer.on(channel, (event, ...args2) => listener(event, ...args2));
+  },
+  off(...args) {
+    const [channel, ...omit] = args;
+    return electron.ipcRenderer.off(channel, ...omit);
+  },
+  send(...args) {
+    const [channel, ...omit] = args;
+    return electron.ipcRenderer.send(channel, ...omit);
+  },
+  invoke(...args) {
+    const [channel, ...omit] = args;
+    return electron.ipcRenderer.invoke(channel, ...omit);
+  }
+  // You can expose other APTs you need here.
+  // ...
+});
+electron.contextBridge.exposeInMainWorld("api", {
+  windowMinimize: () => electron.ipcRenderer.send("window:minimize"),
+  windowToggleMaximize: () => electron.ipcRenderer.send("window:toggle-maximize"),
+  windowClose: () => electron.ipcRenderer.send("window:close"),
+  notesGetAll: () => electron.ipcRenderer.invoke("notes:getAll"),
+  notesUpsert: (note) => electron.ipcRenderer.invoke("notes:upsert", note),
+  notesDelete: (id) => electron.ipcRenderer.invoke("notes:delete", id),
+  notesCreate: () => electron.ipcRenderer.invoke("notes:create"),
+  reminderGetAll: () => electron.ipcRenderer.invoke("reminders:getAll"),
+  reminderUpsert: (payload) => electron.ipcRenderer.invoke("reminders:upsert", payload),
+  reminderDelete: (id) => electron.ipcRenderer.invoke("reminders:delete", id),
+  reminderCreate: () => electron.ipcRenderer.invoke("reminder:create"),
+  onSaveBeforeClose: (cb) => electron.ipcRenderer.on("app:save-before-close", cb),
+  notifySaveDone: () => electron.ipcRenderer.send("app:save-done"),
+  shortcutGet: () => electron.ipcRenderer.invoke("shortcut:get"),
+  shortcutUpdate: (accelerator) => electron.ipcRenderer.invoke("shortcut:update", accelerator),
+  quickNoteUpdate: (note) => electron.ipcRenderer.send("quick:note:update", note),
+  quickNoteClose: () => electron.ipcRenderer.send("quick:note:close"),
+  onNotesChanged: (cb) => electron.ipcRenderer.on("notes:changed", () => cb()),
+  // showReminder: (payload: { title: string; body: string }) =>
+  //   ipcRenderer.invoke('reminder:show', payload),
+  // openMandatoryReminder: (text: string) => ipcRenderer.invoke('reminder:open-mandatory', text),
+  submitMandatoryReminder: (payload, channel) => electron.ipcRenderer.invoke(channel, payload),
+  onRemindersChanged: (cb) => {
+    electron.ipcRenderer.on("reminders:changed", () => cb());
+  },
+  //cb for call back function
+  pomodoroStart: (data) => electron.ipcRenderer.invoke("pomodoro-start", data),
+  pomodoroStop: () => electron.ipcRenderer.invoke("pomodoro-stop"),
+  pomodoroFinished: () => electron.ipcRenderer.invoke("pomodoro-finished"),
+  onPomodoroClosed: (cb) => electron.ipcRenderer.on("pomodoro-closed", (_event, id) => cb(id)),
+  settingsOpen: () => electron.ipcRenderer.invoke("settings-open"),
+  settingsClose: () => electron.ipcRenderer.invoke("settings-close"),
+  //renderer to main; let main know user saved settings and pass the settings data
+  settingsSave: (settings) => electron.ipcRenderer.invoke("settings-save", settings),
+  //main to renderer; let renderer know settings changed
+  onSettingsChanged: (cb) => electron.ipcRenderer.on("settings-changed", (_event, settings) => cb(settings)),
+  settingsGet: () => electron.ipcRenderer.invoke("settings-get"),
+  setAutoLaunch: (enabled) => electron.ipcRenderer.invoke("app:set-auto-launch", enabled),
+  getAutoLaunch: () => electron.ipcRenderer.invoke("app:get-auto-launch"),
+  stopShortcut: () => electron.ipcRenderer.invoke("shortcut:stop"),
+  resumeShortcut: () => electron.ipcRenderer.invoke("shortcut:resume")
+});

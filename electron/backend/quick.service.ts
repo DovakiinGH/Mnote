@@ -21,7 +21,7 @@ export function clearQuickNote() {
 
 export async function saveQuickNote(mainWindow: BrowserWindow | null): Promise<void> {
   const title = quickDraft.title?.trim() ?? ''
-  const content = quickDraft.content ?? ''
+  const content = quickDraft.content?.trim() ?? ''
 
   if (!title && !content) return 
 

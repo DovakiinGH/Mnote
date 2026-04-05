@@ -28,6 +28,7 @@ import { sql } from '@codemirror/lang-sql'
 const props = defineProps<{
   defaultValue: string
   disabled?: boolean
+  minimal?: boolean 
 }>()
 
 const emit = defineEmits<{
@@ -71,19 +72,19 @@ useEditor((root) => {
     features: {
       'list-item': true,
       'link-tooltip': true,
-      'block-edit': true,
+      'block-edit': !props.minimal,      
       'placeholder': false,
-      'toolbar': true,
+      'toolbar': true,          
       'image-block': false,
       'cursor': true,
-      'table': true,
+      'table': !props.minimal,            
       'code-mirror': true,
     },
     featureConfigs: {
       placeholder: {
         text: 'Write something...',
       },
-    'code-mirror': {                // 新增这一层
+    'code-mirror': {                
         extensions: [oneDark,
             javascript(),
           python(),
@@ -95,7 +96,7 @@ useEditor((root) => {
           css(),
           json(),
           markdown(),
-          sql(),],     // 将 oneDark 放在这里
+          sql(),],     
       },
       
     },

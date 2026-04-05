@@ -55,7 +55,7 @@ export function openQuickWindow(
 
     Promise.resolve(onBeforeClose?.()).finally(() => {
       //Promise.resolve let the return of onBeforeClose() turn to promise whether it is promise or not
-      //finally make sure the code below will execute
+      //'finally' make sure the code below will execute
       allowClose = true
       quickWin?.close()
     })

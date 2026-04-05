@@ -4,6 +4,7 @@
       <MilkdownEditor
         :defaultValue="modelValue"
         :disabled="disabled"
+        :minimal="minimal"
         @update="onUpdate"
       />
     </MilkdownProvider>
@@ -17,6 +18,7 @@ import MilkdownEditor from './MilkdownEditor.vue'
 defineProps<{
   modelValue: string
   disabled?: boolean
+  minimal?: boolean
 }>()
 
 const emit = defineEmits<{
