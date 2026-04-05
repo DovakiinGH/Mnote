@@ -64,13 +64,40 @@ export function useReminderForm(
     }
   }
 
+  // const onEnabledChange = async (val: boolean) => {
+  //   const item = activeReminderItem.value
+  //   if (!item) return
+
+  //   const form = reminderStore.value[item.id]
+  //   if (!form || form.mode !== 'POMODORO') return
+
+  //   if (val) {
+  //     for (const [idStr, f] of Object.entries(reminderStore.value)) {
+  //       const otherId = Number(idStr)
+  //       if (otherId !== item.id && f.mode === 'POMODORO' && f.enabled) {
+  //         f.enabled = false
+  //         saveReminder(otherId)
+  //       }
+  //     }
+  //     saveReminder(item.id)
+  //     await window.api.pomodoroStart({
+  //       id: item.id,
+  //       title: item.name,
+  //       text: form.text ?? '',
+  //       minutes: form.minutes ?? 25
+  //     })
+  //   } else {
+  //     await window.api.pomodoroStop()
+  //   }
+  // }
   const onEnabledChange = async (val: boolean) => {
-    const item = activeReminderItem.value
-    if (!item) return
+  const item = activeReminderItem.value
+  if (!item) return
 
-    const form = reminderStore.value[item.id]
-    if (!form || form.mode !== 'POMODORO') return
+  const form = reminderStore.value[item.id]
+  if (!form || form.mode !== 'POMODORO') return
 
+  try {
     if (val) {
       for (const [idStr, f] of Object.entries(reminderStore.value)) {
         const otherId = Number(idStr)
@@ -89,7 +116,10 @@ export function useReminderForm(
     } else {
       await window.api.pomodoroStop()
     }
+  } catch (e) {
+    console.error('[onEnabledChange] pomodoro API failed', e)
   }
+}
 
   return {
     currentReminderForm,

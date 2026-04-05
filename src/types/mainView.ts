@@ -17,7 +17,6 @@ export type ReminderItem = BaseItem & {
 
 export type TabType = 'notes' | 'reminders'
 
-// 你原来的 ReminderForm 保持不变
 export type ReminderForm = {
   type: 'AFTER_MINUTES' | 'DATE_TIME' | 'EVERY_DAYS'
   mode: 'NOTIFICATION' | 'POPUP_WINDOW' | 'POMODORO'

@@ -127,7 +127,6 @@ function createTray() {
 let currentShortcut = ''
 function registerHotkey(accelerator: string) {
   globalShortcut.unregisterAll()
-  // 如果传入空字符串，只注销不注册
   if (!accelerator) {
     currentShortcut = ''
     return true
